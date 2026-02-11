@@ -1,0 +1,84 @@
+export interface Product {
+  id: string;
+  categoryId: string;
+  name: string;
+  description: string;
+  price: number;
+  imageUrl?: string;
+  isFeatured?: boolean;
+  isInCampaign?: boolean;
+  isPizza?: boolean;
+  kind?: 'padrao' | 'pizza' | 'bebida';
+  pizzaFlavors?: PizzaFlavor[];
+  pizzaCrusts?: PizzaCrust[];
+}
+
+export interface Category {
+  id: string;
+  name: string;
+}
+
+export interface Offer {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  productIds?: string[];
+}
+
+export interface Restaurant {
+  slug?: string;
+  name: string;
+  logoUrl: string;
+  coverUrl: string;
+  whatsappNumber: string;
+  isOpen: boolean;
+  openingHours: string;
+  address: string;
+  city: string;
+  state: string;
+  taxId?: string | null;
+  minOrderValue: number;
+  deliveryFee: number;
+}
+
+// Auxiliar types for Pizza
+export interface PizzaFlavor {
+  id: string;
+  name: string;
+  description?: string;
+  price?: number;
+}
+
+export interface PizzaCrust {
+  id: string;
+  name: string;
+  price: number;
+}
+
+export interface CartItem extends Product {
+  cartId: string; // Unique ID for the item in the cart (to separate customizations)
+  quantity: number;
+  notes: string;
+  // Customization fields
+  selectedFlavors?: PizzaFlavor[];
+  selectedCrust?: PizzaCrust;
+}
+
+export interface CustomerData {
+  name: string;
+  phone: string;
+  address: string;
+  reference?: string;
+  paymentMethod: 'credit' | 'debit' | 'money' | 'pix';
+  changeFor?: string;
+}
+
+export interface Order {
+  customer: CustomerData;
+  items: CartItem[];
+  total: number;
+  subtotal: number;
+  deliveryFee: number;
+  generalNotes?: string;
+}

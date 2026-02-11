@@ -1,0 +1,5 @@
+{
+  "name": "PedeZap Admin",
+  "description": "Painel administrativo completo para gestão da plataforma PedeZap (Super Admin).",
+  "requestFramePermissions": []
+}

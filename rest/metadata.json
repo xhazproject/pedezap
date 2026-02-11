@@ -1,0 +1,5 @@
+{
+  "name": "PedeZap Cardapio",
+  "description": "A streamlined mobile-web app for restaurant ordering via WhatsApp. Features a digital menu, cart management, and automatic message formatting.",
+  "requestFramePermissions": []
+}

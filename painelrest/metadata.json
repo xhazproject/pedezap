@@ -1,0 +1,5 @@
+{
+  "name": "PedeZap Config restaurante",
+  "description": "Painel administrativo completo para restaurantes gerenciarem cardápios, pedidos e configurações.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,1325 @@
+{
+  "leads": [],
+  "restaurants": [
+    {
+      "id": "r_01w5362d",
+      "name": "Burguer do Joao",
+      "slug": "burguer-do-joao",
+      "whatsapp": "18997983392",
+      "plan": "Local + Online",
+      "active": true,
+      "createdAt": "2026-02-07T00:59:08.867Z",
+      "canceledAt": null,
+      "openingHours": "Seg a Dom - 18h as 23h",
+      "address": "Rua Joaquim Pedro da Silva, 502",
+      "city": "Rancharia",
+      "state": "SP",
+      "minOrderValue": 10,
+      "deliveryFee": 1,
+      "logoUrl": "https://picsum.photos/200/200?random=66",
+      "coverUrl": "https://picsum.photos/1200/500?random=67",
+      "ownerEmail": "burguer-do-joao@pedezap.app",
+      "ownerPassword": "123456",
+      "categories": [
+        {
+          "id": "cat_b9qxmor2",
+          "name": "Categoria 1",
+          "active": true
+        }
+      ],
+      "products": [
+        {
+          "id": "prod_6msbc9az",
+          "categoryId": "cat_b9qxmor2",
+          "name": "Produto exemplo",
+          "description": "Edite no painel master.",
+          "price": 11,
+          "active": true
+        }
+      ],
+      "subscribedPlanId": "plan_local_online",
+      "subscriptionStatus": "active",
+      "trialStartedAt": null,
+      "trialEndsAt": null,
+      "nextBillingAt": null,
+      "subscriptionStartedAt": null,
+      "subscriptionEndsAt": null,
+      "pendingPlanId": null,
+      "pendingCheckoutExternalId": null,
+      "lastCheckoutUrl": null,
+      "banners": [],
+      "marketingCampaigns": [],
+      "openForOrders": true,
+      "passwordResetToken": null,
+      "passwordResetExpiresAt": null
+    },
+    {
+      "id": "r_esuzwyju",
+      "name": "Pizzaria do Joao",
+      "slug": "pizzariajoao",
+      "whatsapp": "18997983392",
+      "plan": "Plano Start",
+      "active": true,
+      "createdAt": "2026-02-07T01:01:06.644Z",
+      "canceledAt": null,
+      "openingHours": "Seg a Dom - 18h as 23h",
+      "address": "",
+      "city": "",
+      "state": "",
+      "minOrderValue": 15,
+      "deliveryFee": 5,
+      "logoUrl": "https://picsum.photos/200/200?random=66",
+      "coverUrl": "https://picsum.photos/1200/500?random=67",
+      "ownerEmail": "xhaz@gmail.com",
+      "ownerPassword": "bem100",
+      "categories": [
+        {
+          "id": "cat_3zcf1xxb",
+          "name": "Categoria 1",
+          "active": true
+        }
+      ],
+      "products": [
+        {
+          "id": "prod_ibzvwjcx",
+          "categoryId": "cat_3zcf1xxb",
+          "name": "Produto exemplo",
+          "description": "[destaque] Edite no painel master.",
+          "price": 10,
+          "active": true,
+          "imageUrl": ""
+        },
+        {
+          "id": "prod_jllev5po",
+          "categoryId": "cat_3zcf1xxb",
+          "name": "Coca cola 350ml",
+          "description": "[destaque] 42142142",
+          "price": 11,
+          "active": true,
+          "imageUrl": "https://swiftbr.vteximg.com.br/arquivos/ids/212288-768-768/622532-coca-cola-lata_mck.jpg?v=638995819113070000"
+        },
+        {
+          "id": "prod_j0p89bs5",
+          "categoryId": "cat_3zcf1xxb",
+          "name": "Guaran antartica",
+          "description": "sdas",
+          "price": 20,
+          "active": true,
+          "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxXgMjSm4CnGmmSD0t4PFjDucaJubyIolZtA&s"
+        },
+        {
+          "id": "prod_s10mw7el",
+          "categoryId": "cat_3zcf1xxb",
+          "name": "coca cola",
+          "description": "[destaque] 21421",
+          "price": 15,
+          "active": true,
+          "imageUrl": "https://carrefourbrfood.vtexassets.com/arquivos/ids/18900718/coca-cola-15-litros-1.jpg?v=637590176320230000"
+        },
+        {
+          "id": "prod_kwcl3hw2",
+          "categoryId": "cat_3zcf1xxb",
+          "name": "Refrigerante",
+          "description": "412",
+          "price": 12,
+          "active": true,
+          "imageUrl": "https://static.loja.aguadaserra.com.br/public/aguadaserraloja/imagens/produtos/refrigerante-agua-da-serra-cola-pet-2-litros-06-unidades-741.png"
+        }
+      ],
+      "subscribedPlanId": "plan_local_online",
+      "subscriptionStatus": "active",
+      "trialStartedAt": null,
+      "trialEndsAt": null,
+      "nextBillingAt": "2026-03-09T23:31:27.847Z",
+      "subscriptionStartedAt": "2026-02-09T23:31:27.847Z",
+      "subscriptionEndsAt": null,
+      "pendingPlanId": null,
+      "pendingCheckoutExternalId": null,
+      "lastCheckoutUrl": "https://app.abacatepay.com/pay/bill_NsaMRstTwZZypqj04qt3ktEU",
+      "taxId": "53186120837",
+      "banners": [],
+      "marketingCampaigns": [],
+      "openForOrders": true,
+      "passwordResetToken": null,
+      "passwordResetExpiresAt": null
+    },
+    {
+      "id": "r_qzef01f7",
+      "name": "Pizzaria do Renan",
+      "slug": "pizzaria-do-renan",
+      "whatsapp": "5518997983392",
+      "plan": "Plano Start",
+      "active": true,
+      "createdAt": "2026-02-09T13:42:55.082Z",
+      "canceledAt": null,
+      "openingHours": "Segunda 18:00-23:00 | Terca 18:00-23:00 | Quarta 18:00-23:00 | Quinta 18:00-23:00 | Sexta 18:00-00:00 | Sabado 18:00-00:00 | Domingo 18:00-23:00",
+      "address": "Rua Joaquim Pedro da Silva,502",
+      "city": "Rancharia",
+      "state": "SP",
+      "minOrderValue": 15,
+      "deliveryFee": 5,
+      "logoUrl": "https://img.pikbest.com/png-images/20241030/chefs-delight-restaurant-logo_11024933.png!sw800",
+      "coverUrl": "https://img.pikbest.com/templates/20240528/fast-food-restaurant-banner-template_10587852.jpg!w700wp",
+      "ownerEmail": "desertobrbr@gmail.com",
+      "ownerPassword": "bem100",
+      "taxId": "53186120837",
+      "subscribedPlanId": "plan_local",
+      "subscriptionStatus": "active",
+      "trialStartedAt": "2026-02-09T13:42:55.082Z",
+      "trialEndsAt": null,
+      "nextBillingAt": "2026-03-09T19:39:46.535Z",
+      "subscriptionStartedAt": "2026-02-09T19:39:46.535Z",
+      "subscriptionEndsAt": null,
+      "pendingPlanId": null,
+      "pendingCheckoutExternalId": null,
+      "lastCheckoutUrl": "https://app.abacatepay.com/pay/bill_ya3GgLZGQywgrDqerwx6T5bj",
+      "categories": [
+        {
+          "id": "cat_02d5nrl3",
+          "name": "Pizzas",
+          "active": true
+        },
+        {
+          "id": "cat_hbe48efa",
+          "name": "Hamburguers",
+          "active": true
+        },
+        {
+          "id": "cat_8jqynv0s",
+          "name": "Bebidas",
+          "active": true
+        },
+        {
+          "id": "cat_xn67xr37",
+          "name": "Sucos",
+          "active": true
+        },
+        {
+          "id": "cat_tip6s2t7",
+          "name": "Porçoes",
+          "active": true
+        }
+      ],
+      "products": [
+        {
+          "id": "prod_dgznarsj",
+          "categoryId": "cat_02d5nrl3",
+          "name": "Pizza Grande 8 Pedaços",
+          "description": "[destaque] Edite no painel master.",
+          "price": 60,
+          "active": true,
+          "imageUrl": "https://png.pngtree.com/png-vector/20241211/ourmid/pngtree-authentic-italian-pizza-with-cheese-and-fresh-vegetable-toppings-png-image_14714611.png",
+          "kind": "pizza",
+          "pizzaFlavors": [
+            {
+              "name": "SAs21",
+              "ingredients": "421412",
+              "price": 60
+            },
+            {
+              "name": "DSADASDAS",
+              "ingredients": "321312321",
+              "price": 65
+            }
+          ],
+          "crusts": [
+            {
+              "name": "32132132",
+              "ingredients": "",
+              "price": 12
+            },
+            {
+              "name": "2131231232312",
+              "ingredients": "",
+              "price": 12
+            }
+          ]
+        },
+        {
+          "id": "prod_qi0jta1n",
+          "categoryId": "cat_8jqynv0s",
+          "name": "Refrig Coca Colca",
+          "description": "[destaque] as",
+          "price": 4.99,
+          "active": true,
+          "imageUrl": "https://t3.ftcdn.net/jpg/07/29/63/02/360_F_729630262_7hAna5MDjwAd0vAmU3v25u2v3jBaZw8A.jpg",
+          "kind": "padrao",
+          "pizzaFlavors": [],
+          "crusts": []
+        },
+        {
+          "id": "prod_u3n2c21x",
+          "categoryId": "cat_8jqynv0s",
+          "name": "Refri Sprite",
+          "description": "sprite",
+          "price": 4.99,
+          "active": true,
+          "imageUrl": "https://solaranja.loji.com.br/storage/uploads/7Is85Reh59Vle4xKzEqbXrtsVlh89t5PuhvQojDJ.jpg"
+        },
+        {
+          "id": "prod_xcfdlr37",
+          "categoryId": "cat_hbe48efa",
+          "name": "X Bacon",
+          "description": "[destaque] Pão,Hamburguer,queijo,alface,bacon,",
+          "price": 25.9,
+          "active": true,
+          "imageUrl": "https://blog.biglar.com.br/wp-content/uploads/2024/08/iStock-1398630614.jpg",
+          "kind": "padrao",
+          "pizzaFlavors": [],
+          "crusts": []
+        },
+        {
+          "id": "prod_jpa4pwuc",
+          "categoryId": "cat_hbe48efa",
+          "name": "X Salada",
+          "description": "Pão,Hamburguer,tomate,salada,queijo",
+          "price": 23.9,
+          "active": true,
+          "imageUrl": "https://academiacorpoesaude.com.br/wp-content/uploads/2024/11/FORMATO-DE-BLOG-8.png"
+        }
+      ],
+      "banners": [
+        {
+          "id": "bnr_1770722487437_5kwch",
+          "title": "tarde",
+          "description": "tarde maluca",
+          "imageUrl": "https://images.vexels.com/media/users/3/154169/raw/ad85d76b87eaefa0bee918c0cb51f53e-design-de-banner-de-desconto-da-black-friday.jpg",
+          "active": true,
+          "productIds": [
+            "prod_qi0jta1n",
+            "prod_xcfdlr37"
+          ]
+        }
+      ],
+      "marketingCampaigns": [],
+      "openForOrders": true,
+      "passwordResetToken": "07e511f4b37df8e75878264f47ce291613206b12a594b599",
+      "passwordResetExpiresAt": "2026-02-10T15:26:11.728Z"
+    }
+  ],
+  "orders": [
+    {
+      "id": "order_quupj339",
+      "restaurantSlug": "pizzaria-do-renan",
+      "customerName": "Jose eduardo",
+      "customerWhatsapp": "18997983392",
+      "customerAddress": "Rua Joaquim Pedro da Silva,555",
+      "paymentMethod": "money",
+      "items": [
+        {
+          "productId": "prod_qi0jta1n",
+          "name": "Refrig Coca Colca",
+          "price": 4.99,
+          "quantity": 1
+        },
+        {
+          "productId": "prod_u3n2c21x",
+          "name": "Refri Sprite",
+          "price": 4.99,
+          "quantity": 1
+        },
+        {
+          "productId": "prod_xcfdlr37",
+          "name": "X Bacon",
+          "price": 25.9,
+          "quantity": 1
+        }
+      ],
+      "subtotal": 35.879999999999995,
+      "deliveryFee": 5,
+      "total": 40.879999999999995,
+      "status": "Concluido",
+      "createdAt": "2026-02-10T02:59:45.098Z"
+    },
+    {
+      "id": "order_2zvmlgpa",
+      "restaurantSlug": "pizzaria-do-renan",
+      "customerName": "Renan Pereira",
+      "customerWhatsapp": "18997983392",
+      "customerAddress": "Rua joaquim pedro silva - vila nova",
+      "paymentMethod": "pix",
+      "items": [
+        {
+          "productId": "prod_qi0jta1n",
+          "name": "Refrig Coca Colca",
+          "price": 4.99,
+          "quantity": 1,
+          "notes": ""
+        },
+        {
+          "productId": "prod_xcfdlr37",
+          "name": "X Bacon",
+          "price": 25.9,
+          "quantity": 1,
+          "notes": ""
+        }
+      ],
+      "subtotal": 30.89,
+      "deliveryFee": 5,
+      "total": 35.89,
+      "generalNotes": "",
+      "status": "Concluido",
+      "createdAt": "2026-02-10T02:34:20.788Z"
+    },
+    {
+      "id": "order_w9hr7na5",
+      "restaurantSlug": "pizzaria-do-renan",
+      "customerName": "Renan Pereira",
+      "customerWhatsapp": "18997983392",
+      "customerAddress": "Rua joaquim pedro silva - vila nova",
+      "paymentMethod": "card",
+      "items": [
+        {
+          "productId": "prod_dgznarsj",
+          "name": "Pizza Grande 8 Pedaços",
+          "price": 50,
+          "quantity": 13,
+          "notes": ""
+        },
+        {
+          "productId": "prod_dgznarsj",
+          "name": "Pizza Grande 8 Pedaços",
+          "price": 74.5,
+          "quantity": 1,
+          "notes": "Sabores: SAs21 / DSADASDAS | Borda: 32132132"
+        }
+      ],
+      "subtotal": 724.5,
+      "deliveryFee": 5,
+      "total": 729.5,
+      "generalNotes": "",
+      "status": "Concluido",
+      "createdAt": "2026-02-10T02:32:32.358Z"
+    },
+    {
+      "id": "order_qhz25icx",
+      "restaurantSlug": "pizzariajoao",
+      "customerName": "Renan Natalino",
+      "customerWhatsapp": "18997983392",
+      "customerAddress": "Rua joaquim pedro da Silva, 502 - Vila Nova",
+      "paymentMethod": "card",
+      "items": [
+        {
+          "productId": "prod_s10mw7el",
+          "name": "coca cola",
+          "price": 15,
+          "quantity": 1,
+          "notes": ""
+        },
+        {
+          "productId": "prod_ibzvwjcx",
+          "name": "Produto exemplo",
+          "price": 10,
+          "quantity": 1,
+          "notes": "tirar cebola"
+        }
+      ],
+      "subtotal": 25,
+      "deliveryFee": 5,
+      "total": 30,
+      "generalNotes": "",
+      "status": "Recebido",
+      "createdAt": "2026-02-10T01:10:36.336Z"
+    },
+    {
+      "id": "order_fdz4vf54",
+      "restaurantSlug": "pizzariajoao",
+      "customerName": "Renan",
+      "customerWhatsapp": "18997983392",
+      "customerAddress": "Rua Joaquim Pedro Da Silva,502",
+      "paymentMethod": "pix",
+      "items": [
+        {
+          "productId": "prod_jllev5po",
+          "name": "Coca cola 350ml",
+          "price": 11,
+          "quantity": 2,
+          "notes": ""
+        }
+      ],
+      "subtotal": 22,
+      "deliveryFee": 5,
+      "total": 27,
+      "generalNotes": "",
+      "createdAt": "2026-02-07T14:42:40.581Z",
+      "status": "Em preparo"
+    },
+    {
+      "id": "order_stiwrc9j",
+      "restaurantSlug": "burguer-do-joao",
+      "customerName": "Renan",
+      "customerWhatsapp": "18997983392",
+      "customerAddress": "2312313",
+      "paymentMethod": "card",
+      "items": [
+        {
+          "productId": "prod_6msbc9az",
+          "name": "Produto exemplo",
+          "price": 11,
+          "quantity": 1,
+          "notes": ""
+        }
+      ],
+      "subtotal": 11,
+      "deliveryFee": 1,
+      "total": 12,
+      "generalNotes": "",
+      "createdAt": "2026-02-07T01:10:23.993Z",
+      "status": "Recebido"
+    }
+  ],
+  "customers": [
+    {
+      "id": "customer_413ya7sl",
+      "restaurantSlug": "pizzaria-do-renan",
+      "name": "Jose eduardo",
+      "whatsapp": "18997983392",
+      "totalOrders": 3,
+      "totalSpent": 806.27,
+      "lastOrderAt": "2026-02-10T02:59:45.098Z",
+      "createdAt": "2026-02-10T02:32:29.028Z"
+    },
+    {
+      "id": "customer_0ymltgw1",
+      "restaurantSlug": "pizzariajoao",
+      "name": "Renan Natalino",
+      "whatsapp": "18997983392",
+      "totalOrders": 2,
+      "totalSpent": 57,
+      "lastOrderAt": "2026-02-10T01:10:36.336Z",
+      "createdAt": "2026-02-07T14:42:40.581Z"
+    }
+  ],
+  "auditLogs": [
+    {
+      "id": "audit_xdq0evz5",
+      "createdAt": "2026-02-11T02:00:18.184Z",
+      "action": "auth.admin.login.success",
+      "ip": "::1",
+      "actorType": "admin",
+      "actorId": "renan@pedezap.ai",
+      "actorName": "Renan",
+      "targetType": "admin_user",
+      "targetId": "renan@pedezap.ai",
+      "metadata": {
+        "role": "Admin Master"
+      }
+    },
+    {
+      "id": "audit_phf6aynf",
+      "createdAt": "2026-02-11T02:00:05.935Z",
+      "action": "auth.admin.login.failed",
+      "ip": "::1",
+      "actorType": "anonymous",
+      "actorId": "anonymous",
+      "actorName": "renan@pedezap.ai",
+      "targetType": "admin_user",
+      "targetId": "renan@pedezap.ai"
+    },
+    {
+      "id": "audit_9k6wjzqw",
+      "createdAt": "2026-02-11T01:57:14.648Z",
+      "action": "auth.admin.login.failed",
+      "ip": "::1",
+      "actorType": "anonymous",
+      "actorId": "anonymous",
+      "actorName": "admin@pedezap.ai",
+      "targetType": "admin_user",
+      "targetId": "admin@pedezap.ai"
+    }
+  ],
+  "invoices": [
+    {
+      "id": "INV-001",
+      "restaurantSlug": "pizzadomario",
+      "restaurantName": "Pizza do Mario",
+      "plan": "Local + Online",
+      "value": 299.9,
+      "dueDate": "2026-01-11",
+      "status": "Pendente",
+      "method": "Cartao de Credito",
+      "createdAt": "2026-01-01T12:00:00.000Z",
+      "paidAt": null
+    },
+    {
+      "id": "INV-002",
+      "restaurantSlug": "burguercentral",
+      "restaurantName": "Burguer Central",
+      "plan": "Local",
+      "value": 149.9,
+      "dueDate": "2026-01-10",
+      "status": "Pendente",
+      "method": "Boleto",
+      "createdAt": "2026-01-01T12:00:00.000Z",
+      "paidAt": null
+    }
+  ],
+  "adminUsers": [
+    {
+      "id": "adm_master",
+      "name": "Admin Master",
+      "email": "admin@pedezap.app",
+      "role": "Admin Master",
+      "status": "Ativo",
+      "password": "123456",
+      "permissions": [
+        "dashboard",
+        "restaurants",
+        "leads",
+        "financial",
+        "stats",
+        "team",
+        "support",
+        "settings",
+        "security"
+      ],
+      "createdAt": "2025-10-01T12:00:00.000Z",
+      "lastAccessAt": "2026-02-09T23:30:03.947Z"
+    },
+    {
+      "id": "adm_fin",
+      "name": "Carlos Financeiro",
+      "email": "carlos@pedezap.ai",
+      "role": "Financeiro",
+      "status": "Ativo",
+      "password": "123456",
+      "permissions": [
+        "financial"
+      ],
+      "createdAt": "2025-11-10T12:00:00.000Z",
+      "lastAccessAt": "2026-02-04T18:00:00.000Z"
+    },
+    {
+      "id": "adm_sup",
+      "name": "Julia Suporte",
+      "email": "julia@pedezap.ai",
+      "role": "Suporte",
+      "status": "Ativo",
+      "password": "123456",
+      "permissions": [
+        "support"
+      ],
+      "createdAt": "2025-12-01T12:00:00.000Z",
+      "lastAccessAt": "2026-02-05T12:15:00.000Z"
+    },
+    {
+      "id": "adm_ops",
+      "name": "Roberto Operacoes",
+      "email": "beto@pedezap.ai",
+      "role": "Operacao",
+      "status": "Inativo",
+      "password": "123456",
+      "permissions": [
+        "restaurants",
+        "leads"
+      ],
+      "createdAt": "2025-09-20T12:00:00.000Z",
+      "lastAccessAt": "2025-10-20T12:00:00.000Z"
+    },
+    {
+      "id": "adm_rpi7n2yc",
+      "name": "Renan natalino",
+      "email": "suporte@pedezap.com",
+      "role": "Suporte",
+      "status": "Ativo",
+      "password": "123456",
+      "permissions": [
+        "support"
+      ],
+      "createdAt": "2026-02-05T23:27:07.704Z",
+      "lastAccessAt": "2026-02-05T23:27:43.164Z"
+    },
+    {
+      "id": "adm_u7ygtz88",
+      "name": "Natan",
+      "email": "natan@pedezap.ai",
+      "role": "Suporte 2",
+      "status": "Ativo",
+      "password": "123123",
+      "permissions": [
+        "support",
+        "security",
+        "restaurants"
+      ],
+      "createdAt": "2026-02-05T23:36:17.444Z",
+      "lastAccessAt": "2026-02-05T23:36:37.797Z"
+    },
+    {
+      "id": "adm_5eed303c",
+      "name": "Renan",
+      "email": "renan@pedezap.ai",
+      "role": "Admin Master",
+      "status": "Ativo",
+      "password": "scrypt$32f225129d850de33ff45d1e3eb1ee6e$8e8f1cfc17752d8cd170a3be5850975acf0eb099f7bfefddd672832d9a1ab63b95f6fd2b2426291cd5696883b52280840d4bd94bc6fe5a8264e57beceffb7a45",
+      "permissions": [
+        "dashboard",
+        "restaurants",
+        "leads",
+        "financial",
+        "stats",
+        "team",
+        "support",
+        "settings",
+        "security"
+      ],
+      "createdAt": "2026-02-10T22:58:49.7615505-03:00",
+      "lastAccessAt": "2026-02-11T02:00:18.097Z"
+    }
+  ],
+  "adminRoles": [
+    {
+      "id": "role_master",
+      "name": "Admin Master",
+      "permissions": [
+        "dashboard",
+        "restaurants",
+        "leads",
+        "financial",
+        "stats",
+        "team",
+        "support",
+        "settings",
+        "security"
+      ],
+      "createdAt": "2025-10-01T12:00:00.000Z"
+    },
+    {
+      "id": "role_fin",
+      "name": "Financeiro",
+      "permissions": [
+        "financial"
+      ],
+      "createdAt": "2025-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "role_sup",
+      "name": "Suporte",
+      "permissions": [
+        "support"
+      ],
+      "createdAt": "2025-12-01T12:00:00.000Z"
+    },
+    {
+      "id": "role_ops",
+      "name": "Operacao",
+      "permissions": [
+        "restaurants",
+        "leads"
+      ],
+      "createdAt": "2025-09-20T12:00:00.000Z"
+    },
+    {
+      "id": "role_sixurbe4",
+      "name": "Suporte 2",
+      "permissions": [
+        "support",
+        "security",
+        "restaurants"
+      ],
+      "createdAt": "2026-02-05T23:35:43.228Z"
+    }
+  ],
+  "supportTickets": [
+    {
+      "id": "TCK-2024-001",
+      "subject": "Erro ao cadastrar novo item no cardapio",
+      "requesterName": "Pizzaria do Joao",
+      "requesterEmail": "joao@pedezap.ai",
+      "requesterType": "Parceiro",
+      "restaurantName": "Pizzaria do Joao",
+      "restaurantSlug": "pizzariadojoao",
+      "status": "Fechado",
+      "category": "Operacao",
+      "createdAt": "2026-02-06T12:00:00.000Z",
+      "updatedAt": "2026-02-06T19:21:58.239Z",
+      "lastMessageAt": "2026-02-06T19:21:58.128Z",
+      "assigneeName": "Usuario Suporte"
+    },
+    {
+      "id": "TCK-2024-002",
+      "subject": "Pedido veio errado e restaurante nao atende",
+      "requesterName": "Ana Maria Braga",
+      "requesterEmail": "ana@example.com",
+      "requesterType": "Cliente",
+      "status": "Em andamento",
+      "category": "Suporte",
+      "createdAt": "2026-02-05T14:30:00.000Z",
+      "updatedAt": "2026-02-06T00:59:30.289Z",
+      "lastMessageAt": "2026-02-06T00:59:30.025Z",
+      "assigneeName": "Usuario Suporte"
+    },
+    {
+      "id": "TCK-2024-003",
+      "subject": "Duvida sobre repasse financeiro",
+      "requesterName": "Burger King Local",
+      "requesterEmail": "gerencia@bklocal.com.br",
+      "requesterType": "Parceiro",
+      "restaurantName": "Burger King Local",
+      "restaurantSlug": "bk-local",
+      "status": "Em andamento",
+      "category": "Financeiro",
+      "createdAt": "2026-02-04T14:00:00.000Z",
+      "updatedAt": "2026-02-06T01:00:06.941Z",
+      "lastMessageAt": "2026-02-06T01:00:06.772Z",
+      "assigneeName": "Carlos Financeiro"
+    },
+    {
+      "id": "TCK-2024-004",
+      "subject": "Cancelamento de assinatura",
+      "requesterName": "Carlos Silva",
+      "requesterEmail": "carlos@email.com",
+      "requesterType": "Cliente",
+      "status": "Fechado",
+      "category": "Financeiro",
+      "createdAt": "2025-11-20T10:00:00.000Z",
+      "updatedAt": "2025-11-20T11:15:00.000Z",
+      "lastMessageAt": "2025-11-20T11:15:00.000Z",
+      "assigneeName": "Admin Master"
+    },
+    {
+      "id": "TCK_t0876hut",
+      "subject": "Atendimento Pizzaria do Joao",
+      "requesterName": "Pizzaria do Joao",
+      "requesterEmail": "joaodasilva@gmail.com",
+      "requesterType": "Parceiro",
+      "restaurantName": "Pizzaria do Joao",
+      "restaurantSlug": "pizzariajoao",
+      "status": "Fechado",
+      "category": "Suporte",
+      "createdAt": "2026-02-08T16:59:47.923Z",
+      "updatedAt": "2026-02-08T17:05:14.619Z",
+      "lastMessageAt": "2026-02-08T17:05:14.477Z",
+      "assigneeName": null
+    },
+    {
+      "id": "TCK_7bqgfh67",
+      "subject": "Atendimento Pizzaria do Joao",
+      "requesterName": "Pizzaria do Joao",
+      "requesterEmail": "joaodasilva@gmail.com",
+      "requesterType": "Parceiro",
+      "restaurantName": "Pizzaria do Joao",
+      "restaurantSlug": "pizzariajoao",
+      "status": "Aberto",
+      "category": "Suporte",
+      "createdAt": "2026-02-08T17:05:19.999Z",
+      "updatedAt": "2026-02-08T17:05:19.999Z",
+      "lastMessageAt": "2026-02-08T17:05:19.999Z",
+      "assigneeName": null
+    }
+  ],
+  "supportMessages": [
+    {
+      "id": "MSG-001",
+      "ticketId": "TCK-2024-003",
+      "authorName": "Burger King Local",
+      "authorRole": "customer",
+      "body": "O valor do dia 23 nao caiu na conta ainda.",
+      "createdAt": "2026-02-04T14:00:00.000Z"
+    },
+    {
+      "id": "MSG-002",
+      "ticketId": "TCK-2024-003",
+      "authorName": "Usuario Suporte",
+      "authorRole": "agent",
+      "body": "Ola, verificamos que houve um feriado bancario. O prazo estendeu para hoje.",
+      "createdAt": "2026-02-04T14:20:00.000Z"
+    },
+    {
+      "id": "MSG-003",
+      "ticketId": "TCK-2024-001",
+      "authorName": "Pizzaria do Joao",
+      "authorRole": "customer",
+      "body": "Nao consigo subir a foto da nova pizza, da erro 500.",
+      "createdAt": "2026-02-06T12:00:00.000Z"
+    },
+    {
+      "id": "MSG-004",
+      "ticketId": "TCK-2024-002",
+      "authorName": "Ana Maria Braga",
+      "authorRole": "customer",
+      "body": "Pedido veio errado e restaurante nao atende.",
+      "createdAt": "2026-02-05T14:30:00.000Z"
+    },
+    {
+      "id": "msg_iufpy3jw",
+      "ticketId": "TCK-2024-003",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "ola",
+      "createdAt": "2026-02-06T00:31:04.721Z",
+      "internal": false
+    },
+    {
+      "id": "msg_09u2mrdo",
+      "ticketId": "TCK-2024-003",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "ola",
+      "createdAt": "2026-02-06T00:31:11.325Z",
+      "internal": false
+    },
+    {
+      "id": "msg_p6irits9",
+      "ticketId": "TCK-2024-002",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "ola",
+      "createdAt": "2026-02-06T00:35:55.235Z",
+      "internal": false
+    },
+    {
+      "id": "msg_8su1bxb1",
+      "ticketId": "TCK-2024-002",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "ola",
+      "createdAt": "2026-02-06T00:35:59.682Z",
+      "internal": false
+    },
+    {
+      "id": "msg_8ro8bdgu",
+      "ticketId": "TCK-2024-002",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "ola",
+      "createdAt": "2026-02-06T00:36:03.513Z",
+      "internal": false
+    },
+    {
+      "id": "msg_8wu07yjs",
+      "ticketId": "TCK-2024-002",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "ola",
+      "createdAt": "2026-02-06T00:36:07.029Z",
+      "internal": false
+    },
+    {
+      "id": "msg_0kbxkwot",
+      "ticketId": "TCK-2024-001",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "Ola Pizzaria do Joao, boa noite! Como posso ajudar?",
+      "createdAt": "2026-02-06T00:41:29.434Z",
+      "internal": false
+    },
+    {
+      "id": "msg_xbtb8gio",
+      "ticketId": "TCK-2024-001",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "Ola Pizzaria do Joao, estou verificando sua solicitacao e retorno em instantes.",
+      "createdAt": "2026-02-06T00:41:47.505Z",
+      "internal": false
+    },
+    {
+      "id": "msg_ff2dmuac",
+      "ticketId": "TCK-2024-001",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "Obrigado Pizzaria do Joao! Chamado encerrado. Avalie nosso atendimento quando puder.",
+      "createdAt": "2026-02-06T00:41:58.014Z",
+      "internal": false
+    },
+    {
+      "id": "msg_dg8kzz2h",
+      "ticketId": "TCK-2024-002",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "Ola Ana Maria Braga, boa noite! Como posso ajudar?",
+      "createdAt": "2026-02-06T00:42:26.361Z",
+      "internal": false
+    },
+    {
+      "id": "msg_9h70gatf",
+      "ticketId": "TCK-2024-002",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "Ola Ana Maria Braga, boa noite! Como posso ajudar?",
+      "createdAt": "2026-02-06T00:52:02.028Z",
+      "internal": false
+    },
+    {
+      "id": "msg_zqujzt1y",
+      "ticketId": "TCK-2024-002",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "Ola Ana Maria Braga, estou verificando sua solicitacao e retorno em instantes.",
+      "createdAt": "2026-02-06T00:52:05.402Z",
+      "internal": false
+    },
+    {
+      "id": "msg_mir6q61s",
+      "ticketId": "TCK-2024-002",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "Obrigado Ana Maria Braga! Chamado encerrado. Avalie nosso atendimento quando puder.",
+      "createdAt": "2026-02-06T00:52:13.282Z",
+      "internal": false
+    },
+    {
+      "id": "msg_96ijsfoq",
+      "ticketId": "TCK-2024-002",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "Ola Ana Maria Braga, estou verificando sua solicitacao e retorno em instantes.",
+      "createdAt": "2026-02-06T00:53:17.951Z",
+      "internal": false
+    },
+    {
+      "id": "msg_l4rvwmo4",
+      "ticketId": "TCK-2024-002",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "Ola Ana Maria Braga, boa noite! Como posso ajudar?",
+      "createdAt": "2026-02-06T00:59:30.025Z",
+      "internal": false
+    },
+    {
+      "id": "msg_qdtnhrxi",
+      "ticketId": "TCK-2024-001",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "Ola Pizzaria do Joao, boa noite! Como posso ajudar?",
+      "createdAt": "2026-02-06T00:59:33.648Z",
+      "internal": false
+    },
+    {
+      "id": "msg_6ybyfi84",
+      "ticketId": "TCK-2024-001",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "Ola Pizzaria do Joao, boa noite! Como posso ajudar?",
+      "createdAt": "2026-02-06T00:59:36.334Z",
+      "internal": false
+    },
+    {
+      "id": "msg_54opr16e",
+      "ticketId": "TCK-2024-001",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "Ola Pizzaria do Joao, boa noite! Como posso ajudar?",
+      "createdAt": "2026-02-06T00:59:37.456Z",
+      "internal": false
+    },
+    {
+      "id": "msg_qr2koktq",
+      "ticketId": "TCK-2024-003",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "Ola Burger King Local, boa noite! Como posso ajudar?",
+      "createdAt": "2026-02-06T00:59:51.302Z",
+      "internal": false
+    },
+    {
+      "id": "msg_kbkkrmib",
+      "ticketId": "TCK-2024-003",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "Ola Burger King Local, boa noite! Como posso ajudar?",
+      "createdAt": "2026-02-06T00:59:54.563Z",
+      "internal": false
+    },
+    {
+      "id": "msg_ug8hzpcz",
+      "ticketId": "TCK-2024-003",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "Ola Burger King Local, boa noite! Como posso ajudar?",
+      "createdAt": "2026-02-06T00:59:56.105Z",
+      "internal": false
+    },
+    {
+      "id": "msg_br55qpv2",
+      "ticketId": "TCK-2024-003",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "Ola Burger King Local, estou verificando sua solicitacao e retorno em instantes.",
+      "createdAt": "2026-02-06T00:59:59.016Z",
+      "internal": false
+    },
+    {
+      "id": "msg_8jjx3pkv",
+      "ticketId": "TCK-2024-003",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "Obrigado Burger King Local! Chamado encerrado. Avalie nosso atendimento quando puder.",
+      "createdAt": "2026-02-06T01:00:06.772Z",
+      "internal": false
+    },
+    {
+      "id": "msg_caalhzer",
+      "ticketId": "TCK-2024-001",
+      "authorName": "Natan",
+      "authorRole": "agent",
+      "body": "Obrigado Pizzaria do Joao! Chamado encerrado. Avalie nosso atendimento quando puder.",
+      "createdAt": "2026-02-06T01:00:47.758Z",
+      "internal": false
+    },
+    {
+      "id": "msg_1oekycz7",
+      "ticketId": "TCK-2024-001",
+      "authorName": "Admin Master",
+      "authorRole": "agent",
+      "body": "Ola Pizzaria do Joao, estou verificando sua solicitacao e retorno em instantes.",
+      "createdAt": "2026-02-06T19:21:50.853Z",
+      "internal": false
+    },
+    {
+      "id": "msg_236lwmw2",
+      "ticketId": "TCK-2024-001",
+      "authorName": "Admin Master",
+      "authorRole": "agent",
+      "body": "Obrigado Pizzaria do Joao! Chamado encerrado. Avalie nosso atendimento quando puder.",
+      "createdAt": "2026-02-06T19:21:58.128Z",
+      "internal": false
+    },
+    {
+      "id": "msg_lt3q3bwb",
+      "ticketId": "TCK_t0876hut",
+      "authorName": "Pizzaria do Joao",
+      "authorRole": "customer",
+      "body": "Ola, estou com um problema que nao consigo resolver",
+      "createdAt": "2026-02-08T17:00:18.752Z",
+      "internal": false
+    },
+    {
+      "id": "msg_5br21y9v",
+      "ticketId": "TCK_t0876hut",
+      "authorName": "Admin Master",
+      "authorRole": "agent",
+      "body": "Ola Pizzaria do Joao, estou verificando sua solicitacao e retorno em instantes.",
+      "createdAt": "2026-02-08T17:01:24.226Z",
+      "internal": false
+    },
+    {
+      "id": "msg_4ifkzqwv",
+      "ticketId": "TCK_t0876hut",
+      "authorName": "Pizzaria do Joao",
+      "authorRole": "customer",
+      "body": "Ok",
+      "createdAt": "2026-02-08T17:03:31.948Z",
+      "internal": false
+    },
+    {
+      "id": "msg_tsbit35q",
+      "ticketId": "TCK_t0876hut",
+      "authorName": "Pizzaria do Joao",
+      "authorRole": "customer",
+      "body": "Okpa",
+      "createdAt": "2026-02-08T17:03:50.213Z",
+      "internal": false
+    },
+    {
+      "id": "msg_z1co5ulu",
+      "ticketId": "TCK_t0876hut",
+      "authorName": "Admin Master",
+      "authorRole": "agent",
+      "body": "Olá verifiquei aqui e consegui resolver",
+      "createdAt": "2026-02-08T17:04:19.561Z",
+      "internal": false
+    },
+    {
+      "id": "msg_c4fj8pdm",
+      "ticketId": "TCK_t0876hut",
+      "authorName": "Admin Master",
+      "authorRole": "agent",
+      "body": "Obrigado Pizzaria do Joao! Chamado encerrado. Avalie nosso atendimento quando puder.",
+      "createdAt": "2026-02-08T17:05:14.477Z",
+      "internal": false
+    }
+  ],
+  "supportQuickReplies": [
+    {
+      "id": "qr_status",
+      "label": "Atualizacao",
+      "body": "Ola {nome}, estou verificando sua solicitacao e retorno em instantes.",
+      "createdAt": "2026-02-01T12:00:00.000Z"
+    },
+    {
+      "id": "qr_close",
+      "label": "Encerrar",
+      "body": "Obrigado {nome}! Chamado encerrado. Avalie nosso atendimento quando puder.",
+      "createdAt": "2026-02-01T12:00:00.000Z",
+      "status": "Fechado"
+    }
+  ],
+  "plans": [
+    {
+      "id": "plan_local",
+      "name": "Plano Start",
+      "price": 69.9,
+      "color": "#6366f1",
+      "description": "Ideal para pequenos comercios que vendem apenas no bairro.",
+      "features": [
+        "Cardapio Digital",
+        "Recebimento via WhatsApp",
+        "Ate 500 pedidos/mes",
+        "Suporte por Email"
+      ],
+      "active": true,
+      "createdAt": "2026-02-01T00:00:00.000Z",
+      "updatedAt": "2026-02-09T11:45:54.997Z"
+    },
+    {
+      "id": "plan_local_online",
+      "name": "Plano Pro",
+      "price": 120.9,
+      "color": "#10b981",
+      "description": "Para quem quer escalar e vender online com pagamento automatico.",
+      "features": [
+        "Tudo do Plano Local",
+        "Pedidos Ilimitados",
+        "Gestor de Entregas",
+        "Ferramenta de Cupons"
+      ],
+      "active": true,
+      "createdAt": "2026-02-01T00:00:00.000Z",
+      "updatedAt": "2026-02-09T13:46:37.252Z"
+    }
+  ],
+  "paymentsConfig": {
+    "provider": "abacaepay",
+    "methods": {
+      "pix": {
+        "enabled": true,
+        "percentFee": 1,
+        "fixedFee": 0
+      },
+      "card": {
+        "enabled": true,
+        "percentFee": 3.2,
+        "fixedFee": 0.39
+      }
+    },
+    "payoutSchedule": "weekly",
+    "weeklyPayoutDay": 5,
+    "dailyEnabled": true,
+    "gatewayApiKey": "abacae_live_****************",
+    "autoPayoutD1": true,
+    "autoPayoutD30": true,
+    "notifyWhatsapp": true
+  },
+  "payouts": [
+    {
+      "id": "PAY-9001",
+      "restaurant": "Pizzaria do Joao",
+      "restaurantSlug": "pizzariadojoao",
+      "cycle": "D+1",
+      "dueDate": "06/02/2026",
+      "pixKey": "12.345.678/0001-90",
+      "pixType": "CNPJ",
+      "amount": 2450,
+      "status": "Pendente",
+      "group": "today",
+      "withdrawId": null,
+      "receiptUrl": null,
+      "updatedAt": "2026-02-06T19:14:58.109Z"
+    },
+    {
+      "id": "PAY-9005",
+      "restaurant": "Cantina Italiana",
+      "restaurantSlug": "cantinaitaliana",
+      "cycle": "D+1",
+      "dueDate": "06/02/2026",
+      "pixKey": "aleatoria-uuid-key",
+      "pixType": "RANDOM",
+      "amount": 1890.2,
+      "status": "Pendente",
+      "group": "today"
+    },
+    {
+      "id": "PAY-9007",
+      "restaurant": "Acai Power",
+      "restaurantSlug": "acaipower",
+      "cycle": "D+30",
+      "dueDate": "01/12/2023",
+      "pixKey": "123.456.789-00",
+      "pixType": "CPF",
+      "amount": 8900.5,
+      "status": "Pendente",
+      "group": "late"
+    },
+    {
+      "id": "PAY-9002",
+      "restaurant": "Sushi Express",
+      "restaurantSlug": "sushiexpress",
+      "cycle": "D+1",
+      "dueDate": "25/11/2023",
+      "pixKey": "sushi@email.com",
+      "pixType": "EMAIL",
+      "amount": 1200.5,
+      "status": "Pago",
+      "group": "upcoming"
+    },
+    {
+      "id": "PAY-9004",
+      "restaurant": "Pastelaria Central",
+      "restaurantSlug": "pastelariacentral",
+      "cycle": "D+1",
+      "dueDate": "24/11/2023",
+      "pixKey": "123.456.789-00",
+      "pixType": "CPF",
+      "amount": 350,
+      "status": "Falha",
+      "group": "upcoming"
+    }
+  ],
+  "adminSettings": {
+    "platformName": "PedeZap",
+    "supportUrl": "https://ajuda.pedezap.ai",
+    "contactEmail": "contato@pedezap.ai",
+    "maintenanceMode": false,
+    "versionLabel": "v2.4.0 (Build 9021)",
+    "logoUrl": "",
+    "faviconUrl": "",
+    "colorPrimary": "#10B981",
+    "colorSecondary": "#0F172A",
+    "colorAccent": "#FBBF24",
+    "notificationTemplates": [
+      {
+        "id": "tpl_welcome",
+        "title": "Boas-vindas (Novo Restaurante)",
+        "message": "Ola {nome_restaurante}! Sua conta no PedeZap foi ativada com sucesso. Acesse seu painel em: {link_painel}",
+        "variables": [
+          "{nome_restaurante}",
+          "{link_painel}",
+          "{senha_provisoria}"
+        ],
+        "active": true
+      },
+      {
+        "id": "tpl_new_order",
+        "title": "Novo Pedido (Para o Cliente)",
+        "message": "Oi {nome_cliente}! Recebemos seu pedido #{numero_pedido} no valor de {valor_total}. Previsao: {tempo_estimado}.",
+        "variables": [
+          "{nome_cliente}",
+          "{numero_pedido}",
+          "{valor_total}",
+          "{tempo_estimado}"
+        ],
+        "active": true
+      }
+    ],
+    "integrations": {
+      "abacatepay": {
+        "connected": true,
+        "environment": "Producao",
+        "webhookUrl": "https://api.pedezap.ai/v1/webhooks/abacatepay"
+      },
+      "stripe": {
+        "connected": false,
+        "webhookUrl": "https://api.pedezap.ai/v1/webhooks/stripe"
+      },
+      "whatsappEvolution": {
+        "connected": false,
+        "webhookUrl": "https://api.pedezap.ai/v1/webhooks/whatsapp-evolution"
+      }
+    },
+    "securityPolicies": {
+      "enforce2FA": false,
+      "auditLogs": true,
+      "suspiciousLoginAlert": true
+    }
+  }
+}

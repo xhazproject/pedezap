@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: pedezap
+    runtime: node
+    plan: free
+    autoDeploy: true
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start -- -p $PORT
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false
+      - key: AUTH_SESSION_SECRET
+        sync: false
+      - key: ABACATEPAY_API_KEY
+        sync: false
+      - key: ABACATEPAY_PUBLIC_KEY
+        sync: false
+      - key: ABACATEPAY_WEBHOOK_SECRET
+        sync: false
+      # Opcional para persistir store.json usando disco no Render:
+      # - key: STORE_FILE_PATH
+      #   value: /var/data/store.json
