@@ -1186,7 +1186,7 @@ export default function AdminPage() {
       const response = await fetch('/api/admin/session');
       const payload = await response.json().catch(() => null);
       if (!response.ok || !payload?.success || !payload?.user) {
-        router.replace('/admin/login');
+        router.replace('/awserver/login');
         return;
       }
       localStorage.setItem('pedezap_admin_session', JSON.stringify(payload.user));
@@ -1673,7 +1673,7 @@ export default function AdminPage() {
             onClick={async () => {
               await fetch('/api/admin/logout', { method: 'POST' }).catch(() => null);
               localStorage.removeItem('pedezap_admin_session');
-              router.push('/admin/login');
+              router.push('/awserver/login');
             }}
             className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-red-500/10 hover:text-red-400 text-slate-400 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all"
           >

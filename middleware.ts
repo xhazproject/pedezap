@@ -7,7 +7,7 @@ import {
 
 function isPublicPath(pathname: string) {
   return (
-    pathname === "/admin/login" ||
+    pathname === "/awserver/login" ||
     pathname === "/master/login" ||
     pathname === "/master/reset-password" ||
     pathname.startsWith("/api/admin/login") ||
@@ -53,7 +53,7 @@ export async function middleware(request: NextRequest) {
   if (isPublicPath(pathname)) return NextResponse.next();
 
   const needsAdminSession =
-    pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
+    pathname.startsWith("/awserver") || pathname.startsWith("/api/admin");
   const needsMasterSession =
     pathname.startsWith("/master") || pathname.startsWith("/api/master");
 
@@ -61,7 +61,7 @@ export async function middleware(request: NextRequest) {
     const token = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
     const payload = await verifySessionToken(token);
     if (!payload || payload.kind !== "admin") {
-      return unauthorizedResponse(request, "/admin/login");
+      return unauthorizedResponse(request, "/awserver/login");
     }
 
     const requiredPermission = getAdminApiRequiredPermission(pathname);
@@ -90,5 +90,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/master/:path*", "/api/admin/:path*", "/api/master/:path*"]
+  matcher: ["/awserver/:path*", "/master/:path*", "/api/admin/:path*", "/api/master/:path*"]
 };

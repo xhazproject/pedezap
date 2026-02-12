@@ -3,7 +3,12 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "PedeZap",
-  description: "PedeZap - Pedidos por link e WhatsApp"
+  description: "PedeZap - Pedidos por link e WhatsApp",
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png"
+  }
 };
 
 export default function RootLayout({

@@ -869,7 +869,7 @@ export default function MasterPage() {
 
   const copyLink = () => {
     if (!restaurant) return;
-    const link = `app.pedezap.ai/${restaurant.slug}`;
+    const link = `pedezap.site/${restaurant.slug}`;
     navigator.clipboard.writeText(link);
     alert('Link copiado!');
   };
@@ -992,7 +992,7 @@ export default function MasterPage() {
       return b.revenue - a.revenue;
     });
   const leastSoldProducts = [...topProducts].sort((a, b) => a.soldQuantity - b.soldQuantity).slice(0, 4);
-  const marketingLink = restaurant ? `https://app.pedezap.ai/${restaurant.slug}` : '';
+  const marketingLink = restaurant ? `https://pedezap.site/${restaurant.slug}` : '';
   const marketingActiveBanners = useMemo(
     () => banners.filter((item) => item.active).slice(0, 4),
     [banners]
@@ -2359,13 +2359,13 @@ export default function MasterPage() {
                     <p className="text-slate-300 text-sm mt-1">Compartilhe com seus clientes</p>
                     <div className="mt-6 flex gap-2">
                       <div className="flex-1 bg-white/20 rounded-lg px-3 py-2 text-sm font-mono truncate">
-                        app.pedezap.ai/{restaurant.slug}
+                        pedezap.site/{restaurant.slug}
                       </div>
                       <button onClick={copyLink} className="bg-white text-slate-800 p-2 rounded-lg hover:bg-gray-100 transition-colors">
                         <Copy size={18} />
                       </button>
                       <button
-                        onClick={() => window.open(`https://app.pedezap.ai/${restaurant.slug}`, '_blank')}
+                        onClick={() => window.open(`https://pedezap.site/${restaurant.slug}`, '_blank')}
                         className="bg-white/15 border border-white/20 text-white p-2 rounded-lg hover:bg-white/20 transition-colors"
                       >
                         <ExternalLink size={18} />
@@ -4639,10 +4639,13 @@ export default function MasterPage() {
                           <MessageSquare size={15} />
                           {supportOpening ? 'Abrindo...' : 'Abrir chamado'}
                         </button>
-                        <button className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 inline-flex items-center justify-center gap-2">
+                        <a
+                          href="mailto:support@pedezap.site?subject=Suporte%20PedeZap%20-%20Painel%20Restaurante"
+                          className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 inline-flex items-center justify-center gap-2"
+                        >
                           <Mail size={15} />
                           Enviar Email
-                        </button>
+                        </a>
                         <p className="pt-1 text-center text-xs text-gray-400">Seg a Sex, das 09h as 18h</p>
                       </div>
                     </div>
