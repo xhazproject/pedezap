@@ -250,8 +250,9 @@ export async function POST(
     }
 
     if (parsed.data.id) {
+      const { id: _id, ...productPayload } = parsed.data;
       store.restaurants[index].products = store.restaurants[index].products.map((item) =>
-        item.id === parsed.data.id ? { ...item, ...parsed.data } : item
+        item.id === parsed.data.id ? { ...item, ...productPayload } : item
       );
     } else {
       store.restaurants[index].products.push({
