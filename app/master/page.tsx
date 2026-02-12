@@ -40,7 +40,8 @@ import {
   Bike,
   Wallet,
   Save,
-  X
+  X,
+  Paperclip
 } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import {
@@ -223,6 +224,13 @@ type CampaignForm = {
   bannerIds: string[];
   period: string;
   active: boolean;
+};
+
+type SupportAttachmentDraft = {
+  name: string;
+  url: string;
+  type?: string;
+  size?: number;
 };
 
 function createDefaultBannerForm(): BannerForm {
@@ -440,6 +448,7 @@ export default function MasterPage() {
   const [supportTicket, setSupportTicket] = useState<SupportTicket | null>(null);
   const [supportMessages, setSupportMessages] = useState<SupportMessage[]>([]);
   const [supportDraft, setSupportDraft] = useState('');
+  const [supportAttachment, setSupportAttachment] = useState<SupportAttachmentDraft | null>(null);
   const [settingsSection, setSettingsSection] = useState<'store' | 'hours' | 'address' | 'delivery' | 'messages' | 'orderMessages' | 'payments'>('store');
   const [marketingSection, setMarketingSection] = useState<'overview' | 'performance' | 'tools' | 'campaigns'>('overview');
   const [settingsDraft, setSettingsDraft] = useState<RestaurantForm | null>(null);
@@ -1908,7 +1917,7 @@ export default function MasterPage() {
   };
 
   const sendSupportMessage = async () => {
-    if (!supportTicket || !supportDraft.trim() || !restaurant) return;
+    if (!supportTicket || (!supportDraft.trim() && !supportAttachment) || !restaurant) return;
     setSupportSending(true);
     const response = await fetch(`/api/admin/support/tickets/${supportTicket.id}/messages`, {
       method: 'POST',
@@ -1917,16 +1926,44 @@ export default function MasterPage() {
         body: supportDraft.trim(),
         authorName: restaurant.name,
         authorRole: 'customer',
-        internal: false
+        internal: false,
+        attachments: supportAttachment ? [supportAttachment] : []
       })
     });
-    if (response.ok) {
+    const payload = await response.json().catch(() => null);
+    if (response.ok && payload?.success) {
       setSupportDraft('');
+      setSupportAttachment(null);
+      setSupportError(null);
       await loadSupportTicketDetails(supportTicket.id);
     } else {
-      setSupportError('Nao foi possivel enviar sua mensagem.');
+      setSupportError(payload?.message ?? 'Nao foi possivel enviar sua mensagem.');
     }
     setSupportSending(false);
+  };
+
+  const handleSupportAttachmentUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.currentTarget.value = '';
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setSupportError('Arquivo muito grande. Limite de 10MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== 'string') return;
+      setSupportAttachment({
+        name: file.name,
+        url: result,
+        type: file.type || 'application/octet-stream',
+        size: file.size
+      });
+      setSupportError(null);
+    };
+    reader.readAsDataURL(file);
   };
 
   useEffect(() => {
@@ -5270,6 +5307,26 @@ export default function MasterPage() {
                     }`}
                   >
                     <p className="whitespace-pre-wrap">{msg.body}</p>
+                    {msg.attachments?.length ? (
+                      <div className="mt-2 space-y-1">
+                        {msg.attachments.map((attachment, index) => (
+                          <a
+                            key={`${msg.id}-att-${index}`}
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            download={attachment.name}
+                            className={`block rounded-lg border px-2 py-1 text-xs ${
+                              msg.authorRole === 'customer'
+                                ? 'border-white/30 text-white/90 hover:bg-white/10'
+                                : 'border-gray-200 text-slate-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            Anexo: {attachment.name}
+                          </a>
+                        ))}
+                      </div>
+                    ) : null}
                     <span className="mt-2 block text-[10px] opacity-70">
                       {msg.authorName} - {new Date(msg.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                     </span>
@@ -5286,11 +5343,37 @@ export default function MasterPage() {
                   placeholder="Descreva seu problema para o suporte..."
                   className="w-full h-24 resize-none text-sm outline-none"
                 />
+                {supportAttachment ? (
+                  <div className="mt-2 flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                    <span className="truncate pr-3">Anexo: {supportAttachment.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setSupportAttachment(null)}
+                      className="rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-100"
+                    >
+                      Remover
+                    </button>
+                  </div>
+                ) : null}
                 <div className="mt-2 flex items-center justify-between">
-                  <span className="text-xs text-gray-400">Sua mensagem aparece no painel Admin em tempo real.</span>
+                  <div>
+                    <input
+                      id="support-attachment-upload"
+                      type="file"
+                      className="hidden"
+                      onChange={handleSupportAttachmentUpload}
+                    />
+                    <label
+                      htmlFor="support-attachment-upload"
+                      className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50"
+                    >
+                      <Paperclip size={13} />
+                      Anexar arquivo
+                    </label>
+                  </div>
                   <button
                     onClick={sendSupportMessage}
-                    disabled={supportSending || !supportDraft.trim() || !supportTicket}
+                    disabled={supportSending || (!supportDraft.trim() && !supportAttachment) || !supportTicket}
                     className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white hover:bg-slate-900 disabled:opacity-60"
                   >
                     {supportSending ? 'Enviando...' : 'Enviar'}
