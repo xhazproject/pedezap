@@ -4844,8 +4844,8 @@ export default function MasterPage() {
       </div>
 
       {showManualOrderModal && (
-        <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center p-4">
-          <div className="w-full max-w-4xl rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 bg-black/45 flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-4">
+          <div className="w-full max-w-4xl rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-2xl font-semibold text-gray-900">Novo Pedido Manual</h3>
               <button
@@ -4861,7 +4861,7 @@ export default function MasterPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 p-5">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 p-5 flex-1 overflow-y-auto">
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-gray-900 border-b border-gray-200 pb-2">Dados do Cliente</h4>
                 <div>
@@ -4919,11 +4919,11 @@ export default function MasterPage() {
 
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-gray-900 border-b border-gray-200 pb-2">Itens do Pedido</h4>
-                <div className="grid grid-cols-[1fr_64px_96px] gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_82px_auto]">
                   <select
                     value={manualSelectedProductId}
                     onChange={(event) => setManualSelectedProductId(event.target.value)}
-                    className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
                   >
                     <option value="">Selecione um produto...</option>
                     {manualOrderProducts.map((product) => (
@@ -4937,12 +4937,12 @@ export default function MasterPage() {
                     min={1}
                     value={manualSelectedQuantity}
                     onChange={(event) => setManualSelectedQuantity(Number(event.target.value) || 1)}
-                    className="rounded-lg border border-gray-300 px-2 py-2.5 text-sm"
+                    className="w-full rounded-lg border border-gray-300 px-2 py-2.5 text-sm"
                   />
                   <button
                     type="button"
                     onClick={addItemToManualOrder}
-                    className="rounded-lg bg-slate-100 text-slate-900 text-sm font-semibold hover:bg-slate-200"
+                    className="w-full rounded-lg bg-slate-100 px-3 py-2.5 text-slate-900 text-sm font-semibold hover:bg-slate-200"
                   >
                     Adicionar
                   </button>
@@ -4979,14 +4979,14 @@ export default function MasterPage() {
                   )}
                 </div>
 
-                <div className="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 flex items-center justify-between">
+                <div className="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="font-semibold text-gray-800">TOTAL DO PEDIDO</span>
-                  <span className="text-3xl font-bold text-slate-900">R$ {manualOrderTotal.toFixed(2)}</span>
+                  <span className="text-2xl font-bold text-slate-900 sm:text-3xl">R$ {manualOrderTotal.toFixed(2)}</span>
                 </div>
               </div>
             </div>
 
-            <div className="px-5 py-4 border-t border-gray-100 flex items-center justify-end gap-2">
+            <div className="px-5 py-4 border-t border-gray-100 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
               <button
                 onClick={() => {
                   setShowManualOrderModal(false);
@@ -4994,14 +4994,14 @@ export default function MasterPage() {
                   setManualSelectedProductId('');
                   setManualSelectedQuantity(1);
                 }}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 sm:w-auto"
               >
                 Cancelar
               </button>
               <button
                 onClick={createManualOrder}
                 disabled={creatingManualOrder}
-                className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-60"
+                className="w-full rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-60 sm:w-auto"
               >
                 {creatingManualOrder ? 'Criando...' : 'Criar Pedido'}
               </button>
