@@ -59,6 +59,7 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
+import { BrandLogo } from '@/components/brand-logo';
 
 type AdminSession = { email: string; name: string; role?: string; permissions?: string[] };
 type PageId =
@@ -1611,11 +1612,8 @@ export default function AdminPage() {
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
       <aside className="w-72 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800 shadow-xl z-10">
         <div className="h-20 px-6 flex items-center gap-3 border-b border-slate-800/50">
-          <div className="h-10 w-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-emerald-500/20">
-            P
-          </div>
+          <BrandLogo imageClassName="h-14 w-auto object-contain" />
           <div>
-            <h1 className="text-lg font-bold text-white leading-tight tracking-tight">PedeZap</h1>
             <p className="text-[10px] font-bold text-emerald-500 tracking-widest uppercase">Admin Master</p>
           </div>
         </div>

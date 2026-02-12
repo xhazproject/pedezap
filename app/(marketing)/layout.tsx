@@ -1,58 +1,52 @@
+import React from 'react';
+import { BrandLogo } from '@/components/brand-logo';
 
-import { UtensilsCrossed, Zap } from "lucide-react";
-import React from "react";
-
-// Mock Link for preview environment
 const Link = ({ href, children, className }: { href: string; children?: React.ReactNode; className?: string }) => (
-  <a href={href} className={className}>{children}</a>
+  <a href={href} className={className}>
+    {children}
+  </a>
 );
 
 export default function MarketingLayout({
-  children,
+  children
 }: {
   children?: React.ReactNode;
 }) {
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
-      <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
+      <header className="fixed top-0 z-50 w-full border-b border-slate-200 bg-white/80 backdrop-blur-md">
         <div className="container-custom flex h-16 items-center justify-between">
-          <Link href="/inicio" className="flex items-center gap-2.5 group">
-            <div className="relative flex items-center justify-center h-9 w-9 bg-gradient-to-br from-brand-500 to-brand-700 rounded-lg shadow-lg shadow-brand-500/20 group-hover:scale-105 transition-transform duration-200">
-              <Zap className="h-5 w-5 text-white fill-white/20" />
-            </div>
-            <span className="font-extrabold text-xl tracking-tight text-slate-900">
-              Pede<span className="text-brand-600">Zap</span>
-            </span>
+          <Link href="/inicio" className="flex items-center gap-2.5">
+            <BrandLogo src="/pedezappp.png" imageClassName="h-8 w-auto object-contain" />
           </Link>
 
           <nav className="flex items-center gap-4 sm:gap-6">
-            <Link 
-              href="#planos" 
-              className="text-sm font-medium text-slate-600 hover:text-brand-600 transition-colors hidden sm:block"
-            >
+            <Link href="#planos" className="hidden text-sm font-medium text-slate-500 transition-colors hover:text-slate-900 sm:block">
               Ver planos
             </Link>
             <Link
               href="#contato"
-              className="bg-slate-900 text-white hover:bg-slate-800 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-slate-900/10"
+              className="rounded-full bg-black px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-black/15 transition-colors hover:bg-slate-900"
             >
-              Quero contratar
+              Comecar agora
             </Link>
           </nav>
         </div>
       </header>
-      <main className="flex-1 pt-16">
-        {children}
-      </main>
-      <footer className="bg-slate-900 text-slate-400 py-12 border-t border-slate-800">
-        <div className="container-custom flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-2.5">
-             <div className="flex items-center justify-center h-8 w-8 bg-slate-800 rounded-lg border border-slate-700">
-              <Zap className="h-4 w-4 text-brand-500" />
+
+      <main className="flex-1 pt-16">{children}</main>
+
+      <footer className="mt-auto">
+        <div className="h-10 bg-black"></div>
+        <div className="border-t border-slate-200 bg-slate-100 py-6">
+          <div className="container-custom flex flex-col items-center justify-between gap-3 md:flex-row">
+            <div className="flex items-center gap-2.5">
+              <BrandLogo src="/pedezappp.png" imageClassName="h-6 w-auto object-contain md:h-7" />
             </div>
-            <span className="font-bold text-white text-lg">Pede<span className="text-brand-500">Zap</span></span>
+            <p className="text-center text-xs text-slate-500 md:text-right md:text-sm">
+              &copy; {new Date().getFullYear()} PedeZap. Minimalismo para seu delivery.
+            </p>
           </div>
-          <p className="text-sm">© {new Date().getFullYear()} PedeZap. Todos os direitos reservados.</p>
         </div>
       </footer>
     </div>

@@ -79,9 +79,9 @@ export function LeadForm() {
   }
 
   return (
-    <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100">
+    <div className="bg-white p-8 rounded-3xl shadow-2xl border border-slate-200">
       <h3 className="text-2xl font-bold text-slate-900 mb-2">Contrate agora</h3>
-      <p className="text-slate-600 mb-6">Preencha os dados e fale com nosso time.</p>
+      <p className="text-slate-500 mb-6">Preencha os dados abaixo.</p>
 
       {state.success && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3 text-green-800">
@@ -108,7 +108,7 @@ export function LeadForm() {
             id="responsibleName"
             required
             className={cn(
-              'w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition-all',
+              'w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 outline-none transition-all',
               state.errors?.responsibleName ? 'border-red-500' : 'border-slate-300'
             )}
             placeholder="Seu nome completo"
@@ -128,7 +128,7 @@ export function LeadForm() {
             id="restaurantName"
             required
             className={cn(
-              'w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition-all',
+              'w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 outline-none transition-all',
               state.errors?.restaurantName ? 'border-red-500' : 'border-slate-300'
             )}
             placeholder="Ex: Burger King"
@@ -150,7 +150,7 @@ export function LeadForm() {
               required
               placeholder="(11) 99999-9999"
               className={cn(
-                'w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition-all',
+                'w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 outline-none transition-all',
                 state.errors?.whatsapp ? 'border-red-500' : 'border-slate-300'
               )}
             />
@@ -170,7 +170,7 @@ export function LeadForm() {
               required
               placeholder="Ex: Sao Paulo/SP"
               className={cn(
-                'w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition-all',
+                'w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 outline-none transition-all',
                 state.errors?.cityState ? 'border-red-500' : 'border-slate-300'
               )}
             />
@@ -187,7 +187,7 @@ export function LeadForm() {
           <select
             name="plan"
             id="plan"
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none bg-white"
+            className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 outline-none bg-white"
             defaultValue="Local"
           >
             <option value="Local">Plano Local</option>
@@ -203,7 +203,7 @@ export function LeadForm() {
             name="message"
             id="message"
             rows={3}
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition-all resize-none"
+            className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 outline-none transition-all resize-none"
             placeholder="Duvidas ou observacoes..."
           ></textarea>
         </div>
@@ -211,7 +211,7 @@ export function LeadForm() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+          className="w-full bg-black hover:bg-slate-900 text-white font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
         >
           {submitting ? (
             <>
@@ -223,7 +223,7 @@ export function LeadForm() {
           )}
         </button>
         <p className="text-xs text-slate-400 text-center mt-2">
-          Ao enviar, voce concorda com nossos termos de uso.
+          Nenhum pagamento e exigido agora.
         </p>
       </form>
     </div>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { BrandLogo } from '@/components/brand-logo';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -38,7 +39,7 @@ export default function AdminLoginPage() {
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-emerald-600 mb-2">PedeZap</h1>
+          <BrandLogo className="flex justify-center mb-3" imageClassName="h-20 w-auto object-contain" />
           <p className="text-slate-500">Acesso Administrativo</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">

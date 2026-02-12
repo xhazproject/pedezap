@@ -18,6 +18,7 @@ import {
   MessageSquare,
   MapPin,
   Megaphone,
+  Menu as MenuIcon,
   Pencil,
   PlayCircle,
   Printer,
@@ -54,6 +55,7 @@ import {
   SupportMessage,
   SupportTicket
 } from '@/lib/store-data';
+import { BrandLogo } from '@/components/brand-logo';
 
 type MasterSession = {
   restaurantSlug: string;
@@ -366,6 +368,7 @@ export default function MasterPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [activeTab, setActiveTab] = useState<TabKey>('dashboard');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [ordersView, setOrdersView] = useState<'board' | 'table'>('board');
   const [ordersQuery, setOrdersQuery] = useState('');
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
@@ -910,6 +913,20 @@ export default function MasterPage() {
     plans: 'Meu Plano',
     support: 'Central de Ajuda'
   }[activeTab];
+  const navItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'orders', label: 'Pedidos', icon: ShoppingBag },
+    { id: 'menu', label: 'Cardapio', icon: UtensilsCrossed },
+    { id: 'highlights', label: 'Destaques', icon: Star },
+    { id: 'clients', label: 'Clientes', icon: Users },
+    { id: 'billing', label: 'Faturamento', icon: CreditCard },
+    { id: 'promotions', label: 'Promocoes', icon: List },
+    { id: 'banners', label: 'Banners', icon: LayoutDashboard },
+    { id: 'marketing', label: 'Marketing', icon: MessageSquare },
+    { id: 'settings', label: 'Configuracoes', icon: Settings },
+    { id: 'plans', label: 'Plano', icon: CreditCard },
+    { id: 'support', label: 'Suporte', icon: AlertCircle }
+  ] as const;
   const moneyFormatter = useMemo(
     () => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }),
     []
@@ -926,9 +943,9 @@ export default function MasterPage() {
     canceled: 'Cancelado'
   }[subscriptionSummary?.status ?? 'expired'];
   const subscriptionStatusTone = {
-    trial: 'bg-blue-100 text-blue-700',
-    active: 'bg-emerald-100 text-emerald-700',
-    pending_payment: 'bg-amber-100 text-amber-700',
+    trial: 'bg-slate-100 text-slate-800',
+    active: 'bg-slate-100 text-slate-900',
+    pending_payment: 'bg-slate-100 text-slate-800',
     expired: 'bg-red-100 text-red-700',
     canceled: 'bg-slate-200 text-slate-700'
   }[subscriptionSummary?.status ?? 'expired'];
@@ -947,9 +964,9 @@ export default function MasterPage() {
   const instagramPercent = 25;
   const othersPercent = 10;
   const funnelBars = [
-    { label: 'Visualizacoes', value: estimatedMonthlyViews, color: 'bg-blue-500' },
+    { label: 'Visualizacoes', value: estimatedMonthlyViews, color: 'bg-slate-700' },
     { label: 'Acoes no Carrinho', value: Math.max(0, Math.round(estimatedMonthlyViews * 0.35)), color: 'bg-violet-500' },
-    { label: 'Pedidos', value: ordersThisMonth.length, color: 'bg-emerald-500' }
+    { label: 'Pedidos', value: ordersThisMonth.length, color: 'bg-slate-1000' }
   ];
   const productSalesMap = new Map<string, { quantity: number; revenue: number }>();
   ordersThisMonth.forEach((order) => {
@@ -2199,7 +2216,7 @@ export default function MasterPage() {
                 localStorage.removeItem('pedezap_master_session');
                 router.push('/master/login');
               }}
-              className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
+              className="px-4 py-2 rounded-lg bg-black text-white text-sm font-medium hover:bg-slate-900"
             >
               Ir para login
             </button>
@@ -2209,36 +2226,68 @@ export default function MasterPage() {
     );
   }
 
+  const handleSelectTab = (tabId: TabKey) => {
+    setActiveTab(tabId);
+    setMobileMenuOpen(false);
+  };
+
   return (
-    <div className="h-screen bg-gray-50 flex overflow-hidden">
+    <div className="min-h-screen lg:h-screen bg-gray-50 flex overflow-hidden">
+      {mobileMenuOpen && (
+        <button
+          type="button"
+          aria-label="Fechar menu"
+          onClick={() => setMobileMenuOpen(false)}
+          className="fixed inset-0 z-30 bg-black/35 lg:hidden"
+        />
+      )}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 w-72 bg-white border-r border-gray-200 flex flex-col transition-transform duration-200 lg:hidden ${
+          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="h-16 px-4 flex items-center justify-between border-b border-gray-100">
+          <BrandLogo src="/pedezappp.png" imageClassName="h-10 w-auto object-contain" />
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(false)}
+            className="h-9 w-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 flex items-center justify-center"
+            aria-label="Fechar menu"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <nav className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-1">
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => handleSelectTab(item.id)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === item.id ? 'bg-slate-100 text-slate-900' : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <item.icon size={18} />
+              {item.label}
+            </button>
+          ))}
+        </nav>
+      </aside>
+
       <aside className="w-64 h-screen bg-white border-r border-gray-200 hidden lg:flex flex-col">
         <div className="h-16 px-6 flex items-center gap-3 border-b border-gray-100">
-          <div className="h-9 w-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold">P</div>
+          <BrandLogo src="/pedezappp.png" imageClassName="h-14 w-auto object-contain" />
           <div>
-            <p className="text-lg font-bold text-gray-900">PedeZap</p>
             <p className="text-xs text-gray-500">Painel</p>
           </div>
         </div>
         <nav className="flex-1 min-h-0 overflow-y-auto px-4 py-6 space-y-1">
-          {([
-            { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-            { id: 'orders', label: 'Pedidos', icon: ShoppingBag },
-            { id: 'menu', label: 'Cardapio', icon: UtensilsCrossed },
-            { id: 'highlights', label: 'Destaques', icon: Star },
-            { id: 'clients', label: 'Clientes', icon: Users },
-            { id: 'billing', label: 'Faturamento', icon: CreditCard },
-            { id: 'promotions', label: 'Promocoes', icon: List },
-            { id: 'banners', label: 'Banners', icon: LayoutDashboard },
-            { id: 'marketing', label: 'Marketing', icon: MessageSquare },
-            { id: 'settings', label: 'Configuracoes', icon: Settings },
-            { id: 'plans', label: 'Plano', icon: CreditCard },
-            { id: 'support', label: 'Suporte', icon: AlertCircle }
-          ] as const).map((item) => (
+          {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => handleSelectTab(item.id)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === item.id ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700 hover:bg-gray-50'
+                activeTab === item.id ? 'bg-slate-100 text-slate-900' : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
               <item.icon size={18} />
@@ -2264,13 +2313,21 @@ export default function MasterPage() {
       <div className="flex-1 min-h-0 flex flex-col min-w-0">
         <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">
-            <h1 className="text-lg md:text-xl font-semibold text-gray-900">{pageTitle}</h1>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="lg:hidden h-9 w-9 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 flex items-center justify-center"
+              aria-label="Abrir menu"
+            >
+              <MenuIcon size={18} />
+            </button>
+            <h1 className="text-base sm:text-lg md:text-xl font-semibold text-gray-900">{pageTitle}</h1>
           </div>
           <div className="hidden md:flex flex-1 px-6">
             <div className="relative w-full max-w-xl">
               <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 transition-all"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-400 transition-all"
                 placeholder="Buscar global (cardapio, pedidos, config)..."
               />
             </div>
@@ -2280,16 +2337,16 @@ export default function MasterPage() {
               <span className="text-sm font-medium text-gray-900">{session?.restaurantName}</span>
               <span className="text-xs text-gray-500">Restaurante</span>
             </div>
-            <div className="h-9 w-9 rounded-full bg-emerald-600 text-white flex items-center justify-center text-sm font-bold">
+            <div className="h-9 w-9 rounded-full bg-black text-white flex items-center justify-center text-sm font-bold">
               {session?.restaurantName?.charAt(0).toUpperCase() ?? 'R'}
             </div>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8">
           <div className="max-w-6xl mx-auto space-y-6">
             {message && (
-              <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+              <p className="text-sm text-slate-800 bg-slate-100 border border-slate-200 rounded-lg px-3 py-2">
                 {message}
               </p>
             )}
@@ -2297,14 +2354,14 @@ export default function MasterPage() {
             {activeTab === 'dashboard' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-                  <section className="lg:col-span-2 bg-emerald-600 text-white rounded-xl p-6">
+                  <section className="lg:col-span-2 bg-black text-white rounded-xl p-6">
                     <h3 className="text-lg font-semibold">Seu Link de Pedidos</h3>
-                    <p className="text-emerald-100 text-sm mt-1">Compartilhe com seus clientes</p>
+                    <p className="text-slate-300 text-sm mt-1">Compartilhe com seus clientes</p>
                     <div className="mt-6 flex gap-2">
                       <div className="flex-1 bg-white/20 rounded-lg px-3 py-2 text-sm font-mono truncate">
                         app.pedezap.ai/{restaurant.slug}
                       </div>
-                      <button onClick={copyLink} className="bg-white text-emerald-600 p-2 rounded-lg hover:bg-gray-100 transition-colors">
+                      <button onClick={copyLink} className="bg-white text-slate-800 p-2 rounded-lg hover:bg-gray-100 transition-colors">
                         <Copy size={18} />
                       </button>
                       <button
@@ -2318,7 +2375,7 @@ export default function MasterPage() {
 
                   <section className="bg-white rounded-xl border border-gray-100 p-6 flex flex-col items-center text-center">
                     <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Status da Loja</span>
-                    <div className={`mt-2 px-4 py-1 rounded-full text-xs font-bold ${(restaurant.openForOrders ?? true) ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                    <div className={`mt-2 px-4 py-1 rounded-full text-xs font-bold ${(restaurant.openForOrders ?? true) ? 'bg-slate-100 text-slate-900' : 'bg-red-100 text-red-700'}`}>
                       {(restaurant.openForOrders ?? true) ? 'ABERTA' : 'FECHADA'}
                     </div>
                     <div className="mt-4 w-full">
@@ -2330,7 +2387,7 @@ export default function MasterPage() {
                           })
                         }
                         className={`w-full rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                          (restaurant.openForOrders ?? true) ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                          (restaurant.openForOrders ?? true) ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-black text-white hover:bg-slate-900'
                         }`}
                       >
                         {(restaurant.openForOrders ?? true) ? 'Fechar Loja' : 'Abrir Loja'}
@@ -2352,7 +2409,7 @@ export default function MasterPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-white rounded-xl border border-gray-100 p-5 flex items-center gap-4">
-                    <div className="w-11 h-11 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                    <div className="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center text-slate-700">
                       <List size={22} />
                     </div>
                     <div>
@@ -2361,7 +2418,7 @@ export default function MasterPage() {
                     </div>
                   </div>
                   <div className="bg-white rounded-xl border border-gray-100 p-5 flex items-center gap-4">
-                    <div className="w-11 h-11 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
+                    <div className="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center text-slate-700">
                       <ShoppingBag size={22} />
                     </div>
                     <div>
@@ -2407,7 +2464,7 @@ export default function MasterPage() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Dicas de Sucesso</h3>
                     <div className="space-y-4">
                       <div className="flex gap-3">
-                        <div className="flex-shrink-0 mt-1 text-emerald-600">
+                        <div className="flex-shrink-0 mt-1 text-slate-800">
                           <AlertCircle size={18} />
                         </div>
                         <div className="text-sm text-gray-600">
@@ -2416,7 +2473,7 @@ export default function MasterPage() {
                         </div>
                       </div>
                       <div className="flex gap-3">
-                        <div className="flex-shrink-0 mt-1 text-emerald-600">
+                        <div className="flex-shrink-0 mt-1 text-slate-800">
                           <AlertCircle size={18} />
                         </div>
                         <div className="text-sm text-gray-600">
@@ -2452,7 +2509,7 @@ export default function MasterPage() {
                         openingHours: buildOpeningHoursSummary(settingsHours)
                       });
                     }}
-                    className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
+                    className="inline-flex items-center gap-2 rounded-lg bg-black text-white px-4 py-2 text-sm font-semibold hover:bg-slate-900 disabled:opacity-60"
                   >
                     <Save size={14} />
                     {saving ? 'Salvando...' : 'Salvar Alteracoes'}
@@ -2475,7 +2532,7 @@ export default function MasterPage() {
                         onClick={() => setSettingsSection(item.id)}
                         className={`w-full rounded-lg px-3 py-2.5 text-sm flex items-center gap-2 ${
                           settingsSection === item.id
-                            ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                            ? 'bg-slate-100 text-slate-900 font-semibold'
                             : 'text-gray-700 hover:bg-gray-50'
                         }`}
                       >
@@ -2492,7 +2549,7 @@ export default function MasterPage() {
                           <h3 className="text-2xl font-semibold text-gray-900">Horarios de Funcionamento</h3>
                         </div>
                         <div className="p-4 space-y-4">
-                          <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                          <div className="rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-800">
                             <p className="font-medium">Defina sua grade de horarios</p>
                             <p className="text-xs mt-1">Desmarque os dias que o estabelecimento nao abre. Fora destes horarios, sua loja aparecera como "Fechada".</p>
                           </div>
@@ -2540,7 +2597,7 @@ export default function MasterPage() {
                           <h3 className="text-2xl font-semibold text-gray-900">Localizacao</h3>
                         </div>
                         <div className="p-4 space-y-4">
-                          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 inline-flex items-start gap-3 w-full">
+                          <div className="rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-800 inline-flex items-start gap-3 w-full">
                             <AlertCircle size={16} className="mt-0.5" />
                             <p>
                               Este endereco sera exibido para seus clientes e usado para calcular rotas de entrega se voce usar entregadores parceiros.
@@ -2603,7 +2660,7 @@ export default function MasterPage() {
                                   prev ? { ...prev, openForOrders: !prev.openForOrders } : prev
                                 )
                               }
-                              className={`h-6 w-11 rounded-full p-1 transition-colors ${settingsDraft.openForOrders ? 'bg-emerald-500' : 'bg-gray-300'}`}
+                              className={`h-6 w-11 rounded-full p-1 transition-colors ${settingsDraft.openForOrders ? 'bg-slate-1000' : 'bg-gray-300'}`}
                               aria-label="Alternar recebimento de pedidos"
                             >
                               <span
@@ -2663,7 +2720,7 @@ export default function MasterPage() {
                         </div>
                         <div className="p-4 grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-4">
                           <div>
-                            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                            <div className="rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-800">
                               Esta e a mensagem que o seu cliente enviara automaticamente para o seu WhatsApp ao finalizar um pedido no catalogo.
                               Personalize-a para facilitar o seu atendimento.
                             </div>
@@ -2696,9 +2753,9 @@ export default function MasterPage() {
                           </div>
 
                           <div className="rounded-2xl border border-gray-200 bg-[#ece5dd] overflow-hidden h-[370px] flex flex-col">
-                            <div className="bg-emerald-700 text-white px-4 py-3">
+                            <div className="bg-slate-900 text-white px-4 py-3">
                               <p className="text-sm font-semibold">{restaurant.name}</p>
-                              <p className="text-[11px] text-emerald-100">Online</p>
+                              <p className="text-[11px] text-slate-300">Online</p>
                             </div>
                             <div className="p-4">
                               <div className="ml-auto w-[88%] rounded-xl bg-[#dcf8c6] px-3 py-2 text-sm text-gray-800 shadow-sm">
@@ -2736,7 +2793,7 @@ export default function MasterPage() {
                                   }
                                   className={`rounded-lg border px-3 py-2 text-sm font-medium ${
                                     settingsPaymentMethods[item.key]
-                                      ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                                      ? 'border-slate-900 bg-slate-100 text-slate-900'
                                       : 'border-gray-300 bg-white text-gray-500'
                                   }`}
                                 >
@@ -2747,17 +2804,17 @@ export default function MasterPage() {
                             </div>
                           </div>
 
-                          <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-                            <p className="text-base font-semibold text-blue-800">Configuracao do PIX</p>
+                          <div className="rounded-xl border border-slate-200 bg-slate-100 p-4">
+                            <p className="text-base font-semibold text-slate-900">Configuracao do PIX</p>
                             <div className="mt-2">
-                              <label className="text-sm text-blue-900">Chave PIX ou Instrucoes</label>
+                              <label className="text-sm text-slate-900">Chave PIX ou Instrucoes</label>
                               <input
                                 value={settingsPixInstructions}
                                 onChange={(event) => setSettingsPixInstructions(event.target.value)}
-                                className="mt-1 w-full rounded-lg border border-blue-200 px-3 py-2 text-sm"
+                                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                               />
                             </div>
-                            <p className="mt-2 text-xs text-blue-600">
+                            <p className="mt-2 text-xs text-slate-700">
                               Essa informacao sera exibida para o cliente na etapa de pagamento.
                             </p>
                           </div>
@@ -2771,7 +2828,7 @@ export default function MasterPage() {
                           <h3 className="text-2xl font-semibold text-gray-900">Mensagens de Pedido</h3>
                         </div>
                         <div className="p-4 space-y-5">
-                          <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                          <div className="rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-800">
                             Personalize os textos enviados ao cliente durante o fluxo do pedido.
                           </div>
 
@@ -2852,7 +2909,7 @@ export default function MasterPage() {
                               </button>
                             </div>
                             <div className="mt-4 flex items-end gap-3">
-                              <div className="h-16 w-16 overflow-hidden rounded-full border-2 border-gray-200 bg-emerald-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                              <div className="h-16 w-16 overflow-hidden rounded-full border-2 border-gray-200 bg-black text-white flex items-center justify-center font-bold text-lg shadow-sm">
                                 {settingsDraft?.logoUrl ? (
                                   <img src={settingsDraft.logoUrl} alt="Logo da loja" className="h-full w-full object-cover" />
                                 ) : (
@@ -2921,7 +2978,7 @@ export default function MasterPage() {
                         setEditingCategoryId(null);
                         setNewCategory('');
                       }}
-                      className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-emerald-700"
+                      className="inline-flex items-center gap-1 rounded-lg bg-black text-white px-3 py-1.5 text-xs font-medium hover:bg-slate-900"
                     >
                       <Plus size={14} />
                       Nova
@@ -2945,7 +3002,7 @@ export default function MasterPage() {
                                 : true;
                             saveCategory({ id: editingCategoryId ?? undefined, name: newCategory, active: currentActive });
                           }}
-                          className="inline-flex items-center justify-center rounded-lg font-medium transition-colors bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-2 text-xs"
+                          className="inline-flex items-center justify-center rounded-lg font-medium transition-colors bg-black text-white hover:bg-slate-900 px-3 py-2 text-xs"
                         >
                           Salvar
                         </button>
@@ -2969,7 +3026,7 @@ export default function MasterPage() {
                         key={category.id}
                         className={`flex items-center justify-between rounded-lg border px-3 py-2 ${
                           selectedCategoryId === category.id
-                            ? 'border-emerald-200 bg-emerald-50'
+                            ? 'border-slate-200 bg-slate-100'
                             : category.active
                             ? 'border-gray-200'
                             : 'border-gray-200 bg-gray-50'
@@ -2979,7 +3036,7 @@ export default function MasterPage() {
                           onClick={() => setSelectedCategoryId(category.id)}
                           className="flex items-center gap-2 text-left flex-1"
                         >
-                          <span className={`h-2 w-2 rounded-full ${category.active ? 'bg-emerald-500' : 'bg-gray-400'}`}></span>
+                          <span className={`h-2 w-2 rounded-full ${category.active ? 'bg-slate-1000' : 'bg-gray-400'}`}></span>
                           <span className={`text-sm font-medium ${category.active ? 'text-gray-800' : 'text-gray-500'}`}>
                             {category.name} {!category.active ? '(Inativa)' : ''}
                           </span>
@@ -2988,7 +3045,7 @@ export default function MasterPage() {
                           <button
                             onClick={() => saveCategory({ id: category.id, name: category.name, active: !category.active })}
                             className={`h-5 w-10 rounded-full p-0.5 transition-colors ${
-                              category.active ? 'bg-emerald-500' : 'bg-gray-300'
+                              category.active ? 'bg-slate-1000' : 'bg-gray-300'
                             }`}
                             title={category.active ? 'Desativar categoria' : 'Ativar categoria'}
                             aria-label={category.active ? 'Desativar categoria' : 'Ativar categoria'}
@@ -2999,7 +3056,7 @@ export default function MasterPage() {
                               }`}
                             />
                           </button>
-                          <button onClick={() => editCategory(category)} className="hover:text-emerald-600">
+                          <button onClick={() => editCategory(category)} className="hover:text-slate-900">
                             <Pencil size={14} />
                           </button>
                           <button onClick={() => deleteCategory(category.id)} className="hover:text-red-600">
@@ -3022,7 +3079,7 @@ export default function MasterPage() {
                         setShowProductForm(true);
                         setProductForm(createDefaultProductForm(selectedCategoryId ?? ''));
                       }}
-                      className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-emerald-700"
+                      className="inline-flex items-center gap-1 rounded-lg bg-black text-white px-3 py-1.5 text-xs font-medium hover:bg-slate-900"
                     >
                       <Plus size={14} />
                       Novo Produto
@@ -3043,18 +3100,18 @@ export default function MasterPage() {
                               <p className="font-semibold text-gray-900">{product.name}</p>
                               <p className="text-xs text-gray-500">{stripFeaturedTag(product.description)}</p>
                               {hasFeaturedTag(product.description) && (
-                                <span className="mt-2 inline-flex rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                                <span className="mt-2 inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-800">
                                   Destaque
                                 </span>
                               )}
                             </div>
-                            <span className="text-emerald-600 font-semibold text-sm">R$ {product.price.toFixed(2)}</span>
+                            <span className="text-slate-800 font-semibold text-sm">R$ {product.price.toFixed(2)}</span>
                           </div>
                           <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
-                            <button onClick={() => editProduct(product)} className="hover:text-emerald-600">
+                            <button onClick={() => editProduct(product)} className="hover:text-slate-900">
                               Editar
                             </button>
-                            <button onClick={() => duplicateProduct(product)} className="hover:text-emerald-600">
+                            <button onClick={() => duplicateProduct(product)} className="hover:text-slate-900">
                               Duplicar
                             </button>
                             <button onClick={() => deleteProduct(product.id)} className="hover:text-red-600">
@@ -3082,7 +3139,7 @@ export default function MasterPage() {
 	                  <div className="flex items-center gap-2">
 	                    <button
 	                      onClick={() => setShowManualOrderModal(true)}
-	                      className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+	                      className="inline-flex items-center gap-2 rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-slate-900"
 	                    >
 	                      <Plus size={16} />
 	                      Novo Pedido
@@ -3100,7 +3157,7 @@ export default function MasterPage() {
                       <button
                         onClick={() => setOrdersView('board')}
                         className={`h-8 w-8 rounded-md flex items-center justify-center ${
-                          ordersView === 'board' ? 'bg-emerald-100 text-emerald-700' : 'text-gray-400'
+                          ordersView === 'board' ? 'bg-slate-100 text-slate-900' : 'text-gray-400'
                         }`}
                       >
                         <LayoutDashboard size={16} />
@@ -3108,7 +3165,7 @@ export default function MasterPage() {
                       <button
                         onClick={() => setOrdersView('table')}
                         className={`h-8 w-8 rounded-md flex items-center justify-center ${
-                          ordersView === 'table' ? 'bg-emerald-100 text-emerald-700' : 'text-gray-400'
+                          ordersView === 'table' ? 'bg-slate-100 text-slate-900' : 'text-gray-400'
                         }`}
                       >
                         <List size={16} />
@@ -3120,9 +3177,9 @@ export default function MasterPage() {
                 {ordersView === 'board' ? (
                   <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
                     {[
-                      { key: 'Recebido', label: 'Recebidos', color: 'bg-amber-50 border-amber-100' },
-                      { key: 'Em preparo', label: 'Na Cozinha', color: 'bg-blue-50 border-blue-100' },
-                      { key: 'Concluido', label: 'Prontos / Historico', color: 'bg-emerald-50 border-emerald-100' }
+                      { key: 'Recebido', label: 'Recebidos', color: 'bg-slate-100 border-slate-200' },
+                      { key: 'Em preparo', label: 'Na Cozinha', color: 'bg-slate-100 border-slate-200' },
+                      { key: 'Concluido', label: 'Prontos / Historico', color: 'bg-slate-100 border-slate-200' }
                     ].map((column) => (
                       <div key={column.key} className={`rounded-xl border ${column.color} p-4`}>
                         <div className="flex items-center justify-between mb-3">
@@ -3148,14 +3205,14 @@ export default function MasterPage() {
                               </div>
                               <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
                                 <span>{paymentMethodLabel(order.paymentMethod)}</span>
-                                <span className="font-semibold text-emerald-700">R$ {order.total.toFixed(2)}</span>
+                                <span className="font-semibold text-slate-900">R$ {order.total.toFixed(2)}</span>
                               </div>
                               <div className="mt-3 flex items-center gap-2">
                                 {column.key === 'Recebido' && (
                                   <button
                                     onClick={() => updateOrderStatus(order.id, 'Em preparo')}
                                     disabled={updatingOrderId === order.id}
-                                    className="flex-1 rounded-lg bg-emerald-600 text-white py-1.5 text-xs font-medium hover:bg-emerald-700 disabled:opacity-60"
+                                    className="flex-1 rounded-lg bg-black text-white py-1.5 text-xs font-medium hover:bg-slate-900 disabled:opacity-60"
                                   >
                                     {updatingOrderId === order.id ? 'Atualizando...' : 'Aceitar & Preparar'}
                                   </button>
@@ -3164,19 +3221,19 @@ export default function MasterPage() {
                                   <button
                                     onClick={() => updateOrderStatus(order.id, 'Concluido')}
                                     disabled={updatingOrderId === order.id}
-                                    className="flex-1 rounded-lg border border-emerald-200 text-emerald-700 py-1.5 text-xs font-medium hover:bg-emerald-50 disabled:opacity-60"
+                                    className="flex-1 rounded-lg border border-slate-200 text-slate-900 py-1.5 text-xs font-medium hover:bg-slate-100 disabled:opacity-60"
                                   >
                                     {updatingOrderId === order.id ? 'Atualizando...' : 'Marcar Pronto'}
                                   </button>
                                 )}
                                 {column.key === 'Concluido' && (
-                                  <button className="flex-1 rounded-lg border border-emerald-100 text-emerald-700 py-1.5 text-xs font-medium bg-emerald-50">
+                                  <button className="flex-1 rounded-lg border border-slate-200 text-slate-900 py-1.5 text-xs font-medium bg-slate-100">
                                     Concluido
                                   </button>
                                 )}
                                 <button
                                   onClick={() => printOrderTicket(order)}
-                                  className="h-8 w-10 rounded-lg border border-gray-200 text-gray-500 hover:text-emerald-700 hover:border-emerald-200 hover:bg-emerald-50 flex items-center justify-center"
+                                  className="h-8 w-10 rounded-lg border border-gray-200 text-gray-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-100 flex items-center justify-center"
                                   title={`Imprimir comanda #${order.id}`}
                                   aria-label={`Imprimir comanda #${order.id}`}
                                 >
@@ -3226,20 +3283,20 @@ export default function MasterPage() {
                                 <span
                                   className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold ${
                                     status === 'Recebido'
-                                      ? 'bg-amber-100 text-amber-700'
+                                      ? 'bg-slate-100 text-slate-800'
                                       : status === 'Em preparo'
-                                      ? 'bg-blue-100 text-blue-700'
-                                      : 'bg-emerald-100 text-emerald-700'
+                                      ? 'bg-slate-100 text-slate-800'
+                                      : 'bg-slate-100 text-slate-900'
                                   }`}
                                 >
                                   {status === 'Recebido' ? 'RECEBIDO' : status === 'Em preparo' ? 'EM PREPARO' : 'CONCLUIDO'}
                                 </span>
                               </td>
-                              <td className="px-4 py-3 text-right text-emerald-700 font-medium">
+                              <td className="px-4 py-3 text-right text-slate-900 font-medium">
                                 <div className="inline-flex items-center justify-end gap-3">
                                   <button
                                     onClick={() => printOrderTicket(order)}
-                                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 text-gray-500 hover:text-emerald-700 hover:border-emerald-200 hover:bg-emerald-50"
+                                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 text-gray-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-100"
                                     title={`Imprimir comanda #${order.id}`}
                                     aria-label={`Imprimir comanda #${order.id}`}
                                   >
@@ -3298,7 +3355,7 @@ export default function MasterPage() {
                         key={item.key}
                         onClick={() => setBillingRange(item.key as typeof billingRange)}
                         className={`px-3 py-1.5 rounded-full text-xs font-medium ${
-                          billingRange === item.key ? 'bg-white text-emerald-700 shadow' : 'text-gray-500'
+                          billingRange === item.key ? 'bg-white text-slate-900 shadow' : 'text-gray-500'
                         }`}
                       >
                         {item.label}
@@ -3312,9 +3369,9 @@ export default function MasterPage() {
                     <div>
                       <p className="text-xs text-gray-500">Faturamento no Periodo</p>
                       <p className="text-xl font-bold text-gray-900">R$ {billingRevenue.toFixed(2)}</p>
-                      <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">+12.5% vs. anterior</span>
+                      <span className="text-[10px] text-slate-800 bg-slate-100 px-2 py-1 rounded-full">+12.5% vs. anterior</span>
                     </div>
-                    <div className="h-10 w-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <div className="h-10 w-10 rounded-full bg-slate-100 text-slate-800 flex items-center justify-center">
                       <CreditCard size={18} />
                     </div>
                   </div>
@@ -3322,9 +3379,9 @@ export default function MasterPage() {
                     <div>
                       <p className="text-xs text-gray-500">Pedidos no Periodo</p>
                       <p className="text-xl font-bold text-gray-900">{billingCount}</p>
-                      <span className="text-[10px] text-blue-600 bg-blue-50 px-2 py-1 rounded-full">+5% vs. anterior</span>
+                      <span className="text-[10px] text-slate-700 bg-slate-100 px-2 py-1 rounded-full">+5% vs. anterior</span>
                     </div>
-                    <div className="h-10 w-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <div className="h-10 w-10 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center">
                       <ShoppingBag size={18} />
                     </div>
                   </div>
@@ -3332,9 +3389,9 @@ export default function MasterPage() {
                     <div>
                       <p className="text-xs text-gray-500">Ticket Medio</p>
                       <p className="text-xl font-bold text-gray-900">R$ {ticketMedio.toFixed(2)}</p>
-                      <span className="text-[10px] text-orange-600 bg-orange-50 px-2 py-1 rounded-full">-2.1% vs. anterior</span>
+                      <span className="text-[10px] text-slate-700 bg-slate-100 px-2 py-1 rounded-full">-2.1% vs. anterior</span>
                     </div>
-                    <div className="h-10 w-10 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center">
+                    <div className="h-10 w-10 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center">
                       <AlertCircle size={18} />
                     </div>
                   </div>
@@ -3361,12 +3418,12 @@ export default function MasterPage() {
                   <div className="bg-white rounded-xl border border-gray-100 p-6">
                     <h3 className="text-sm font-semibold text-gray-900 mb-4">Metodos de Pagamento</h3>
                     <div className="h-56 flex items-center justify-center">
-                      <div className="relative h-40 w-40 rounded-full border-[14px] border-emerald-500 border-l-blue-500 border-r-amber-500"></div>
+                      <div className="relative h-40 w-40 rounded-full border-[14px] border-slate-900 border-l-slate-600 border-r-slate-500"></div>
                     </div>
                     <div className="flex items-center justify-center gap-3 text-xs text-gray-500">
-                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-blue-500"></span>Cartao</span>
-                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500"></span>Dinheiro</span>
-                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500"></span>Pix</span>
+                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-slate-700"></span>Cartao</span>
+                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-slate-1000"></span>Dinheiro</span>
+                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-slate-1000"></span>Pix</span>
                     </div>
                   </div>
                 </div>
@@ -3415,12 +3472,12 @@ export default function MasterPage() {
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Produtos em Destaque ({highlightedProducts.length})</h3>
                   {highlightedProducts.length ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                       {highlightedProducts.map((product) => (
-                        <div key={product.id} className="rounded-xl border border-emerald-200 bg-white p-3">
+                        <div key={product.id} className="rounded-xl border border-slate-200 bg-white p-3">
                           <div className="relative">
                             <img
                               src={product.imageUrl || `https://picsum.photos/seed/${product.id}/320/180`}
@@ -3436,15 +3493,15 @@ export default function MasterPage() {
                             </button>
                           </div>
                           <p className="mt-3 font-semibold text-gray-900">{product.name}</p>
-                          <p className="text-sm font-semibold text-emerald-600">R$ {product.price.toFixed(2)}</p>
-                          <span className="mt-2 inline-flex rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                          <p className="text-sm font-semibold text-slate-800">R$ {product.price.toFixed(2)}</p>
+                          <span className="mt-2 inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-900">
                             Em Destaque
                           </span>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="rounded-lg border border-dashed border-emerald-200 bg-white p-6 text-sm text-gray-500">
+                    <div className="rounded-lg border border-dashed border-slate-200 bg-white p-6 text-sm text-gray-500">
                       Nenhum produto em destaque.
                     </div>
                   )}
@@ -3529,7 +3586,7 @@ export default function MasterPage() {
                         <tr key={customer.id}>
                           <td className="px-3 py-3">
                             <div className="flex items-center gap-3">
-                              <div className="h-8 w-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-semibold">
+                              <div className="h-8 w-8 rounded-full bg-slate-100 text-slate-900 flex items-center justify-center font-semibold">
                                 {customer.name.charAt(0).toUpperCase()}
                               </div>
                               <div>
@@ -3542,7 +3599,7 @@ export default function MasterPage() {
                           </td>
                           <td className="px-3 py-3 text-gray-700">{customer.totalOrders}</td>
                           <td className="px-3 py-3">
-                            <span className="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                            <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-900">
                               R$ {customer.totalSpent.toFixed(2)}
                             </span>
                           </td>
@@ -3554,7 +3611,7 @@ export default function MasterPage() {
                               href={`https://wa.me/${customer.whatsapp.replace(/\D/g, '')}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-emerald-600 font-medium hover:text-emerald-700"
+                              className="text-slate-800 font-medium hover:text-slate-900"
                             >
                               WhatsApp
                             </a>
@@ -3583,7 +3640,7 @@ export default function MasterPage() {
                   </div>
                   <button
                     onClick={openCreateCouponModal}
-                    className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 text-white px-4 py-2 text-sm font-semibold hover:bg-emerald-800"
+                    className="inline-flex items-center gap-2 rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-semibold hover:bg-slate-900"
                   >
                     <Plus size={14} />
                     Novo Cupom
@@ -3595,12 +3652,12 @@ export default function MasterPage() {
                     <div
                       key={coupon.id}
                       className={`rounded-xl border bg-white p-5 shadow-sm ${
-                        coupon.active ? 'border-emerald-200 border-b-4 border-b-emerald-500' : 'border-gray-200 border-b-4 border-b-gray-300 opacity-80'
+                        coupon.active ? 'border-slate-200 border-b-4 border-b-slate-900' : 'border-gray-200 border-b-4 border-b-gray-300 opacity-80'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-3">
-                          <div className={`h-7 w-7 rounded-md flex items-center justify-center ${coupon.active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400'}`}>
+                          <div className={`h-7 w-7 rounded-md flex items-center justify-center ${coupon.active ? 'bg-slate-100 text-slate-900' : 'bg-gray-100 text-gray-400'}`}>
                             <TicketPercent size={14} />
                           </div>
                           <div>
@@ -3610,7 +3667,7 @@ export default function MasterPage() {
                         </div>
                         <span
                           className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-semibold ${
-                            coupon.active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'
+                            coupon.active ? 'bg-slate-100 text-slate-900' : 'bg-gray-200 text-gray-500'
                           }`}
                         >
                           {coupon.active ? 'ATIVO' : 'INATIVO'}
@@ -3618,7 +3675,7 @@ export default function MasterPage() {
                       </div>
 
                       <div className="mt-4">
-                        <p className="text-3xl font-bold leading-none text-emerald-700">{formatCouponDiscount(coupon)} <span className="text-lg font-medium text-gray-500">OFF</span></p>
+                        <p className="text-3xl font-bold leading-none text-slate-900">{formatCouponDiscount(coupon)} <span className="text-lg font-medium text-gray-500">OFF</span></p>
                         <p className="mt-1 text-sm text-gray-500">
                           Pedido minimo: <span className="font-semibold text-gray-700">{formatMoney(coupon.minOrderValue)}</span>
                         </p>
@@ -3639,7 +3696,7 @@ export default function MasterPage() {
                         </button>
                         <button
                           onClick={() => openEditCouponModal(coupon)}
-                          className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+                          className="inline-flex items-center gap-2 text-sm text-slate-700 hover:text-slate-900"
                         >
                           <Pencil size={14} />
                           Editar
@@ -3678,7 +3735,7 @@ export default function MasterPage() {
                       <input
                         value={couponForm.code}
                         onChange={(event) => setCouponForm((prev) => ({ ...prev, code: event.target.value.toUpperCase() }))}
-                        className="mt-1 w-full rounded-lg border border-emerald-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
                         placeholder="EX: PROMO10"
                       />
                     </div>
@@ -3781,7 +3838,7 @@ export default function MasterPage() {
                         type="checkbox"
                         checked={couponForm.active}
                         onChange={(event) => setCouponForm((prev) => ({ ...prev, active: event.target.checked }))}
-                        className="h-4 w-4 rounded border-gray-300 text-emerald-600"
+                        className="h-4 w-4 rounded border-gray-300 text-slate-800"
                       />
                       Cupom Ativo
                     </label>
@@ -3796,7 +3853,7 @@ export default function MasterPage() {
                     </button>
                     <button
                       onClick={saveCoupon}
-                      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                      className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900"
                     >
                       Salvar Cupom
                     </button>
@@ -3814,7 +3871,7 @@ export default function MasterPage() {
                   </div>
                   <button
                     onClick={openCreateBannerModal}
-                    className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm font-semibold hover:bg-emerald-700"
+                    className="inline-flex items-center gap-2 rounded-lg bg-black text-white px-4 py-2 text-sm font-semibold hover:bg-slate-900"
                   >
                     <Plus size={14} />
                     Novo Banner
@@ -3835,7 +3892,7 @@ export default function MasterPage() {
                           >
                             <Trash2 size={14} />
                           </button>
-                          <span className="absolute bottom-3 left-3 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white">
+                          <span className="absolute bottom-3 left-3 rounded-full bg-black px-2.5 py-1 text-xs font-semibold text-white">
                             {banner.productIds.length} produto{banner.productIds.length === 1 ? '' : 's'}
                           </span>
                         </div>
@@ -3848,7 +3905,7 @@ export default function MasterPage() {
                             <button
                               type="button"
                               onClick={() => toggleBannerActive(banner.id)}
-                              className={`h-6 w-11 rounded-full p-1 transition-colors ${banner.active ? 'bg-emerald-500' : 'bg-gray-300'}`}
+                              className={`h-6 w-11 rounded-full p-1 transition-colors ${banner.active ? 'bg-slate-1000' : 'bg-gray-300'}`}
                             >
                               <span
                                 className={`block h-4 w-4 rounded-full bg-white transition-transform ${
@@ -3873,7 +3930,7 @@ export default function MasterPage() {
                     <p className="mt-1 text-sm text-gray-500">Crie banners para substituir os destaques padrao do catalogo.</p>
                     <button
                       onClick={openCreateBannerModal}
-                      className="mt-4 inline-flex items-center gap-2 rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm font-semibold hover:bg-emerald-700"
+                      className="mt-4 inline-flex items-center gap-2 rounded-lg bg-black text-white px-4 py-2 text-sm font-semibold hover:bg-slate-900"
                     >
                       <Plus size={14} />
                       Criar primeiro banner
@@ -3937,7 +3994,7 @@ export default function MasterPage() {
                             type="checkbox"
                             checked={bannerForm.active}
                             onChange={(event) => setBannerForm((prev) => ({ ...prev, active: event.target.checked }))}
-                            className="h-4 w-4 rounded border-gray-300 text-emerald-600"
+                            className="h-4 w-4 rounded border-gray-300 text-slate-800"
                           />
                           Banner ativo no cardapio
                         </label>
@@ -3969,7 +4026,7 @@ export default function MasterPage() {
                               type="button"
                               onClick={() => toggleBannerProduct(product.id)}
                               className={`flex items-center gap-3 rounded-lg border px-3 py-2 text-left ${
-                                selected ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 bg-white'
+                                selected ? 'border-slate-400 bg-slate-100' : 'border-gray-200 bg-white'
                               }`}
                             >
                               <img
@@ -4002,7 +4059,7 @@ export default function MasterPage() {
                     </button>
                     <button
                       onClick={saveBanner}
-                      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                      className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900"
                     >
                       Salvar Banner
                     </button>
@@ -4070,14 +4127,14 @@ export default function MasterPage() {
                                 <label
                                   key={coupon.id}
                                   className={`flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 text-xs ${
-                                    selected ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-white text-gray-700'
+                                    selected ? 'border-slate-300 bg-slate-100 text-slate-900' : 'border-gray-200 bg-white text-gray-700'
                                   }`}
                                 >
                                   <input
                                     type="checkbox"
                                     checked={selected}
                                     onChange={() => toggleCampaignCouponCode(coupon.code)}
-                                    className="h-3.5 w-3.5 rounded border-gray-300 text-emerald-600"
+                                    className="h-3.5 w-3.5 rounded border-gray-300 text-slate-800"
                                   />
                                   <span className="font-medium">{coupon.code}</span>
                                 </label>
@@ -4101,14 +4158,14 @@ export default function MasterPage() {
                                 <label
                                   key={banner.id}
                                   className={`flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 text-xs ${
-                                    selected ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-white text-gray-700'
+                                    selected ? 'border-slate-300 bg-slate-100 text-slate-900' : 'border-gray-200 bg-white text-gray-700'
                                   }`}
                                 >
                                   <input
                                     type="checkbox"
                                     checked={selected}
                                     onChange={() => toggleCampaignBanner(banner.id)}
-                                    className="h-3.5 w-3.5 rounded border-gray-300 text-emerald-600"
+                                    className="h-3.5 w-3.5 rounded border-gray-300 text-slate-800"
                                   />
                                   <span className="font-medium">{banner.title}</span>
                                 </label>
@@ -4125,7 +4182,7 @@ export default function MasterPage() {
                         type="checkbox"
                         checked={campaignForm.active}
                         onChange={(event) => setCampaignForm((prev) => ({ ...prev, active: event.target.checked }))}
-                        className="h-4 w-4 rounded border-gray-300 text-emerald-600"
+                        className="h-4 w-4 rounded border-gray-300 text-slate-800"
                       />
                       Campanha ativa
                     </label>
@@ -4140,7 +4197,7 @@ export default function MasterPage() {
                     </button>
                     <button
                       onClick={saveCampaign}
-                      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                      className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900"
                     >
                       Salvar Campanha
                     </button>
@@ -4173,7 +4230,7 @@ export default function MasterPage() {
                             if (!item.disabled) setMarketingSection(item.key);
                           }}
                           className={`mb-1 flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm transition ${
-                            active ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-gray-700 hover:bg-gray-50'
+                            active ? 'bg-slate-100 text-slate-900 font-semibold' : 'text-gray-700 hover:bg-gray-50'
                           } ${item.disabled ? 'cursor-not-allowed opacity-50' : ''}`}
                         >
                           <Icon size={16} />
@@ -4187,13 +4244,13 @@ export default function MasterPage() {
                     {marketingSection === 'overview' && (
                       <>
                         <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-                          <div className="rounded-xl border border-blue-200 bg-white p-4">
-                            <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+                          <div className="rounded-xl border border-slate-200 bg-white p-4">
+                            <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
                               <Eye size={16} />
                             </div>
                             <p className="text-sm font-medium text-gray-600">Acessos (Mes)</p>
                             <p className="mt-1 text-3xl font-bold text-gray-900">{estimatedMonthlyViews.toLocaleString('pt-BR')}</p>
-                            <p className="mt-1 text-xs text-emerald-600">+12% vs mes anterior</p>
+                            <p className="mt-1 text-xs text-slate-800">+12% vs mes anterior</p>
                           </div>
                           <div className="rounded-xl border border-violet-200 bg-white p-4">
                             <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
@@ -4203,8 +4260,8 @@ export default function MasterPage() {
                             <p className="mt-1 text-3xl font-bold text-gray-900">{conversionRate.toFixed(1)}%</p>
                             <p className="mt-1 text-xs text-gray-500">Media do setor: 2.5%</p>
                           </div>
-                          <div className="rounded-xl border border-emerald-200 bg-white p-4">
-                            <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                          <div className="rounded-xl border border-slate-200 bg-white p-4">
+                            <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-800">
                               <Wallet size={16} />
                             </div>
                             <p className="text-sm font-medium text-gray-600">Vendas Totais</p>
@@ -4248,13 +4305,13 @@ export default function MasterPage() {
                               </div>
                               <div className="space-y-3 text-sm">
                                 <p className="flex items-center gap-2 text-gray-700">
-                                  <span className="h-2.5 w-2.5 rounded-full bg-green-500" /> Link Direto (WhatsApp): {linkDirectPercent}%
+                                  <span className="h-2.5 w-2.5 rounded-full bg-slate-700" /> Link Direto (WhatsApp): {linkDirectPercent}%
                                 </p>
                                 <p className="flex items-center gap-2 text-gray-700">
                                   <span className="h-2.5 w-2.5 rounded-full bg-pink-500" /> Instagram: {instagramPercent}%
                                 </p>
                                 <p className="flex items-center gap-2 text-gray-700">
-                                  <span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Google / Outros: {othersPercent}%
+                                  <span className="h-2.5 w-2.5 rounded-full bg-slate-1000" /> Google / Outros: {othersPercent}%
                                 </p>
                               </div>
                             </div>
@@ -4271,7 +4328,7 @@ export default function MasterPage() {
                           </div>
                           <div className="overflow-x-auto">
                             <table className="w-full min-w-[760px] text-sm">
-                              <thead className="bg-emerald-50 text-emerald-700">
+                              <thead className="bg-slate-100 text-slate-900">
                                 <tr>
                                   <th className="px-4 py-3 text-left">Ranking</th>
                                   <th className="px-4 py-3 text-left">Produto</th>
@@ -4293,7 +4350,7 @@ export default function MasterPage() {
                                       </div>
                                     </td>
                                     <td className="px-4 py-3 text-right font-semibold text-gray-900">{product.soldQuantity}</td>
-                                    <td className="px-4 py-3 text-right font-semibold text-emerald-700">
+                                    <td className="px-4 py-3 text-right font-semibold text-slate-900">
                                       {moneyFormatter.format(product.revenue)}
                                     </td>
                                   </tr>
@@ -4303,11 +4360,11 @@ export default function MasterPage() {
                           </div>
                         </div>
 
-                        <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-4">
-                          <h4 className="text-lg font-semibold text-amber-900">Oportunidades (Menos Vendidos)</h4>
+                        <div className="rounded-xl border border-slate-200 bg-slate-100 p-4">
+                          <h4 className="text-lg font-semibold text-slate-900">Oportunidades (Menos Vendidos)</h4>
                           <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
                             {leastSoldProducts.map((product) => (
-                              <div key={product.id} className="rounded-lg border border-amber-200 bg-white px-3 py-2">
+                              <div key={product.id} className="rounded-lg border border-slate-200 bg-white px-3 py-2">
                                 <p className="text-sm font-semibold text-gray-900">{product.name}</p>
                                 <p className="text-xs text-gray-600">
                                   Vendidos: {product.soldQuantity} | Receita: {moneyFormatter.format(product.revenue)}
@@ -4345,7 +4402,7 @@ export default function MasterPage() {
                                     </a>
                                     <button
                                       onClick={() => window.print()}
-                                      className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700"
+                                      className="rounded-lg bg-black px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-900"
                                     >
                                       Imprimir
                                     </button>
@@ -4368,7 +4425,7 @@ export default function MasterPage() {
                                 />
                                 <button
                                   onClick={() => navigator.clipboard.writeText(marketingLink)}
-                                  className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                                  className="inline-flex items-center gap-1 rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-slate-900"
                                 >
                                   <Copy size={14} />
                                   Copiar
@@ -4379,7 +4436,7 @@ export default function MasterPage() {
                                   onClick={() =>
                                     window.open(`https://wa.me/?text=${encodeURIComponent(`Confira nosso cardapio: ${marketingLink}`)}`, '_blank')
                                   }
-                                  className="rounded-lg bg-green-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-600"
+                                  className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
                                 >
                                   WhatsApp
                                 </button>
@@ -4401,7 +4458,7 @@ export default function MasterPage() {
                                       '_blank'
                                     )
                                   }
-                                  className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+                                  className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-900"
                                 >
                                   Facebook
                                 </button>
@@ -4420,7 +4477,7 @@ export default function MasterPage() {
                               className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-left hover:bg-gray-100"
                             >
                               <p className="flex items-center gap-2 text-base font-semibold text-gray-900">
-                                <Megaphone size={16} className="text-amber-600" />
+                                <Megaphone size={16} className="text-slate-700" />
                                 Flyer de Ofertas
                               </p>
                               <p className="mt-1 text-sm text-gray-600">Gerar material com banners ativos e top produtos para imprimir/salvar PDF.</p>
@@ -4430,7 +4487,7 @@ export default function MasterPage() {
                               className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-left hover:bg-gray-100"
                             >
                               <p className="flex items-center gap-2 text-base font-semibold text-gray-900">
-                                <QrCode size={16} className="text-blue-600" />
+                                <QrCode size={16} className="text-slate-700" />
                                 Cartao Digital
                               </p>
                               <p className="mt-1 text-sm text-gray-600">Abrir cartao com QR Code, link e dados da loja para divulgacao.</p>
@@ -4450,7 +4507,7 @@ export default function MasterPage() {
                             </div>
                             <button
                               onClick={openCreateCampaignModal}
-                              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                              className="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900"
                             >
                               <Plus size={14} />
                               Nova Campanha
@@ -4459,13 +4516,13 @@ export default function MasterPage() {
                         </div>
 
                         <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-                          <div className="rounded-xl border border-blue-200 bg-white p-4">
+                          <div className="rounded-xl border border-slate-200 bg-white p-4">
                             <p className="text-sm text-gray-600">Total de Campanhas</p>
                             <p className="mt-1 text-3xl font-bold text-gray-900">{marketingCampaigns.length}</p>
                           </div>
-                          <div className="rounded-xl border border-emerald-200 bg-white p-4">
+                          <div className="rounded-xl border border-slate-200 bg-white p-4">
                             <p className="text-sm text-gray-600">Campanhas Ativas</p>
-                            <p className="mt-1 text-3xl font-bold text-emerald-700">
+                            <p className="mt-1 text-3xl font-bold text-slate-900">
                               {marketingCampaigns.filter((item) => item.active).length}
                             </p>
                           </div>
@@ -4492,7 +4549,7 @@ export default function MasterPage() {
                                   </div>
                                   <span
                                     className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                                      campaign.active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
+                                      campaign.active ? 'bg-slate-100 text-slate-900' : 'bg-gray-100 text-gray-600'
                                     }`}
                                   >
                                     {campaign.active ? 'Ativa' : 'Inativa'}
@@ -4519,8 +4576,8 @@ export default function MasterPage() {
                                     onClick={() => toggleCampaignActive(campaign.id)}
                                     className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
                                       campaign.active
-                                        ? 'border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
-                                        : 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                        ? 'border border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-200'
+                                        : 'border border-slate-200 bg-slate-100 text-slate-900 hover:bg-slate-100'
                                     }`}
                                   >
                                     {campaign.active ? 'Pausar' : 'Ativar'}
@@ -4561,10 +4618,10 @@ export default function MasterPage() {
               <section className="mx-auto max-w-5xl space-y-4">
                 <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 flex items-center justify-between">
                   <p className="inline-flex items-center gap-2 text-sm text-gray-700">
-                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-slate-1000" />
                     Todos os sistemas operacionais
                   </p>
-                  <button className="text-xs text-emerald-600 hover:text-emerald-700">Ver historico</button>
+                  <button className="text-xs text-slate-800 hover:text-slate-900">Ver historico</button>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_2fr]">
@@ -4577,7 +4634,7 @@ export default function MasterPage() {
                         <button
                           onClick={openSupportChat}
                           disabled={supportOpening}
-                          className="w-full rounded-lg bg-emerald-600 text-white px-4 py-2.5 text-sm font-semibold hover:bg-emerald-700 inline-flex items-center justify-center gap-2 disabled:opacity-70"
+                          className="w-full rounded-lg bg-black text-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-900 inline-flex items-center justify-center gap-2 disabled:opacity-70"
                         >
                           <MessageSquare size={15} />
                           {supportOpening ? 'Abrindo...' : 'Abrir chamado'}
@@ -4632,9 +4689,9 @@ export default function MasterPage() {
 
                         {activeTab === 'plans' && (
               <section className="mx-auto max-w-5xl space-y-5">
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-700 to-emerald-800 p-6 text-white shadow-lg">
-                  <div className="absolute -right-14 -top-14 h-44 w-44 rounded-full border border-emerald-400/30" />
-                  <div className="absolute right-10 top-0 h-full w-20 -skew-x-12 bg-emerald-500/20" />
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 to-black p-6 text-white shadow-lg">
+                  <div className="absolute -right-14 -top-14 h-44 w-44 rounded-full border border-slate-300/40" />
+                  <div className="absolute right-10 top-0 h-full w-20 -skew-x-12 bg-slate-400/20" />
                   <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div className="flex items-center gap-4">
                       <div className="h-14 w-14 rounded-full bg-white/15 flex items-center justify-center">
@@ -4644,7 +4701,7 @@ export default function MasterPage() {
                         <h2 className="text-4xl font-bold leading-none">
                           {subscriptionSummary?.status === 'trial' ? 'Periodo de Teste Ativo' : 'Gestao da Assinatura'}
                         </h2>
-                        <p className="mt-2 text-sm text-emerald-100">
+                        <p className="mt-2 text-sm text-slate-300">
                           {subscriptionSummary?.status === 'trial'
                             ? `Voce tem ${subscriptionSummary.trialDaysLeft} dia(s) gratis restantes.`
                             : 'Selecione um plano e gerencie sua renovacao com o AbacatePay.'}
@@ -4652,7 +4709,7 @@ export default function MasterPage() {
                       </div>
                     </div>
                     <div className="rounded-xl border border-white/20 bg-white/10 px-5 py-3">
-                      <p className="text-[10px] uppercase tracking-wider text-emerald-100 font-semibold">Status</p>
+                      <p className="text-[10px] uppercase tracking-wider text-slate-300 font-semibold">Status</p>
                       <p className="mt-1 text-2xl font-bold">{subscriptionStatusLabel}</p>
                     </div>
                   </div>
@@ -4681,7 +4738,7 @@ export default function MasterPage() {
                               key={feature}
                               className="rounded-xl border border-gray-200 bg-gray-50/70 px-4 py-3 text-sm font-medium text-gray-700 flex items-center gap-2"
                             >
-                              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 text-xs">
+                              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-slate-800 text-xs">
                                 ok
                               </span>
                               {feature}
@@ -4690,7 +4747,7 @@ export default function MasterPage() {
                         </div>
                       </div>
                     ) : (
-                      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+                      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-100 p-4 text-sm text-slate-800">
                         Nenhum plano ativo no momento. Escolha um plano abaixo para efetuar a contratacao.
                       </div>
                     )}
@@ -4708,15 +4765,15 @@ export default function MasterPage() {
                         </p>
                       </div>
                       {subscriptionSummary?.trialEndsAt && subscriptionSummary.status === 'trial' && (
-                        <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-4">
-                          <p className="text-[11px] uppercase tracking-wide text-blue-600 font-semibold">Fim do teste gratis</p>
-                          <p className="mt-2 text-base font-bold text-blue-800">
+                        <div className="mt-3 rounded-xl border border-slate-200 bg-slate-100 p-4">
+                          <p className="text-[11px] uppercase tracking-wide text-slate-700 font-semibold">Fim do teste gratis</p>
+                          <p className="mt-2 text-base font-bold text-slate-900">
                             {new Date(subscriptionSummary.trialEndsAt).toLocaleDateString('pt-BR')}
                           </p>
                         </div>
                       )}
                     </div>
-                    <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-xs text-blue-700">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-100 p-4 text-xs text-slate-800">
                       Pagamentos e renovacoes sao processados pela API AbacatePay.
                     </div>
                   </div>
@@ -4743,7 +4800,7 @@ export default function MasterPage() {
                             <div className="flex items-start justify-between gap-3">
                               <p className="text-lg font-bold text-gray-900">{plan.name}</p>
                               {isCurrent && (
-                                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-900">
                                   Atual
                                 </span>
                               )}
@@ -4762,7 +4819,7 @@ export default function MasterPage() {
                             <button
                               disabled={planCheckoutLoadingId === plan.id || (subscriptionSummary?.status === 'active' && isCurrent)}
                               onClick={() => handleStartPlanCheckout(plan.id)}
-                              className="mt-4 w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                              className="mt-4 w-full rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-60"
                             >
                               {planCheckoutLoadingId === plan.id ? 'Gerando checkout...' : actionLabel}
                             </button>
@@ -4882,7 +4939,7 @@ export default function MasterPage() {
                   <button
                     type="button"
                     onClick={addItemToManualOrder}
-                    className="rounded-lg bg-emerald-100 text-emerald-700 text-sm font-semibold hover:bg-emerald-200"
+                    className="rounded-lg bg-slate-100 text-slate-900 text-sm font-semibold hover:bg-slate-200"
                   >
                     Adicionar
                   </button>
@@ -4921,7 +4978,7 @@ export default function MasterPage() {
 
                 <div className="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 flex items-center justify-between">
                   <span className="font-semibold text-gray-800">TOTAL DO PEDIDO</span>
-                  <span className="text-3xl font-bold text-emerald-700">R$ {manualOrderTotal.toFixed(2)}</span>
+                  <span className="text-3xl font-bold text-slate-900">R$ {manualOrderTotal.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -4941,7 +4998,7 @@ export default function MasterPage() {
               <button
                 onClick={createManualOrder}
                 disabled={creatingManualOrder}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-60"
               >
                 {creatingManualOrder ? 'Criando...' : 'Criar Pedido'}
               </button>
@@ -4980,7 +5037,7 @@ export default function MasterPage() {
                   <div
                     className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm shadow ${
                       msg.authorRole === 'customer'
-                        ? 'bg-emerald-600 text-white'
+                        ? 'bg-black text-white'
                         : 'bg-white border border-gray-200 text-gray-700'
                     }`}
                   >
@@ -5006,7 +5063,7 @@ export default function MasterPage() {
                   <button
                     onClick={sendSupportMessage}
                     disabled={supportSending || !supportDraft.trim() || !supportTicket}
-                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+                    className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white hover:bg-slate-900 disabled:opacity-60"
                   >
                     {supportSending ? 'Enviando...' : 'Enviar'}
                   </button>
@@ -5048,12 +5105,12 @@ export default function MasterPage() {
                       key={kind.key}
                       onClick={() => setProductForm((prev) => ({ ...prev, kind: kind.key }))}
                       className={`rounded-xl border p-4 text-left transition ${
-                        active ? 'border-emerald-500 bg-emerald-50 shadow-sm' : 'border-gray-200'
+                        active ? 'border-slate-900 bg-slate-100 shadow-sm' : 'border-gray-200'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-xl">{kind.icon}</span>
-                        {active && <span className="text-emerald-600 text-xs font-semibold">ok</span>}
+                        {active && <span className="text-slate-800 text-xs font-semibold">ok</span>}
                       </div>
                       <p className="mt-2 font-semibold text-gray-900">{kind.title}</p>
                       <p className="text-[11px] text-gray-500">{kind.subtitle}</p>
@@ -5122,13 +5179,13 @@ export default function MasterPage() {
 
               {productForm.kind === 'pizza' && (
                 <>
-                  <div className="rounded-xl border border-amber-200">
-                    <div className="px-4 py-3 border-b border-amber-100 flex items-center justify-between">
+                  <div className="rounded-xl border border-slate-200">
+                    <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
                       <div>
                         <p className="font-semibold text-gray-900">Sabores da Pizza</p>
                         <p className="text-[11px] text-gray-500">Adicione todos os sabores disponiveis</p>
                       </div>
-                      <span className="text-[10px] rounded-full bg-amber-50 px-2 py-1 text-amber-700 font-semibold">
+                      <span className="text-[10px] rounded-full bg-slate-100 px-2 py-1 text-slate-800 font-semibold">
                         {productForm.pizzaFlavors.length} sabores
                       </span>
                     </div>
@@ -5152,7 +5209,7 @@ export default function MasterPage() {
                           className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
                           placeholder="R$ 25,90"
                         />
-                        <button onClick={addPizzaFlavor} className="rounded-lg bg-orange-500 text-white hover:bg-orange-600">
+                        <button onClick={addPizzaFlavor} className="rounded-lg bg-slate-1000 text-white hover:bg-slate-900">
                           <Plus size={16} className="mx-auto" />
                         </button>
                       </div>
@@ -5164,7 +5221,7 @@ export default function MasterPage() {
                               <p className="text-xs text-gray-500">{flavor.ingredients}</p>
                             </div>
                             <div className="flex items-center gap-3">
-                              <span className="text-emerald-600 font-semibold">R$ {flavor.price.toFixed(2)}</span>
+                              <span className="text-slate-800 font-semibold">R$ {flavor.price.toFixed(2)}</span>
                               <button onClick={() => removePizzaFlavor(idx)} className="text-red-500 hover:text-red-600">
                                 <Trash2 size={14} />
                               </button>
@@ -5206,7 +5263,7 @@ export default function MasterPage() {
                             className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
                             placeholder="R$ 0,00"
                           />
-                          <button onClick={addPizzaCrust} className="rounded-lg bg-emerald-500 text-white hover:bg-emerald-600">
+                          <button onClick={addPizzaCrust} className="rounded-lg bg-slate-1000 text-white hover:bg-black">
                             <Plus size={16} className="mx-auto" />
                           </button>
                         </div>
@@ -5215,7 +5272,7 @@ export default function MasterPage() {
                             <div key={`${crust.name}-${idx}`} className="rounded-lg border border-gray-200 px-3 py-2 text-sm flex items-center justify-between">
                               <p className="font-medium text-gray-900">{crust.name}</p>
                               <div className="flex items-center gap-3">
-                                <span className="text-emerald-600 font-semibold">R$ {crust.price.toFixed(2)}</span>
+                                <span className="text-slate-800 font-semibold">R$ {crust.price.toFixed(2)}</span>
                                 <button onClick={() => removePizzaCrust(idx)} className="text-red-500 hover:text-red-600">
                                   <Trash2 size={14} />
                                 </button>
@@ -5245,7 +5302,7 @@ export default function MasterPage() {
                     />
                   </div>
                   {productForm.kind === 'bebida' && (
-                    <label className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 flex items-center gap-2">
+                    <label className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-800 flex items-center gap-2">
                       <input
                         type="checkbox"
                         checked={productForm.alcoholic}
@@ -5286,7 +5343,7 @@ export default function MasterPage() {
               </button>
               <button
                 onClick={saveProduct}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700"
+                className="rounded-lg bg-black px-4 py-2 text-sm text-white hover:bg-slate-900"
               >
                 Salvar Produto
               </button>
@@ -5298,4 +5355,6 @@ export default function MasterPage() {
     </div>
   );
 }
+
+
 

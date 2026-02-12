@@ -42,6 +42,9 @@ Obrigatorias:
 - `ABACATEPAY_API_KEY`
 - `ABACATEPAY_PUBLIC_KEY`
 - `ABACATEPAY_WEBHOOK_SECRET`
+- `RESEND_API_KEY` (para envio de leads por e-mail)
+- `LEADS_NOTIFY_EMAIL` (destino dos contatos, ex: `support@pedezap.site`)
+- `LEADS_FROM_EMAIL` (remetente validado no Resend, ex: `PedeZap <noreply@seudominio.com>`)
 
 Opcional (persistencia do store):
 
@@ -61,4 +64,3 @@ Depois do deploy, configure no painel AbacatePay:
 
 - Login admin: `/admin/login`
 - Login restaurante: `/master/login`
-
