@@ -23,7 +23,7 @@ export type RestaurantProduct = {
   price: number;
   active: boolean;
   imageUrl?: string;
-  kind?: "padrao" | "pizza" | "bebida";
+  kind?: "padrao" | "pizza" | "bebida" | "acai";
   pizzaFlavors?: Array<{
     name: string;
     ingredients: string;
@@ -33,6 +33,22 @@ export type RestaurantProduct = {
     name: string;
     ingredients?: string;
     price: number;
+  }>;
+  complements?: Array<{
+    name: string;
+    price: number;
+  }>;
+  acaiComplementGroups?: Array<{
+    id: string;
+    name: string;
+    minSelect: number;
+    maxSelect: number;
+    items: Array<{
+      id: string;
+      name: string;
+      price: number;
+      maxQty: number;
+    }>;
   }>;
 };
 
