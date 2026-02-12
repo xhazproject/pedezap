@@ -258,6 +258,12 @@ export type SupportMessage = {
   body: string;
   createdAt: string;
   internal?: boolean;
+  attachments?: Array<{
+    name: string;
+    url: string;
+    type?: string;
+    size?: number;
+  }>;
 };
 
 export type SupportQuickReply = {
