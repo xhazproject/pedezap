@@ -2,6 +2,17 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isSubscriptionBlocked, makeId, readStore, writeStore } from "@/lib/store";
 
+const imageStringSchema = z
+  .string()
+  .refine(
+    (value) =>
+      value.length === 0 ||
+      value.startsWith("http://") ||
+      value.startsWith("https://") ||
+      value.startsWith("data:image/"),
+    "Imagem invalida."
+  );
+
 const restaurantUpdateSchema = z.object({
   name: z.string().min(2),
   whatsapp: z.string().min(10),
@@ -29,8 +40,8 @@ const productSchema = z.object({
   description: z.string().min(2),
   price: z.number().nonnegative(),
   active: z.boolean().default(true),
-  imageUrl: z.string().url().optional().or(z.literal("")),
-  kind: z.enum(["padrao", "pizza", "bebida"]).optional(),
+  imageUrl: imageStringSchema.optional(),
+  kind: z.enum(["padrao", "pizza", "bebida", "acai"]).optional(),
   pizzaFlavors: z
     .array(
       z.object({
@@ -48,6 +59,32 @@ const productSchema = z.object({
         price: z.number().nonnegative()
       })
     )
+    .optional(),
+  complements: z
+    .array(
+      z.object({
+        name: z.string().min(1),
+        price: z.number().nonnegative()
+      })
+    )
+    .optional(),
+  acaiComplementGroups: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        name: z.string().min(1),
+        minSelect: z.number().int().nonnegative(),
+        maxSelect: z.number().int().nonnegative(),
+        items: z.array(
+          z.object({
+            id: z.string().min(1),
+            name: z.string().min(1),
+            price: z.number().nonnegative(),
+            maxQty: z.number().int().positive()
+          })
+        )
+      })
+    )
     .optional()
 });
 
@@ -55,7 +92,7 @@ const bannerSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(2),
   description: z.string().default(""),
-  imageUrl: z.string().url(),
+  imageUrl: imageStringSchema,
   active: z.boolean().default(true),
   productIds: z.array(z.string()).default([])
 });

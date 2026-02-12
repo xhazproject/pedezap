@@ -5,7 +5,7 @@ import { makeId, readStore, writeStore } from "@/lib/store";
 const createTicketSchema = z.object({
   subject: z.string().min(3),
   requesterName: z.string().min(2),
-  requesterEmail: z.string().email(),
+  requesterEmail: z.string().trim().min(3),
   requesterType: z.enum(["Parceiro", "Cliente"]),
   restaurantName: z.string().min(2).optional(),
   restaurantSlug: z.string().min(2).optional(),
