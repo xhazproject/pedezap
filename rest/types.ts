@@ -8,9 +8,11 @@ export interface Product {
   isFeatured?: boolean;
   isInCampaign?: boolean;
   isPizza?: boolean;
-  kind?: 'padrao' | 'pizza' | 'bebida';
+  kind?: 'padrao' | 'pizza' | 'bebida' | 'acai';
   pizzaFlavors?: PizzaFlavor[];
   pizzaCrusts?: PizzaCrust[];
+  complements?: ProductComplement[];
+  acaiComplementGroups?: AcaiComplementGroup[];
 }
 
 export interface Category {
@@ -56,6 +58,33 @@ export interface PizzaCrust {
   price: number;
 }
 
+export interface ProductComplement {
+  id: string;
+  name: string;
+  price: number;
+}
+
+export interface AcaiComplementItem {
+  id: string;
+  name: string;
+  price: number;
+  maxQty: number;
+}
+
+export interface AcaiComplementGroup {
+  id: string;
+  name: string;
+  minSelect: number;
+  maxSelect: number;
+  items: AcaiComplementItem[];
+}
+
+export interface SelectedAcaiOption {
+  groupId: string;
+  groupName: string;
+  items: Array<AcaiComplementItem & { quantity: number }>;
+}
+
 export interface CartItem extends Product {
   cartId: string; // Unique ID for the item in the cart (to separate customizations)
   quantity: number;
@@ -63,6 +92,8 @@ export interface CartItem extends Product {
   // Customization fields
   selectedFlavors?: PizzaFlavor[];
   selectedCrust?: PizzaCrust;
+  selectedComplements?: ProductComplement[];
+  selectedAcaiOptions?: SelectedAcaiOption[];
 }
 
 export interface CustomerData {
