@@ -6,6 +6,7 @@ const defaultSeedPath = path.join(process.cwd(), "data", "store.json");
 const runtimeStorePath = (() => {
   if (process.env.STORE_FILE_PATH) return process.env.STORE_FILE_PATH;
   if (process.env.STORE_DATA_DIR) return path.join(process.env.STORE_DATA_DIR, "store.json");
+  if (process.env.RENDER_DISK_PATH) return path.join(process.env.RENDER_DISK_PATH, "store.json");
   if (process.env.NODE_ENV === "production") {
     // Render and similar hosts keep app dir read-only in runtime; /tmp is writable.
     return path.join("/tmp", "pedezap-data", "store.json");

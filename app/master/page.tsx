@@ -5406,10 +5406,10 @@ export default function MasterPage() {
             <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 {[
-                  { key: 'padrao' as const, title: 'Padrao', subtitle: 'Lanches, Pratos, Porcoes', icon: 'ðŸ½' },
-                  { key: 'pizza' as const, title: 'Pizza', subtitle: 'Sabores, Bordas, Tamanhos', icon: 'ðŸ•' },
-                  { key: 'bebida' as const, title: 'Bebida', subtitle: 'Refrigerantes, Sucos, Alcoolicos', icon: 'ðŸº' },
-                  { key: 'acai' as const, title: 'Acai', subtitle: 'Tamanhos, Frutas e Coberturas', icon: 'ðŸ§' }
+                  { key: 'padrao' as const, title: 'Padrao', subtitle: 'Lanches, Pratos, Porcoes', icon: 'PD' },
+                  { key: 'pizza' as const, title: 'Pizza', subtitle: 'Sabores, Bordas, Tamanhos', icon: 'PZ' },
+                  { key: 'bebida' as const, title: 'Bebida', subtitle: 'Refrigerantes, Sucos, Alcoolicos', icon: 'BB' },
+                  { key: 'acai' as const, title: 'Acai', subtitle: 'Tamanhos, Frutas e Coberturas', icon: 'AC' }
                 ].map((kind) => {
                   const active = productForm.kind === kind.key;
                   return (

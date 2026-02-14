@@ -1341,7 +1341,7 @@ export default function AdminPage() {
 
       const resetLink = `${window.location.origin}/master/reset-password?slug=${encodeURIComponent(payload.slug)}&token=${encodeURIComponent(payload.token)}`;
       const shareMessage =
-        `OlÃ¡! Aqui estÃ¡ seu link para redefinir a senha do painel do restaurante *${payload.restaurantName}*:\n\n` +
+        `Ola! Aqui esta seu link para redefinir a senha do painel do restaurante *${payload.restaurantName}*:\n\n` +
         `${resetLink}\n\n` +
         `Esse link expira em 1 hora.`;
       const whatsappDigits = String(payload.whatsapp || '').replace(/\D/g, '');
@@ -1373,12 +1373,12 @@ export default function AdminPage() {
   const getShareMessage = () => {
     if (!createdCredentials) return '';
     const origin = window.location.origin;
-    return `OlÃ¡! Seu restaurante *${createdCredentials.name}* jÃ¡ estÃ¡ cadastrado no PedeZap! ðŸš€\n\n` +
-      `Aqui estÃ£o seus dados de acesso:\n` +
-      `ðŸ’» Painel: ${origin}/master/login\n` +
-      `ðŸ“§ Email: ${createdCredentials.email}\n` +
-      `ðŸ”‘ Senha: ${createdCredentials.password}\n\n` +
-      `ðŸ”— Seu link de pedidos: ${origin}/r/${createdCredentials.slug}\n\n` +
+    return `Ola! Seu restaurante *${createdCredentials.name}* ja esta cadastrado no PedeZap!\n\n` +
+      `Aqui estao seus dados de acesso:\n` +
+      `[Painel] ${origin}/master/login\n` +
+      `[Email] ${createdCredentials.email}\n` +
+      `[Senha] ${createdCredentials.password}\n\n` +
+      `[Link] ${origin}/r/${createdCredentials.slug}\n\n` +
       `Boas vendas!`;
   };
 
@@ -1501,7 +1501,7 @@ export default function AdminPage() {
   }
 
   async function handleDelete(slug: string) {
-    if (!confirm('Tem certeza que deseja excluir este restaurante? Esta aÃ§Ã£o nÃ£o pode ser desfeita.')) return;
+    if (!confirm('Tem certeza que deseja excluir este restaurante? Esta acao nao pode ser desfeita.')) return;
     await fetch(`/api/admin/restaurants/${slug}`, { method: 'DELETE' });
     await loadData();
   }
@@ -1718,8 +1718,8 @@ export default function AdminPage() {
           {activePage === 'dashboard' && (
             <div className="space-y-8 max-w-7xl mx-auto">
               <div>
-                <h1 className="text-3xl font-bold text-slate-900 tracking-tight">VisÃ£o Geral</h1>
-                <p className="text-slate-500 mt-1">Bem-vindo de volta! Aqui estÃ¡ o que estÃ¡ acontecendo hoje.</p>
+                <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Visao Geral</h1>
+                <p className="text-slate-500 mt-1">Bem-vindo de volta! Aqui esta o que esta acontecendo hoje.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1834,7 +1834,7 @@ export default function AdminPage() {
                         <th className="px-6 py-4">Plano & Contato</th>
                         <th className="px-6 py-4">Acesso</th>
                         <th className="px-6 py-4">Status</th>
-                        <th className="px-6 py-4 text-right">AÃ§Ãµes</th>
+                        <th className="px-6 py-4 text-right">Acoes</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -4429,7 +4429,7 @@ export default function AdminPage() {
                 }`}
               >
                 <MapPin size={16} />
-                EndereÃ§o
+                Endereco
               </button>
               <button
                 onClick={() => setModalTab('access')}
@@ -4447,12 +4447,12 @@ export default function AdminPage() {
                 <div className="space-y-5 animate-in fade-in slide-in-from-left-4 duration-200">
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-slate-700">Nome Fantasia <span className="text-red-500">*</span></label>
-                    <input className="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Ex: Pizzaria do JoÃ£o" value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} required />
+                    <input className="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Ex: Pizzaria do Joao" value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} required />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700">RazÃ£o Social</label>
-                      <input className="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Ex: JoÃ£o Silva ME" value={form.legalName} onChange={(event) => setForm((prev) => ({ ...prev, legalName: event.target.value }))} />
+                      <label className="text-sm font-medium text-slate-700">Razao Social</label>
+                      <input className="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Ex: Joao Silva ME" value={form.legalName} onChange={(event) => setForm((prev) => ({ ...prev, legalName: event.target.value }))} />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-sm font-medium text-slate-700">Documento (CPF/CNPJ)</label>
@@ -4470,13 +4470,13 @@ export default function AdminPage() {
               {modalTab === 'address' && (
                 <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-200">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700">EndereÃ§o Completo</label>
+                    <label className="text-sm font-medium text-slate-700">Endereco Completo</label>
                     <input className="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Rua das Flores, 123" value={form.address} onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value }))} />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-sm font-medium text-slate-700">Cidade</label>
-                      <input className="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="SÃ£o Paulo" value={form.city} onChange={(event) => setForm((prev) => ({ ...prev, city: event.target.value }))} />
+                      <input className="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Sao Paulo" value={form.city} onChange={(event) => setForm((prev) => ({ ...prev, city: event.target.value }))} />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-sm font-medium text-slate-700">Estado</label>
@@ -4494,14 +4494,14 @@ export default function AdminPage() {
                       <input type="email" className="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="joao@email.com" value={form.email} onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))} />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700">Senha ProvisÃ³ria</label>
+                      <label className="text-sm font-medium text-slate-700">Senha Provisoria</label>
                       <div className="relative">
                         <input className="w-full border border-slate-300 rounded-lg px-4 py-2.5 pr-10 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder={editingRestaurant ? "Deixe em branco para manter" : "******"} value={form.password} onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))} />
                         <button
                           type="button"
                           onClick={generatePassword}
                           className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
-                          title="Gerar senha aleatÃ³ria"
+                          title="Gerar senha aleatoria"
                         >
                           <Wand2 size={16} />
                         </button>
@@ -4543,7 +4543,7 @@ export default function AdminPage() {
                     onClick={() => setModalTab(modalTab === 'general' ? 'address' : 'access')}
                     className="px-6 py-2.5 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition-all flex items-center gap-2"
                   >
-                    PrÃ³ximo <ChevronRight size={16} />
+                    Proximo <ChevronRight size={16} />
                   </button>
                 ) : (
                   <button
@@ -4551,7 +4551,7 @@ export default function AdminPage() {
                     disabled={saving}
                     className="px-6 py-2.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    {saving ? 'Salvando...' : (editingRestaurant ? 'Salvar AlteraÃ§Ãµes' : 'Finalizar Cadastro')}
+                    {saving ? 'Salvando...' : (editingRestaurant ? 'Salvar Alteracoes' : 'Finalizar Cadastro')}
                     {!saving && <Check size={16} />}
                   </button>
                 )}
