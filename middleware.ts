@@ -15,7 +15,8 @@ function isPublicPath(pathname: string) {
     pathname.startsWith("/api/master/login") ||
     pathname.startsWith("/api/master/logout") ||
     pathname.startsWith("/api/master/password-reset") ||
-    pathname.startsWith("/api/webhooks/abacatepay")
+    pathname.startsWith("/api/webhooks/abacatepay") ||
+    pathname.startsWith("/api/webhooks/stripe")
   );
 }
 

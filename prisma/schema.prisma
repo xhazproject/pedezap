@@ -3,11 +3,12 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-model SystemStub {
-  id        Int      @id @default(autoincrement())
-  createdAt DateTime @default(now())
+model SystemState {
+  key       String   @id
+  payload   Json
+  updatedAt DateTime @updatedAt
 }

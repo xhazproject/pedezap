@@ -2,11 +2,15 @@
   "name": "pedezap-saas",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "db:import-store": "node scripts/import-store-to-db.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {

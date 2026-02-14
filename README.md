@@ -1,19 +1,20 @@
 # PedeZap SaaS
 
-Aplicacao Next.js (admin + painel restaurante + catalogo) com integracao de pagamentos.
+Aplicacao Next.js (admin + painel restaurante + catalogo) com Stripe + Neon.
 
 ## Requisitos
 
 - Node.js 20+
 - NPM
+- Banco Postgres (Neon recomendado)
 
 ## Rodar local
 
-1. Instale dependencias:
-   - `npm install`
-2. Crie `.env.local` (baseado em `.env.example`).
-3. Rode:
-   - `npm run dev`
+1. Instale dependencias: `npm install`
+2. Crie `.env.local` com base em `.env.example`
+3. Defina `DATABASE_URL` (Neon)
+4. Execute schema no banco: `npx prisma db push`
+5. Rode: `npm run dev`
 
 ## Build de producao
 
@@ -22,7 +23,7 @@ Aplicacao Next.js (admin + painel restaurante + catalogo) com integracao de paga
 
 ## Deploy no Render
 
-O repositorio ja inclui `render.yaml`.
+O repositorio inclui `render.yaml`.
 
 ### 1) Subir no GitHub
 
@@ -30,37 +31,34 @@ O repositorio ja inclui `render.yaml`.
 
 ### 2) Criar servico no Render
 
-- Dashboard Render -> `New` -> `Blueprint` (ou `Web Service`).
-- Se usar Blueprint, ele le `render.yaml` automaticamente.
+- Render -> `New` -> `Blueprint`
+- Selecione o repo para ler o `render.yaml`
 
 ### 3) Configurar variaveis de ambiente
 
 Obrigatorias:
 
-- `NEXT_PUBLIC_APP_URL` = URL publica do Render (ex: `https://seuapp.onrender.com`)
-- `AUTH_SESSION_SECRET` = segredo longo e aleatorio
+- `DATABASE_URL` (Neon Postgres)
+- `NEXT_PUBLIC_APP_URL` (ex: `https://pedezap.site`)
+- `AUTH_SESSION_SECRET`
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `RESEND_API_KEY`
+- `LEADS_NOTIFY_EMAIL` (ex: `support@pedezap.site`)
+- `LEADS_FROM_EMAIL` (dominio validado no Resend)
+
+Legado/opcional:
+
 - `ABACATEPAY_API_KEY`
 - `ABACATEPAY_PUBLIC_KEY`
 - `ABACATEPAY_WEBHOOK_SECRET`
-- `RESEND_API_KEY` (para envio de leads por e-mail)
-- `LEADS_NOTIFY_EMAIL` (destino dos contatos, ex: `support@pedezap.site`)
-- `LEADS_FROM_EMAIL` (remetente validado no Resend, ex: `PedeZap <noreply@seudominio.com>`)
 
-Opcional (persistencia do store):
+### 4) Webhooks
 
-- `STORE_FILE_PATH` = caminho absoluto do arquivo JSON (ex: `/var/data/store.json`)
+- Stripe: `https://SEU-DOMINIO/api/webhooks/stripe`
+- AbacatePay (legado): `https://SEU-DOMINIO/api/webhooks/abacatepay`
 
-Observacao: em plano gratuito, sem disco persistente, dados em arquivo podem ser perdidos em restart/redeploy.
+### 5) Acessos
 
-### 4) Webhook AbacatePay
-
-Depois do deploy, configure no painel AbacatePay:
-
-- URL: `https://SEU-DOMINIO/api/webhooks/abacatepay`
-- Secret: igual ao `ABACATEPAY_WEBHOOK_SECRET`
-- Evento recomendado para assinatura: `billing.paid`
-
-### 5) Acesso admin
-
-- Login admin: `/admin/login`
-- Login restaurante: `/master/login`
+- Admin: `/awserver/login`
+- Restaurante: `/master/login`

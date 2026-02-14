@@ -4,15 +4,29 @@ services:
     runtime: node
     plan: free
     autoDeploy: true
-    buildCommand: npm ci && npm run build
+    buildCommand: npm ci && npx prisma db push && npm run build
     startCommand: npm run start -- -p $PORT
     healthCheckPath: /
     envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
       - key: NODE_ENV
         value: production
+      - key: DATABASE_URL
+        sync: false
       - key: NEXT_PUBLIC_APP_URL
         sync: false
       - key: AUTH_SESSION_SECRET
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: LEADS_NOTIFY_EMAIL
+        sync: false
+      - key: LEADS_FROM_EMAIL
         sync: false
       - key: ABACATEPAY_API_KEY
         sync: false
@@ -20,6 +34,3 @@ services:
         sync: false
       - key: ABACATEPAY_WEBHOOK_SECRET
         sync: false
-      # Opcional para persistir store.json usando disco no Render:
-      # - key: STORE_FILE_PATH
-      #   value: /var/data/store.json

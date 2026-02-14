@@ -51,6 +51,42 @@ export async function POST(request: Request) {
   }
 
   const store = await readStore();
+  const bootstrapEmail = process.env.ADMIN_MASTER_EMAIL?.trim().toLowerCase();
+  const bootstrapPassword = process.env.ADMIN_MASTER_PASSWORD?.trim();
+  const bootstrapName = process.env.ADMIN_MASTER_NAME?.trim() || "Admin Master";
+  if (bootstrapEmail && bootstrapPassword) {
+    const exists = store.adminUsers.some(
+      (item) => item.email.toLowerCase() === bootstrapEmail
+    );
+    if (!exists) {
+      const role = store.adminRoles.find((item) => item.name === "Admin Master");
+      const permissions = role?.permissions ?? [
+        "dashboard",
+        "restaurants",
+        "leads",
+        "financial",
+        "payments",
+        "stats",
+        "team",
+        "support",
+        "settings",
+        "security"
+      ];
+      store.adminUsers.push({
+        id: `adm_bootstrap_${Date.now()}`,
+        name: bootstrapName,
+        email: bootstrapEmail,
+        role: "Admin Master",
+        status: "Ativo",
+        password: await hashPassword(bootstrapPassword),
+        permissions,
+        createdAt: new Date().toISOString(),
+        lastAccessAt: null
+      });
+      await writeStore(store);
+    }
+  }
+
   const user = store.adminUsers.find(
     (item) => item.email.toLowerCase() === parsed.data.email.toLowerCase()
   );
