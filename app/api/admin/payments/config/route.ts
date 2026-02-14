@@ -3,7 +3,7 @@ import { z } from "zod";
 import { readStore, writeStore } from "@/lib/store";
 
 const configSchema = z.object({
-  provider: z.literal("abacaepay"),
+  provider: z.enum(["stripe", "abacaepay"]).optional(),
   methods: z.object({
     pix: z.object({
       enabled: z.boolean(),
@@ -41,7 +41,10 @@ export async function PUT(request: Request) {
   }
 
   const store = await readStore();
-  store.paymentsConfig = parsed.data;
+  store.paymentsConfig = {
+    ...parsed.data,
+    provider: "stripe"
+  };
   await writeStore(store);
   return NextResponse.json({ success: true, config: store.paymentsConfig });
 }

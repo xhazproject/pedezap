@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Minus, Plus, Square, X } from 'lucide-react';
-import { PizzaCrust, PizzaFlavor, Product } from '../types';
+import { AcaiComplementGroup, PizzaCrust, PizzaFlavor, Product, ProductComplement, SelectedAcaiOption } from '../types';
 import { formatCurrency } from './Formatters';
 
 interface ProductModalProps {
@@ -12,6 +12,8 @@ interface ProductModalProps {
     notes: string;
     flavors?: PizzaFlavor[];
     crust?: PizzaCrust;
+    complements?: ProductComplement[];
+    acaiOptions?: SelectedAcaiOption[];
   }) => void;
 }
 
@@ -25,10 +27,15 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   const [notes, setNotes] = useState('');
   const [selectedFlavorIds, setSelectedFlavorIds] = useState<string[]>([]);
   const [selectedCrustId, setSelectedCrustId] = useState<string>('');
+  const [selectedComplementIds, setSelectedComplementIds] = useState<string[]>([]);
+  const [selectedAcaiItems, setSelectedAcaiItems] = useState<Record<string, Record<string, number>>>({});
 
   const isPizza = Boolean(product.isPizza && product.pizzaFlavors?.length);
   const pizzaFlavors = product.pizzaFlavors ?? [];
   const pizzaCrusts = product.pizzaCrusts ?? [];
+  const complements = product.complements ?? [];
+  const acaiGroups = product.acaiComplementGroups ?? [];
+  const isAcai = product.kind === 'acai' && acaiGroups.length > 0;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -36,6 +43,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     setNotes('');
     setSelectedFlavorIds([]);
     setSelectedCrustId('');
+    setSelectedComplementIds([]);
+    setSelectedAcaiItems({});
   }, [isOpen, product.id]);
 
   const selectedFlavors = useMemo(
@@ -48,16 +57,58 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     [pizzaCrusts, selectedCrustId]
   );
 
+  const selectedComplements = useMemo(
+    () => complements.filter((complement) => selectedComplementIds.includes(complement.id)),
+    [complements, selectedComplementIds]
+  );
+
+  const selectedAcaiOptions = useMemo<SelectedAcaiOption[]>(() => {
+    if (!isAcai) return [];
+    return acaiGroups
+      .map((group: AcaiComplementGroup) => {
+        const groupSelection = selectedAcaiItems[group.id] ?? {};
+        const items = group.items
+          .map((item) => ({
+            ...item,
+            quantity: groupSelection[item.id] ?? 0
+          }))
+          .filter((item) => item.quantity > 0);
+        return {
+          groupId: group.id,
+          groupName: group.name,
+          items
+        };
+      })
+      .filter((group) => group.items.length > 0);
+  }, [isAcai, acaiGroups, selectedAcaiItems]);
+
   const unitPrice = useMemo(() => {
-    if (!isPizza) return product.price;
+    const complementsTotal = selectedComplements.reduce((sum, item) => sum + (item.price ?? 0), 0);
+    const acaiOptionsTotal = selectedAcaiOptions.reduce(
+      (groupsTotal, group) =>
+        groupsTotal +
+        group.items.reduce((itemsTotal, item) => itemsTotal + (item.price ?? 0) * (item.quantity ?? 0), 0),
+      0
+    );
+
+    if (!isPizza) return product.price + complementsTotal + acaiOptionsTotal;
     if (!selectedFlavors.length) return 0;
     const totalFlavorPrice = selectedFlavors.reduce((sum, flavor) => sum + (flavor.price ?? 0), 0);
     const pizzaPrice = totalFlavorPrice / selectedFlavors.length;
-    return pizzaPrice + (selectedCrust?.price ?? 0);
-  }, [isPizza, product.price, selectedFlavors, selectedCrust]);
+    return pizzaPrice + (selectedCrust?.price ?? 0) + complementsTotal + acaiOptionsTotal;
+  }, [isPizza, product.price, selectedFlavors, selectedCrust, selectedComplements, selectedAcaiOptions]);
 
   const total = useMemo(() => unitPrice * quantity, [unitPrice, quantity]);
-  const canAdd = !isPizza || selectedFlavors.length > 0;
+  const acaiRulesValid = useMemo(() => {
+    if (!isAcai) return true;
+    return acaiGroups.every((group) => {
+      const groupSelection = selectedAcaiItems[group.id] ?? {};
+      const totalChosen = Object.values(groupSelection).reduce((sum, qty) => sum + qty, 0);
+      return totalChosen >= group.minSelect && totalChosen <= group.maxSelect;
+    });
+  }, [isAcai, acaiGroups, selectedAcaiItems]);
+
+  const canAdd = (!isPizza || selectedFlavors.length > 0) && acaiRulesValid;
 
   const toggleFlavor = (flavorId: string) => {
     setSelectedFlavorIds((prev) => {
@@ -66,6 +117,35 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       }
       if (prev.length >= 2) return prev;
       return [...prev, flavorId];
+    });
+  };
+
+  const toggleComplement = (complementId: string) => {
+    setSelectedComplementIds((prev) =>
+      prev.includes(complementId)
+        ? prev.filter((item) => item !== complementId)
+        : [...prev, complementId]
+    );
+  };
+
+  const changeAcaiItemQty = (groupId: string, itemId: string, delta: number) => {
+    setSelectedAcaiItems((prev) => {
+      const group = acaiGroups.find((entry) => entry.id === groupId);
+      const item = group?.items.find((entry) => entry.id === itemId);
+      if (!group || !item) return prev;
+
+      const currentGroup = { ...(prev[groupId] ?? {}) };
+      const currentQty = currentGroup[itemId] ?? 0;
+      const nextQty = Math.max(0, currentQty + delta);
+      const groupTotalWithoutCurrent =
+        Object.entries(currentGroup).reduce((sum, [id, qty]) => (id === itemId ? sum : sum + qty), 0);
+
+      if (nextQty > item.maxQty) return prev;
+      if (groupTotalWithoutCurrent + nextQty > group.maxSelect) return prev;
+
+      const nextGroup = { ...currentGroup, [itemId]: nextQty };
+      if (nextQty === 0) delete nextGroup[itemId];
+      return { ...prev, [groupId]: nextGroup };
     });
   };
 
@@ -161,6 +241,107 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             </div>
           )}
 
+          {complements.length > 0 && (
+            <div className="space-y-3 rounded-xl border border-slate-200 p-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Complementos</p>
+                <p className="text-xs text-slate-500">Selecione os adicionais desejados.</p>
+              </div>
+              <div className="space-y-2">
+                {complements.map((complement) => {
+                  const active = selectedComplementIds.includes(complement.id);
+                  return (
+                    <button
+                      key={complement.id}
+                      type="button"
+                      onClick={() => toggleComplement(complement.id)}
+                      className={`w-full rounded-xl border px-3 py-2 text-left transition ${
+                        active ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-medium text-slate-900">{complement.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-emerald-700">+ {formatCurrency(complement.price)}</span>
+                          {active && <Check size={15} className="text-emerald-600" />}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {isAcai && (
+            <div className="space-y-3 rounded-xl border border-slate-200 p-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Complementos do Acai</p>
+                <p className="text-xs text-slate-500">
+                  Siga os limites de cada categoria. Item com valor R$ 0,00 nao adiciona custo.
+                </p>
+              </div>
+              <div className="space-y-3">
+                {acaiGroups.map((group) => {
+                  const groupSelection = selectedAcaiItems[group.id] ?? {};
+                  const groupTotal = Object.values(groupSelection).reduce((sum, qty) => sum + qty, 0);
+                  const groupValid = groupTotal >= group.minSelect && groupTotal <= group.maxSelect;
+                  return (
+                    <div key={group.id} className="rounded-xl border border-slate-200 p-3">
+                      <div className="mb-2 flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-slate-900">{group.name}</p>
+                          <p className="text-xs text-slate-500">
+                            Escolha de {group.minSelect} ate {group.maxSelect} itens | Selecionados: {groupTotal}
+                          </p>
+                        </div>
+                        <span
+                          className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
+                            groupValid ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                          }`}
+                        >
+                          {groupValid ? 'OK' : 'Ajustar'}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {group.items.map((item) => {
+                          const qty = groupSelection[item.id] ?? 0;
+                          return (
+                            <div key={item.id} className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2">
+                              <div>
+                                <p className="text-sm font-medium text-slate-900">{item.name}</p>
+                                <p className="text-xs text-slate-500">
+                                  + {formatCurrency(item.price)} | max {item.maxQty}x
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => changeAcaiItemQty(group.id, item.id, -1)}
+                                  className="rounded-md border border-slate-200 p-1 text-slate-600 hover:bg-slate-50"
+                                >
+                                  <Minus size={14} />
+                                </button>
+                                <span className="w-6 text-center text-sm font-semibold text-slate-900">{qty}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => changeAcaiItemQty(group.id, item.id, 1)}
+                                  className="rounded-md border border-slate-200 p-1 text-slate-600 hover:bg-slate-50"
+                                >
+                                  <Plus size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="rounded-xl border border-slate-200 p-3">
             <label className="mb-2 inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
               <Square size={14} />
@@ -196,13 +377,15 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   quantity,
                   notes,
                   flavors: selectedFlavors.length ? selectedFlavors : undefined,
-                  crust: selectedCrust
+                  crust: selectedCrust,
+                  complements: selectedComplements.length ? selectedComplements : undefined,
+                  acaiOptions: selectedAcaiOptions.length ? selectedAcaiOptions : undefined
                 })
               }
               disabled={!canAdd}
               className="flex flex-1 items-center justify-between rounded-xl bg-emerald-600 px-5 py-3 text-left font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
-              <span>{canAdd ? 'Adicionar' : 'Selecione ao menos 1 sabor'}</span>
+              <span>{canAdd ? 'Adicionar' : isPizza && !selectedFlavors.length ? 'Selecione ao menos 1 sabor' : 'Revise as regras dos complementos'}</span>
               <span className="text-xl">{formatCurrency(total)}</span>
             </button>
           </div>

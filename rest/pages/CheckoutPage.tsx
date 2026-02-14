@@ -74,6 +74,19 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onBackToMenu, initia
               ? `Sabores: ${item.selectedFlavors.map((flavor) => flavor.name).join(' / ')}`
               : '',
             item.selectedCrust ? `Borda: ${item.selectedCrust.name}` : '',
+            item.selectedComplements?.length
+              ? `Complementos: ${item.selectedComplements.map((complement) => complement.name).join(', ')}`
+              : '',
+            item.selectedAcaiOptions?.length
+              ? `Acai: ${item.selectedAcaiOptions
+                  .map(
+                    (group) =>
+                      `${group.groupName}(${group.items
+                        .map((item) => `${item.name} x${item.quantity}`)
+                        .join(', ')})`
+                  )
+                  .join(' | ')}`
+              : '',
             item.notes
           ]
             .filter(Boolean)
@@ -179,6 +192,18 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onBackToMenu, initia
                         {item.selectedCrust ? `Borda: ${item.selectedCrust.name}` : ''}
                       </p>
                     )}
+                    {item.selectedComplements?.length ? (
+                      <p className="mt-1 text-xs text-gray-500">
+                        Complementos: {item.selectedComplements.map((complement) => complement.name).join(', ')}
+                      </p>
+                    ) : null}
+                    {item.selectedAcaiOptions?.length ? (
+                      <p className="mt-1 text-xs text-gray-500">
+                        Acai: {item.selectedAcaiOptions
+                          .map((group) => `${group.groupName} (${group.items.map((item) => `${item.name} x${item.quantity}`).join(', ')})`)
+                          .join(' | ')}
+                      </p>
+                    ) : null}
                     <p className="text-sm font-semibold text-emerald-600 mt-1">{formatCurrency(item.price * item.quantity)}</p>
                   </div>
                   <button onClick={() => removeFromCart(item.cartId)} className="text-red-400 p-1 hover:bg-red-50 rounded">

@@ -10,18 +10,6 @@ const confirmSchema = z.object({
   externalId: z.string().min(2).optional()
 });
 
-function extractCheckoutUrl(data: any): string | null {
-  return (
-    data?.data?.billingUrl ??
-    data?.data?.checkoutUrl ??
-    data?.data?.url ??
-    data?.billingUrl ??
-    data?.checkoutUrl ??
-    data?.url ??
-    null
-  );
-}
-
 function upsertPlanInvoice(args: {
   store: Awaited<ReturnType<typeof readStore>>;
   restaurantSlug: string;
@@ -69,6 +57,24 @@ function upsertPlanInvoice(args: {
   };
 }
 
+function buildStripeFormBody(values: Record<string, string>) {
+  const params = new URLSearchParams();
+  Object.entries(values).forEach(([key, value]) => {
+    params.append(key, value);
+  });
+  return params.toString();
+}
+
+function isStripeCheckoutUrl(value: string | null | undefined) {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return url.hostname === "checkout.stripe.com" || url.hostname.endsWith(".stripe.com");
+  } catch {
+    return false;
+  }
+}
+
 export async function GET(
   _request: Request,
   { params }: { params: { slug: string } }
@@ -106,7 +112,7 @@ export async function GET(
       trialEndsAt: restaurant.trialEndsAt ?? null,
       trialDaysLeft,
       nextBillingAt: restaurant.nextBillingAt ?? null,
-      lastCheckoutUrl: restaurant.lastCheckoutUrl ?? null
+      lastCheckoutUrl: isStripeCheckoutUrl(restaurant.lastCheckoutUrl) ? restaurant.lastCheckoutUrl : null
     }
   });
 }
@@ -141,87 +147,76 @@ export async function POST(
     );
   }
 
-  const configKey = store.paymentsConfig?.gatewayApiKey;
-  const apiKey = process.env.ABACATEPAY_API_KEY || configKey;
-  if (!apiKey) {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecretKey) {
     return NextResponse.json(
-      { success: false, message: "API key do AbacatePay nao configurada." },
+      { success: false, message: "STRIPE_SECRET_KEY nao configurada." },
       { status: 400 }
     );
   }
 
   const restaurant = store.restaurants[restaurantIndex];
-  const cellphone = restaurant.whatsapp.replace(/\D/g, "");
-  const taxId = (restaurant.taxId ?? "").replace(/\D/g, "");
-  if (taxId.length !== 11 && taxId.length !== 14) {
-    return NextResponse.json(
-      {
-        success: false,
-        message:
-          "CPF/CNPJ do restaurante nao configurado. Atualize em Admin > Restaurantes > Documento."
-      },
-      { status: 400 }
-    );
-  }
   const externalId = `plan_${restaurant.slug}_${Date.now()}`;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const amountInCents = Math.round(plan.price * 100);
 
-  const requestBody = {
-    frequency: "ONE_TIME",
-    methods: ["PIX"],
-    returnUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/master?checkout=return`,
-    completionUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/master?checkout=success&externalId=${encodeURIComponent(externalId)}`,
-    products: [
-      {
-        externalId: plan.id,
-        name: plan.name,
-        description: plan.description,
-        quantity: 1,
-        price: amountInCents
-      }
-    ],
-    customer: {
-      name: restaurant.name,
-      email: restaurant.ownerEmail,
-      cellphone,
-      taxId
-    },
-    metadata: {
-      restaurantSlug: restaurant.slug,
-      planId: plan.id,
-      externalId
-    },
-    externalId
-  };
+  const body = buildStripeFormBody({
+    mode: "subscription",
+    "line_items[0][quantity]": "1",
+    "line_items[0][price_data][currency]": "brl",
+    "line_items[0][price_data][unit_amount]": String(amountInCents),
+    "line_items[0][price_data][recurring][interval]": "month",
+    "line_items[0][price_data][product_data][name]": plan.name,
+    "line_items[0][price_data][product_data][description]": plan.description,
+    "customer_email": restaurant.ownerEmail,
+    "client_reference_id": externalId,
+    "metadata[restaurantSlug]": restaurant.slug,
+    "metadata[planId]": plan.id,
+    "metadata[externalId]": externalId,
+    "subscription_data[metadata][restaurantSlug]": restaurant.slug,
+    "subscription_data[metadata][planId]": plan.id,
+    "subscription_data[metadata][externalId]": externalId,
+    "success_url": `${appUrl}/master?checkout=success&externalId=${encodeURIComponent(externalId)}`,
+    "cancel_url": `${appUrl}/master?checkout=cancel`
+  });
 
-  const response = await fetch("https://api.abacatepay.com/v1/billing/create", {
+  const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`
+      Authorization: `Bearer ${stripeSecretKey}`,
+      "Content-Type": "application/x-www-form-urlencoded"
     },
-    body: JSON.stringify(requestBody)
+    body
   });
+
   const data = await response.json().catch(() => null);
   if (!response.ok) {
     const providerMessage =
       data?.error?.message ??
-      data?.error ??
       data?.message ??
       (typeof data === "string" ? data : null);
     return NextResponse.json(
       {
         success: false,
-        message:
-          providerMessage ??
-          `Erro ao iniciar contratacao no AbacatePay (HTTP ${response.status}).`,
+        message: providerMessage ?? `Erro ao iniciar contratacao na Stripe (HTTP ${response.status}).`,
         details: data ?? null
       },
       { status: response.status }
     );
   }
 
-  const checkoutUrl = extractCheckoutUrl(data);
+  const checkoutUrl = data?.url ?? null;
+  if (!isStripeCheckoutUrl(checkoutUrl)) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "A Stripe nao retornou um checkout valido. Verifique as chaves e produtos no dashboard Stripe.",
+        details: data ?? null
+      },
+      { status: 502 }
+    );
+  }
+  const sessionId = data?.id ?? null;
   const nextBillingAt = new Date();
   nextBillingAt.setMonth(nextBillingAt.getMonth() + 1);
 
@@ -233,6 +228,7 @@ export async function POST(
     nextBillingAt: nextBillingAt.toISOString(),
     subscriptionStatus: "pending_payment"
   };
+
   upsertPlanInvoice({
     store,
     restaurantSlug: restaurant.slug,
@@ -240,17 +236,18 @@ export async function POST(
     planName: plan.name,
     amount: plan.price,
     externalId,
-    method: "Pix"
+    method: "Cartao de Credito"
   });
   await writeStore(store);
 
   return NextResponse.json({
     success: true,
     checkoutUrl,
-    provider: data,
+    sessionId,
+    provider: "stripe",
     message: checkoutUrl
       ? "Checkout gerado com sucesso."
-      : "Solicitacao enviada ao AbacatePay, mas sem URL direta de checkout."
+      : "Solicitacao enviada a Stripe, mas sem URL direta de checkout."
   });
 }
 
@@ -319,7 +316,7 @@ export async function PATCH(
     planName: targetPlanName,
     amount: targetPlanPrice,
     externalId: restaurant.pendingCheckoutExternalId,
-    method: "Pix",
+    method: "Cartao de Credito",
     paid: true
   });
 

@@ -13,8 +13,9 @@ interface Props {
 export const FeaturedProductCard: React.FC<Props> = ({ product, onOpenModal }) => {
   const { addToCart } = useCart();
   const { isOpen } = RESTAURANT_DATA;
+  const requiresCustomization = Boolean(product.isPizza || product.complements?.length || product.acaiComplementGroups?.length);
   const handleAction = () => {
-    if (product.isPizza && onOpenModal) {
+    if (requiresCustomization && onOpenModal) {
       onOpenModal(product);
       return;
     }

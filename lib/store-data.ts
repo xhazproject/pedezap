@@ -284,7 +284,7 @@ export type PaymentMethodConfig = {
 };
 
 export type PaymentsConfig = {
-  provider: "abacaepay";
+  provider: "stripe";
   methods: Record<PaymentMethodType, PaymentMethodConfig>;
   payoutSchedule: PayoutSchedule;
   weeklyPayoutDay: number;
@@ -755,7 +755,7 @@ export const defaultStore: AppStore = {
     }
   ],
   paymentsConfig: {
-    provider: "abacaepay",
+    provider: "stripe",
     methods: {
       pix: { enabled: true, percentFee: 1.0, fixedFee: 0 },
       card: { enabled: true, percentFee: 3.2, fixedFee: 0.39 }
@@ -861,12 +861,12 @@ export const defaultStore: AppStore = {
     ],
     integrations: {
       abacatepay: {
-        connected: true,
+        connected: false,
         environment: "Producao",
         webhookUrl: "https://api.pedezap.ai/v1/webhooks/abacatepay"
       },
       stripe: {
-        connected: false,
+        connected: true,
         webhookUrl: "https://api.pedezap.ai/v1/webhooks/stripe"
       },
       whatsappEvolution: {

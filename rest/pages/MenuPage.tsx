@@ -10,7 +10,7 @@ import { ProductModal } from '../components/ProductModal';
 import { StoreInfoModal } from '../components/StoreInfoModal';
 import { CATEGORIES, PRODUCTS } from '../constants';
 import { useCart } from '../context/CartContext';
-import { Offer, PizzaCrust, PizzaFlavor, Product } from '../types';
+import { Offer, PizzaCrust, PizzaFlavor, Product, ProductComplement, SelectedAcaiOption } from '../types';
 
 interface MenuPageProps {
   onCheckout: () => void;
@@ -52,13 +52,17 @@ export const MenuPage: React.FC<MenuPageProps> = ({ onCheckout, onProfile }) => 
     notes: string;
     flavors?: PizzaFlavor[];
     crust?: PizzaCrust;
+    complements?: ProductComplement[];
+    acaiOptions?: SelectedAcaiOption[];
   }) => {
     if (!selectedProduct) return;
     addToCart(selectedProduct, {
       quantity: payload.quantity,
       notes: payload.notes,
       flavors: payload.flavors,
-      crust: payload.crust
+      crust: payload.crust,
+      complements: payload.complements,
+      acaiOptions: payload.acaiOptions
     });
     setIsModalOpen(false);
   };

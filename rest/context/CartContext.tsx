@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { CartItem, Product, PizzaFlavor, PizzaCrust } from '../types';
+import { CartItem, Product, PizzaFlavor, PizzaCrust, ProductComplement, SelectedAcaiOption } from '../types';
 
 interface AddToCartOptions {
   flavors?: PizzaFlavor[];
   crust?: PizzaCrust;
+  complements?: ProductComplement[];
+  acaiOptions?: SelectedAcaiOption[];
   notes?: string;
   quantity?: number;
 }
@@ -39,7 +41,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Complex products (pizza) stack only if flavors/crust match exactly.
       // For simplicity in this demo, every customized item gets a new entry unless strictly identical.
       
-      const isCustom = product.isPizza;
+      const isCustom = Boolean(product.isPizza || options?.complements?.length || options?.acaiOptions?.length);
       
       // Calculate adjusted price (pizza by selected flavors + crust)
       let finalPrice = product.price;
@@ -50,6 +52,20 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       if (options?.crust) {
         finalPrice += options.crust.price;
+      }
+      if (options?.complements?.length) {
+        finalPrice += options.complements.reduce((sum, complement) => sum + (complement.price ?? 0), 0);
+      }
+      if (options?.acaiOptions?.length) {
+        finalPrice += options.acaiOptions.reduce(
+          (groupsTotal, group) =>
+            groupsTotal +
+            group.items.reduce(
+              (itemsTotal, item) => itemsTotal + (item.price ?? 0) * (item.quantity ?? 0),
+              0
+            ),
+          0
+        );
       }
 
       const quantityToAdd = Math.max(1, options?.quantity ?? 1);
@@ -62,7 +78,9 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         notes: options?.notes || '',
         price: finalPrice, // Override price with calculated price
         selectedFlavors: options?.flavors,
-        selectedCrust: options?.crust
+        selectedCrust: options?.crust,
+        selectedComplements: options?.complements,
+        selectedAcaiOptions: options?.acaiOptions
       };
 
       // Check if identical item exists
@@ -75,8 +93,10 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // If custom, check deep equality of options
         const flavorsMatch = JSON.stringify(item.selectedFlavors) === JSON.stringify(options?.flavors);
         const crustMatch = item.selectedCrust?.id === options?.crust?.id;
+        const complementsMatch = JSON.stringify(item.selectedComplements) === JSON.stringify(options?.complements);
+        const acaiOptionsMatch = JSON.stringify(item.selectedAcaiOptions) === JSON.stringify(options?.acaiOptions);
         
-        return flavorsMatch && crustMatch;
+        return flavorsMatch && crustMatch && complementsMatch && acaiOptionsMatch;
       });
 
       if (existingItemIndex > -1) {

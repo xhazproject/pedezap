@@ -52,6 +52,34 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (isPublicPath(pathname)) return NextResponse.next();
 
+  const isSupportTicketsApi =
+    pathname.startsWith("/api/admin/support/tickets");
+
+  if (isSupportTicketsApi) {
+    const adminToken = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
+    const adminPayload = await verifySessionToken(adminToken);
+    if (adminPayload && adminPayload.kind === "admin") {
+      const hasPermission =
+        adminPayload.role === "Admin Master" ||
+        (adminPayload.permissions ?? []).includes("support");
+      if (!hasPermission) {
+        return NextResponse.json(
+          { success: false, message: "Sem permissao para esta acao." },
+          { status: 403 }
+        );
+      }
+      return NextResponse.next();
+    }
+
+    const masterToken = request.cookies.get(MASTER_SESSION_COOKIE)?.value;
+    const masterPayload = await verifySessionToken(masterToken);
+    if (masterPayload && masterPayload.kind === "master") {
+      return NextResponse.next();
+    }
+
+    return unauthorizedResponse(request, "/awserver/login");
+  }
+
   const needsAdminSession =
     pathname.startsWith("/awserver") || pathname.startsWith("/api/admin");
   const needsMasterSession =

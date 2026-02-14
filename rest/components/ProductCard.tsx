@@ -11,6 +11,7 @@ interface Props {
 
 export const ProductCard: React.FC<Props> = ({ product, onOpenModal }) => {
   const { isOpen } = RESTAURANT_DATA;
+  const requiresCustomization = Boolean(product.isPizza || product.complements?.length || product.acaiComplementGroups?.length);
 
   const handleAction = () => {
     if (onOpenModal) {
@@ -66,7 +67,7 @@ export const ProductCard: React.FC<Props> = ({ product, onOpenModal }) => {
             `}
             aria-label={`Adicionar ${product.name}`}
           >
-            {product.isPizza ? (
+            {requiresCustomization ? (
               <>
                 <span className="text-xs font-bold">Montar</span>
                 <ChevronRight size={16} strokeWidth={2.5} />

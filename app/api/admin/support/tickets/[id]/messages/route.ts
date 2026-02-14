@@ -2,12 +2,31 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { makeId, readStore, writeStore } from "@/lib/store";
 
+const attachmentSchema = z.object({
+  name: z.string().min(1),
+  url: z
+    .string()
+    .refine(
+      (value) =>
+        value.startsWith("data:") ||
+        value.startsWith("http://") ||
+        value.startsWith("https://"),
+      "Anexo invalido."
+    ),
+  type: z.string().optional(),
+  size: z.number().int().nonnegative().optional()
+});
+
 const messageSchema = z.object({
-  body: z.string().min(1),
+  body: z.string().optional().default(""),
   authorName: z.string().min(2),
   authorRole: z.enum(["agent", "customer"]).optional(),
-  internal: z.boolean().optional()
-});
+  internal: z.boolean().optional(),
+  attachments: z.array(attachmentSchema).optional().default([])
+}).refine(
+  (value) => value.body.trim().length > 0 || (value.attachments?.length ?? 0) > 0,
+  { message: "Mensagem vazia.", path: ["body"] }
+);
 
 export async function POST(
   request: Request,
@@ -36,9 +55,10 @@ export async function POST(
     ticketId: ticket.id,
     authorName: parsed.data.authorName,
     authorRole: parsed.data.authorRole ?? ("agent" as const),
-    body: parsed.data.body,
+    body: parsed.data.body.trim(),
     createdAt: new Date().toISOString(),
-    internal: parsed.data.internal ?? false
+    internal: parsed.data.internal ?? false,
+    attachments: parsed.data.attachments ?? []
   };
 
   store.supportMessages.push(message);

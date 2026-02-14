@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -248,6 +248,12 @@ type SupportMessage = {
   body: string;
   createdAt: string;
   internal?: boolean;
+  attachments?: Array<{
+    name: string;
+    url: string;
+    type?: string;
+    size?: number;
+  }>;
 };
 
 type SupportQuickReply = {
@@ -419,7 +425,7 @@ export default function AdminPage() {
   });
   const supportMessagesRef = useRef<HTMLDivElement | null>(null);
   const [paymentsConfig, setPaymentsConfig] = useState({
-    provider: 'abacaepay',
+    provider: 'stripe',
     methods: {
       pix: { enabled: true, percentFee: 1.0, fixedFee: 0 },
       card: { enabled: true, percentFee: 3.2, fixedFee: 0.39 }
@@ -481,12 +487,12 @@ export default function AdminPage() {
     ] as NotificationTemplate[],
     integrations: {
       abacatepay: {
-        connected: true,
+        connected: false,
         environment: 'Producao' as 'Producao' | 'Teste',
         webhookUrl: 'https://api.pedezap.ai/v1/webhooks/abacatepay'
       },
       stripe: {
-        connected: false,
+        connected: true,
         webhookUrl: 'https://api.pedezap.ai/v1/webhooks/stripe'
       },
       whatsappEvolution: {
@@ -1301,7 +1307,7 @@ export default function AdminPage() {
   const agendaLate = payouts.filter((item) => item.group === 'late');
   const agendaTodayTotal = agendaToday.reduce((total, item) => total + item.amount, 0);
   const agendaPendingTotal = payouts.reduce((total, item) => total + item.amount, 0);
-  const walletBalance = gatewayBalance ?? 45200.0;
+  const walletBalance = gatewayBalance ?? 0;
   const filteredPayoutRequests = payouts;
   const filteredPayoutHistory = payouts;
 
@@ -1335,7 +1341,7 @@ export default function AdminPage() {
 
       const resetLink = `${window.location.origin}/master/reset-password?slug=${encodeURIComponent(payload.slug)}&token=${encodeURIComponent(payload.token)}`;
       const shareMessage =
-        `Olá! Aqui está seu link para redefinir a senha do painel do restaurante *${payload.restaurantName}*:\n\n` +
+        `OlÃ¡! Aqui estÃ¡ seu link para redefinir a senha do painel do restaurante *${payload.restaurantName}*:\n\n` +
         `${resetLink}\n\n` +
         `Esse link expira em 1 hora.`;
       const whatsappDigits = String(payload.whatsapp || '').replace(/\D/g, '');
@@ -1367,12 +1373,12 @@ export default function AdminPage() {
   const getShareMessage = () => {
     if (!createdCredentials) return '';
     const origin = window.location.origin;
-    return `Olá! Seu restaurante *${createdCredentials.name}* já está cadastrado no PedeZap! 🚀\n\n` +
-      `Aqui estão seus dados de acesso:\n` +
-      `💻 Painel: ${origin}/master/login\n` +
-      `📧 Email: ${createdCredentials.email}\n` +
-      `🔑 Senha: ${createdCredentials.password}\n\n` +
-      `🔗 Seu link de pedidos: ${origin}/r/${createdCredentials.slug}\n\n` +
+    return `OlÃ¡! Seu restaurante *${createdCredentials.name}* jÃ¡ estÃ¡ cadastrado no PedeZap! ðŸš€\n\n` +
+      `Aqui estÃ£o seus dados de acesso:\n` +
+      `ðŸ’» Painel: ${origin}/master/login\n` +
+      `ðŸ“§ Email: ${createdCredentials.email}\n` +
+      `ðŸ”‘ Senha: ${createdCredentials.password}\n\n` +
+      `ðŸ”— Seu link de pedidos: ${origin}/r/${createdCredentials.slug}\n\n` +
       `Boas vendas!`;
   };
 
@@ -1495,7 +1501,7 @@ export default function AdminPage() {
   }
 
   async function handleDelete(slug: string) {
-    if (!confirm('Tem certeza que deseja excluir este restaurante? Esta ação não pode ser desfeita.')) return;
+    if (!confirm('Tem certeza que deseja excluir este restaurante? Esta aÃ§Ã£o nÃ£o pode ser desfeita.')) return;
     await fetch(`/api/admin/restaurants/${slug}`, { method: 'DELETE' });
     await loadData();
   }
@@ -1712,8 +1718,8 @@ export default function AdminPage() {
           {activePage === 'dashboard' && (
             <div className="space-y-8 max-w-7xl mx-auto">
               <div>
-                <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Visão Geral</h1>
-                <p className="text-slate-500 mt-1">Bem-vindo de volta! Aqui está o que está acontecendo hoje.</p>
+                <h1 className="text-3xl font-bold text-slate-900 tracking-tight">VisÃ£o Geral</h1>
+                <p className="text-slate-500 mt-1">Bem-vindo de volta! Aqui estÃ¡ o que estÃ¡ acontecendo hoje.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1828,7 +1834,7 @@ export default function AdminPage() {
                         <th className="px-6 py-4">Plano & Contato</th>
                         <th className="px-6 py-4">Acesso</th>
                         <th className="px-6 py-4">Status</th>
-                        <th className="px-6 py-4 text-right">Ações</th>
+                        <th className="px-6 py-4 text-right">AÃ§Ãµes</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -2518,7 +2524,7 @@ export default function AdminPage() {
                 </div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
                   <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  Gateway Conectado: AbacatePay
+                  Gateway Conectado: Stripe
                 </div>
               </div>
 
@@ -2548,7 +2554,7 @@ export default function AdminPage() {
                     <QrCode size={22} />
                   </div>
                   <div className="flex-1">
-                    <p className="text-xs text-slate-500">AbacatePay (Saldo da Carteira)</p>
+                    <p className="text-xs text-slate-500">Stripe (Saldo Processado)</p>
                     <p className="text-xl font-semibold text-slate-900">{moneyFormatter.format(walletBalance)}</p>
                     <button className="text-xs text-indigo-600 font-medium">Gerenciar Carteira</button>
                   </div>
@@ -2779,7 +2785,7 @@ export default function AdminPage() {
                           <div>
                             <p className="font-semibold text-slate-900">Gateway de Pagamentos & Split</p>
                             <p className="text-sm text-slate-500">
-                              O PedeZap utiliza o AbacatePay para processar pagamentos via Pix e Cartao, com split automatico
+                              O PedeZap utiliza a Stripe como gateway principal para assinaturas e pagamentos online.
                               e repasses para restaurantes.
                             </p>
                             <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-slate-500">
@@ -3130,6 +3136,26 @@ export default function AdminPage() {
                               } ${msg.internal ? 'border-dashed border-amber-300 bg-amber-50 text-amber-800' : ''}`}
                             >
                               <p className="whitespace-pre-wrap">{msg.body}</p>
+                              {msg.attachments?.length ? (
+                                <div className="mt-2 space-y-1">
+                                  {msg.attachments.map((attachment, index) => (
+                                    <a
+                                      key={`${msg.id}-att-${index}`}
+                                      href={attachment.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      download={attachment.name}
+                                      className={`block rounded-lg border px-2 py-1 text-xs ${
+                                        msg.authorRole === 'agent'
+                                          ? 'border-white/30 text-white/90 hover:bg-white/10'
+                                          : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                                      }`}
+                                    >
+                                      Anexo: {attachment.name}
+                                    </a>
+                                  ))}
+                                </div>
+                              ) : null}
                               <span className="mt-2 block text-[10px] opacity-70">
                                 {msg.authorName} • {formatSupportTime(msg.createdAt)}
                               </span>
@@ -3607,49 +3633,11 @@ export default function AdminPage() {
                         <div className="border border-slate-200 rounded-2xl p-4 space-y-3">
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-3">
-                              <div className="h-9 w-9 rounded-lg bg-slate-900 text-white flex items-center justify-center text-sm font-bold">AP</div>
-                              <div>
-                                <p className="font-semibold text-slate-900">AbacatePay (Pagamentos)</p>
-                                <p className="text-xs text-slate-500">
-                                  <span className={settingsForm.integrations.abacatepay.connected ? 'text-emerald-600' : 'text-slate-400'}>
-                                    {settingsForm.integrations.abacatepay.connected ? 'Conectado' : 'Desconectado'}
-                                  </span>
-                                  {' '}• Ambiente {settingsForm.integrations.abacatepay.environment}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-slate-500 mb-1">WEBHOOK URL</p>
-                            <div className="flex items-center gap-2">
-                              <input
-                                value={settingsForm.integrations.abacatepay.webhookUrl}
-                                onChange={(event) =>
-                                  setSettingsForm((prev) => ({
-                                    ...prev,
-                                    integrations: {
-                                      ...prev.integrations,
-                                      abacatepay: { ...prev.integrations.abacatepay, webhookUrl: event.target.value }
-                                    }
-                                  }))
-                                }
-                                className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                              />
-                              <button onClick={() => copyWebhookUrl(settingsForm.integrations.abacatepay.webhookUrl)} className="p-2 border border-slate-200 rounded-lg text-slate-500 hover:text-slate-700">
-                                <Copy size={16} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="border border-slate-200 rounded-2xl p-4 space-y-3">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3">
                               <div className="h-9 w-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center">
                                 <CreditCard size={16} />
                               </div>
                               <div>
-                                <p className="font-semibold text-slate-900">Stripe</p>
+                                <p className="font-semibold text-slate-900">Stripe (Pagamentos)</p>
                                 <p className="text-xs text-slate-500">{settingsForm.integrations.stripe.connected ? 'Conectado' : 'Desconectado'}</p>
                               </div>
                             </div>
@@ -4441,7 +4429,7 @@ export default function AdminPage() {
                 }`}
               >
                 <MapPin size={16} />
-                Endereço
+                EndereÃ§o
               </button>
               <button
                 onClick={() => setModalTab('access')}
@@ -4459,12 +4447,12 @@ export default function AdminPage() {
                 <div className="space-y-5 animate-in fade-in slide-in-from-left-4 duration-200">
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-slate-700">Nome Fantasia <span className="text-red-500">*</span></label>
-                    <input className="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Ex: Pizzaria do João" value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} required />
+                    <input className="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Ex: Pizzaria do JoÃ£o" value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} required />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700">Razão Social</label>
-                      <input className="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Ex: João Silva ME" value={form.legalName} onChange={(event) => setForm((prev) => ({ ...prev, legalName: event.target.value }))} />
+                      <label className="text-sm font-medium text-slate-700">RazÃ£o Social</label>
+                      <input className="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Ex: JoÃ£o Silva ME" value={form.legalName} onChange={(event) => setForm((prev) => ({ ...prev, legalName: event.target.value }))} />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-sm font-medium text-slate-700">Documento (CPF/CNPJ)</label>
@@ -4482,13 +4470,13 @@ export default function AdminPage() {
               {modalTab === 'address' && (
                 <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-200">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700">Endereço Completo</label>
+                    <label className="text-sm font-medium text-slate-700">EndereÃ§o Completo</label>
                     <input className="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Rua das Flores, 123" value={form.address} onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value }))} />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-sm font-medium text-slate-700">Cidade</label>
-                      <input className="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="São Paulo" value={form.city} onChange={(event) => setForm((prev) => ({ ...prev, city: event.target.value }))} />
+                      <input className="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="SÃ£o Paulo" value={form.city} onChange={(event) => setForm((prev) => ({ ...prev, city: event.target.value }))} />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-sm font-medium text-slate-700">Estado</label>
@@ -4506,14 +4494,14 @@ export default function AdminPage() {
                       <input type="email" className="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="joao@email.com" value={form.email} onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))} />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700">Senha Provisória</label>
+                      <label className="text-sm font-medium text-slate-700">Senha ProvisÃ³ria</label>
                       <div className="relative">
                         <input className="w-full border border-slate-300 rounded-lg px-4 py-2.5 pr-10 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder={editingRestaurant ? "Deixe em branco para manter" : "******"} value={form.password} onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))} />
                         <button
                           type="button"
                           onClick={generatePassword}
                           className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
-                          title="Gerar senha aleatória"
+                          title="Gerar senha aleatÃ³ria"
                         >
                           <Wand2 size={16} />
                         </button>
@@ -4555,7 +4543,7 @@ export default function AdminPage() {
                     onClick={() => setModalTab(modalTab === 'general' ? 'address' : 'access')}
                     className="px-6 py-2.5 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition-all flex items-center gap-2"
                   >
-                    Próximo <ChevronRight size={16} />
+                    PrÃ³ximo <ChevronRight size={16} />
                   </button>
                 ) : (
                   <button
@@ -4563,7 +4551,7 @@ export default function AdminPage() {
                     disabled={saving}
                     className="px-6 py-2.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    {saving ? 'Salvando...' : (editingRestaurant ? 'Salvar Alterações' : 'Finalizar Cadastro')}
+                    {saving ? 'Salvando...' : (editingRestaurant ? 'Salvar AlteraÃ§Ãµes' : 'Finalizar Cadastro')}
                     {!saving && <Check size={16} />}
                   </button>
                 )}
@@ -4642,3 +4630,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+

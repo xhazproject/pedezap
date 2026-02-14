@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
@@ -3849,7 +3849,7 @@ export default function MasterPage() {
                               </div>
                               <div>
                                 <p className="font-medium text-gray-900">
-                                  {customer.name} {customer.totalOrders >= 10 ? '⭐' : ''}
+                                  {customer.name} {customer.totalOrders >= 10 ? 'â­' : ''}
                                 </p>
                                 <p className="text-xs text-gray-500">{customer.whatsapp}</p>
                               </div>
@@ -4969,7 +4969,7 @@ export default function MasterPage() {
                         <p className="mt-2 text-sm text-slate-300">
                           {subscriptionSummary?.status === 'trial'
                             ? `Voce tem ${subscriptionSummary.trialDaysLeft} dia(s) gratis restantes.`
-                            : 'Selecione um plano e gerencie sua renovacao com o AbacatePay.'}
+                            : 'Selecione um plano e gerencie sua renovacao com a Stripe.'}
                         </p>
                       </div>
                     </div>
@@ -5039,7 +5039,7 @@ export default function MasterPage() {
                       )}
                     </div>
                     <div className="rounded-2xl border border-slate-200 bg-slate-100 p-4 text-xs text-slate-800">
-                      Pagamentos e renovacoes sao processados pela API AbacatePay.
+                      Pagamentos e renovacoes sao processados pela Stripe.
                     </div>
                   </div>
                 </div>
@@ -5406,10 +5406,10 @@ export default function MasterPage() {
             <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 {[
-                  { key: 'padrao' as const, title: 'Padrao', subtitle: 'Lanches, Pratos, Porcoes', icon: '🍽' },
-                  { key: 'pizza' as const, title: 'Pizza', subtitle: 'Sabores, Bordas, Tamanhos', icon: '🍕' },
-                  { key: 'bebida' as const, title: 'Bebida', subtitle: 'Refrigerantes, Sucos, Alcoolicos', icon: '🍺' },
-                  { key: 'acai' as const, title: 'Acai', subtitle: 'Tamanhos, Frutas e Coberturas', icon: '🍧' }
+                  { key: 'padrao' as const, title: 'Padrao', subtitle: 'Lanches, Pratos, Porcoes', icon: 'ðŸ½' },
+                  { key: 'pizza' as const, title: 'Pizza', subtitle: 'Sabores, Bordas, Tamanhos', icon: 'ðŸ•' },
+                  { key: 'bebida' as const, title: 'Bebida', subtitle: 'Refrigerantes, Sucos, Alcoolicos', icon: 'ðŸº' },
+                  { key: 'acai' as const, title: 'Acai', subtitle: 'Tamanhos, Frutas e Coberturas', icon: 'ðŸ§' }
                 ].map((kind) => {
                   const active = productForm.kind === kind.key;
                   return (
@@ -5898,6 +5898,8 @@ export default function MasterPage() {
     </div>
   );
 }
+
+
 
 
 

@@ -115,6 +115,31 @@ export function configureRestaurantMenuData(restaurant: StoreRestaurant) {
         }))
       : [];
 
+    const complements = Array.isArray(product.complements)
+      ? product.complements.map((complement, index) => ({
+          id: `${product.id}-complement-${index + 1}`,
+          name: complement.name,
+          price: Number(complement.price) || 0
+        }))
+      : [];
+
+    const acaiComplementGroups = Array.isArray(product.acaiComplementGroups)
+      ? product.acaiComplementGroups.map((group, groupIndex) => ({
+          id: group.id || `${product.id}-acai-group-${groupIndex + 1}`,
+          name: group.name,
+          minSelect: Number(group.minSelect) || 0,
+          maxSelect: Number(group.maxSelect) || 0,
+          items: Array.isArray(group.items)
+            ? group.items.map((item, itemIndex) => ({
+                id: item.id || `${product.id}-acai-item-${groupIndex + 1}-${itemIndex + 1}`,
+                name: item.name,
+                price: Number(item.price) || 0,
+                maxQty: Math.max(1, Number(item.maxQty) || 1)
+              }))
+            : []
+        }))
+      : [];
+
     const isPizza = product.kind === 'pizza';
 
     return {
@@ -129,7 +154,9 @@ export function configureRestaurantMenuData(restaurant: StoreRestaurant) {
       kind: product.kind ?? 'padrao',
       isPizza,
       pizzaFlavors,
-      pizzaCrusts
+      pizzaCrusts,
+      complements,
+      acaiComplementGroups
     };
   });
 

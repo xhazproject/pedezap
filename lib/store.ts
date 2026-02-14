@@ -2,9 +2,16 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { AppStore, Restaurant, defaultStore } from "@/lib/store-data";
 
-const storePath =
-  process.env.STORE_FILE_PATH ||
-  path.join(process.env.STORE_DATA_DIR || process.cwd(), "data", "store.json");
+const defaultSeedPath = path.join(process.cwd(), "data", "store.json");
+const runtimeStorePath = (() => {
+  if (process.env.STORE_FILE_PATH) return process.env.STORE_FILE_PATH;
+  if (process.env.STORE_DATA_DIR) return path.join(process.env.STORE_DATA_DIR, "store.json");
+  if (process.env.NODE_ENV === "production") {
+    // Render and similar hosts keep app dir read-only in runtime; /tmp is writable.
+    return path.join("/tmp", "pedezap-data", "store.json");
+  }
+  return path.join(process.cwd(), "data", "store.json");
+})();
 
 export function getNormalizedSubscriptionStatus(
   restaurant: Pick<Restaurant, "subscriptionStatus" | "trialEndsAt" | "nextBillingAt">
@@ -43,10 +50,15 @@ export function isSubscriptionBlocked(
 
 async function ensureStoreFile() {
   try {
-    await fs.access(storePath);
+    await fs.access(runtimeStorePath);
   } catch {
-    await fs.mkdir(path.dirname(storePath), { recursive: true });
-    await fs.writeFile(storePath, JSON.stringify(defaultStore, null, 2), "utf8");
+    await fs.mkdir(path.dirname(runtimeStorePath), { recursive: true });
+    try {
+      const seed = await fs.readFile(defaultSeedPath, "utf8");
+      await fs.writeFile(runtimeStorePath, seed, "utf8");
+    } catch {
+      await fs.writeFile(runtimeStorePath, JSON.stringify(defaultStore, null, 2), "utf8");
+    }
   }
 }
 
@@ -54,7 +66,7 @@ export async function readStore(): Promise<AppStore> {
   await ensureStoreFile();
 
   try {
-    const raw = await fs.readFile(storePath, "utf8");
+    const raw = await fs.readFile(runtimeStorePath, "utf8");
     const parsed = JSON.parse(raw) as Partial<AppStore>;
     const now = new Date().toISOString();
     const restaurants = (parsed.restaurants ?? defaultStore.restaurants).map((item) => ({
@@ -129,7 +141,7 @@ export async function readStore(): Promise<AppStore> {
 
 export async function writeStore(store: AppStore): Promise<void> {
   await ensureStoreFile();
-  await fs.writeFile(storePath, JSON.stringify(store, null, 2), "utf8");
+  await fs.writeFile(runtimeStorePath, JSON.stringify(store, null, 2), "utf8");
 }
 
 export function makeId(prefix: string): string {
