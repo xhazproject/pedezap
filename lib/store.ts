@@ -6,6 +6,12 @@ import { prisma } from "@/lib/prisma";
 const defaultSeedPath = path.join(process.cwd(), "data", "store.json");
 const DB_STATE_KEY = "app_store";
 let dbSchemaReady: Promise<boolean> | null = null;
+
+function toDbJsonPayload(store: AppStore): object {
+  // Prisma JSON does not accept undefined values in nested objects.
+  // This keeps payload compatible for PostgreSQL JSON/JSONB columns.
+  return JSON.parse(JSON.stringify(store)) as object;
+}
 const runtimeStorePath = (() => {
   if (process.env.STORE_FILE_PATH) return process.env.STORE_FILE_PATH;
   if (process.env.STORE_DATA_DIR) return path.join(process.env.STORE_DATA_DIR, "store.json");
@@ -192,12 +198,13 @@ async function readStoreFromDb(): Promise<AppStore | null> {
       const initialPayload = await readSeedFromFileOrDefault();
       const normalized = normalizeStore(initialPayload);
       await db.systemState.create({
-        data: { key: DB_STATE_KEY, payload: normalized as unknown as object }
+        data: { key: DB_STATE_KEY, payload: toDbJsonPayload(normalized) }
       });
       return normalized;
     }
     return normalizeStore(state.payload as Partial<AppStore>);
-  } catch {
+  } catch (error) {
+    console.error("[store] Failed reading state from DB:", error);
     return null;
   }
 }
@@ -210,11 +217,12 @@ async function writeStoreToDb(store: AppStore): Promise<boolean> {
     const db = prisma as any;
     await db.systemState.upsert({
       where: { key: DB_STATE_KEY },
-      update: { payload: store as unknown as object },
-      create: { key: DB_STATE_KEY, payload: store as unknown as object }
+      update: { payload: toDbJsonPayload(store) },
+      create: { key: DB_STATE_KEY, payload: toDbJsonPayload(store) }
     });
     return true;
-  } catch {
+  } catch (error) {
+    console.error("[store] Failed writing state to DB:", error);
     return false;
   }
 }
