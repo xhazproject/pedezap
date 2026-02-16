@@ -7,6 +7,8 @@ const defaultSeedPath = path.join(process.cwd(), "data", "store.json");
 const DB_STATE_KEY = "app_store";
 let dbSchemaReady: Promise<boolean> | null = null;
 const requireDatabase = process.env.REQUIRE_DATABASE === "true";
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+const shouldStrictRequireDatabase = requireDatabase && !isBuildPhase;
 
 function toDbJsonPayload(store: AppStore): object {
   // Prisma JSON does not accept undefined values in nested objects.
@@ -231,7 +233,7 @@ async function writeStoreToDb(store: AppStore): Promise<boolean> {
 export async function readStore(): Promise<AppStore> {
   const dbStore = await readStoreFromDb();
   if (dbStore) return dbStore;
-  if (requireDatabase && process.env.DATABASE_URL) {
+  if (shouldStrictRequireDatabase && process.env.DATABASE_URL) {
     throw new Error("Falha ao carregar estado no banco de dados.");
   }
   await ensureStoreFile();
@@ -248,7 +250,7 @@ export async function readStore(): Promise<AppStore> {
 export async function writeStore(store: AppStore): Promise<void> {
   const wroteDb = await writeStoreToDb(store);
   if (wroteDb) return;
-  if (requireDatabase && process.env.DATABASE_URL) {
+  if (shouldStrictRequireDatabase && process.env.DATABASE_URL) {
     throw new Error("Falha ao persistir estado no banco de dados.");
   }
   await ensureStoreFile();
