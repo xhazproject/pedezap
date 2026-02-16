@@ -1462,7 +1462,7 @@ export default function AdminPage() {
           plan: resolvedPlanName,
           subscribedPlanId: resolvedPlanId || null,
           document: form.document || undefined,
-          ownerEmail: form.email,
+          ownerEmail: form.email || undefined,
           ownerPassword: form.password || undefined, // Only send if changed
           address: form.address,
           city: form.city,
@@ -1471,7 +1471,8 @@ export default function AdminPage() {
       });
 
       if (!response.ok) {
-        alert('Erro ao atualizar restaurante.');
+        const errorPayload = await response.json().catch(() => null);
+        alert(errorPayload?.message || 'Erro ao atualizar restaurante.');
         setSaving(false);
         return;
       }

@@ -10,7 +10,7 @@ const updateRestaurantSchema = z.object({
   plan: z.string().min(2).optional(),
   subscribedPlanId: z.string().min(2).nullable().optional(),
   document: z.string().optional(),
-  ownerEmail: z.string().email().optional(),
+  ownerEmail: z.union([z.string().email(), z.literal("")]).optional(),
   ownerPassword: z.string().min(6).optional(),
   address: z.string().optional(),
   city: z.string().optional(),
@@ -40,7 +40,11 @@ export async function PUT(
   }
 
   const current = store.restaurants[index];
-  const { document, ...nextData } = parsed.data;
+  const normalized = {
+    ...parsed.data,
+    ownerEmail: parsed.data.ownerEmail === "" ? undefined : parsed.data.ownerEmail
+  };
+  const { document, ...nextData } = normalized;
   const nextOwnerPassword = nextData.ownerPassword
     ? await hashPassword(nextData.ownerPassword)
     : current.ownerPassword;
