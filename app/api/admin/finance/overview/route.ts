@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { readStore } from "@/lib/store";
 
+export const dynamic = "force-dynamic";
+
 function lastSixMonths() {
   const result: { key: string; label: string; value: number }[] = [];
   const now = new Date();
