@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 const Link = ({ href, children, className }: { href: string; children?: React.ReactNode; className?: string }) => (
   <a href={href} className={className}>
@@ -44,7 +45,9 @@ function StepCard({
 
 export default async function LandingPage() {
   const store = await readStore().catch(() => null);
-  const activePlans = (store?.plans ?? []).filter((plan) => plan.active).slice(0, 2);
+  const allPlans = store?.plans ?? [];
+  const preferredPlans = allPlans.filter((plan) => plan.active);
+  const activePlans = (preferredPlans.length ? preferredPlans : allPlans).slice(0, 2);
   const planCards =
     activePlans.length > 0
       ? activePlans
