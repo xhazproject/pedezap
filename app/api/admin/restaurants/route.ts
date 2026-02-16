@@ -98,6 +98,8 @@ export async function POST(request: Request) {
     pendingPlanId: null,
     pendingCheckoutExternalId: null,
     lastCheckoutUrl: null,
+    viewCount: 0,
+    lastViewAt: null,
     categories: [{ id: makeId("cat"), name: "Categoria 1", active: true }],
     products: [
       {

@@ -128,6 +128,8 @@ function normalizeStore(parsed: Partial<AppStore>): AppStore {
     pendingPlanId: item.pendingPlanId ?? null,
     pendingCheckoutExternalId: item.pendingCheckoutExternalId ?? null,
     lastCheckoutUrl: item.lastCheckoutUrl ?? null,
+    viewCount: item.viewCount ?? 0,
+    lastViewAt: item.lastViewAt ?? null,
     passwordResetToken: item.passwordResetToken ?? null,
     passwordResetExpiresAt: item.passwordResetExpiresAt ?? null,
     banners: item.banners ?? [],

@@ -106,6 +106,8 @@ export type Restaurant = {
   pendingPlanId?: string | null;
   pendingCheckoutExternalId?: string | null;
   lastCheckoutUrl?: string | null;
+  viewCount?: number;
+  lastViewAt?: string | null;
   banners?: RestaurantBanner[];
   marketingCampaigns?: RestaurantMarketingCampaign[];
   categories: RestaurantCategory[];

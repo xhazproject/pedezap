@@ -1050,20 +1050,16 @@ export default function MasterPage() {
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   const ordersThisMonth = orders.filter((order) => new Date(order.createdAt) >= monthStart);
   const totalSalesThisMonth = ordersThisMonth.reduce((sum, order) => sum + order.total, 0);
-  const totalSoldItemsThisMonth = ordersThisMonth.reduce(
-    (sum, order) => sum + order.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
-    0
-  );
-  const estimatedMonthlyViews = Math.max(180, ordersThisMonth.length * 18 + totalSoldItemsThisMonth * 2);
-  const conversionRate = estimatedMonthlyViews
-    ? (ordersThisMonth.length / estimatedMonthlyViews) * 100
+  const totalViews = restaurant?.viewCount ?? 0;
+  const conversionRate = totalViews
+    ? (ordersThisMonth.length / totalViews) * 100
     : 0;
   const linkDirectPercent = 65;
   const instagramPercent = 25;
   const othersPercent = 10;
   const funnelBars = [
-    { label: 'Visualizacoes', value: estimatedMonthlyViews, color: 'bg-slate-700' },
-    { label: 'Acoes no Carrinho', value: Math.max(0, Math.round(estimatedMonthlyViews * 0.35)), color: 'bg-violet-500' },
+    { label: 'Visualizacoes', value: totalViews, color: 'bg-slate-700' },
+    { label: 'Acoes no Carrinho', value: Math.max(0, Math.round(totalViews * 0.35)), color: 'bg-violet-500' },
     { label: 'Pedidos', value: ordersThisMonth.length, color: 'bg-slate-1000' }
   ];
   const productSalesMap = new Map<string, { quantity: number; revenue: number }>();
@@ -2668,7 +2664,7 @@ export default function MasterPage() {
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">Visualizacoes</p>
-                      <p className="text-xl font-bold text-gray-900">1.2k</p>
+                      <p className="text-xl font-bold text-gray-900">{totalViews.toLocaleString('pt-BR')}</p>
                     </div>
                   </div>
                 </div>
@@ -4503,7 +4499,7 @@ export default function MasterPage() {
                               <Eye size={16} />
                             </div>
                             <p className="text-sm font-medium text-gray-600">Acessos (Mes)</p>
-                            <p className="mt-1 text-3xl font-bold text-gray-900">{estimatedMonthlyViews.toLocaleString('pt-BR')}</p>
+                            <p className="mt-1 text-3xl font-bold text-gray-900">{totalViews.toLocaleString('pt-BR')}</p>
                             <p className="mt-1 text-xs text-slate-800">+12% vs mes anterior</p>
                           </div>
                           <div className="rounded-xl border border-violet-200 bg-white p-4">
@@ -4528,7 +4524,7 @@ export default function MasterPage() {
                             <h3 className="text-xl font-semibold text-gray-900">Funil de Vendas</h3>
                             <div className="mt-5 space-y-4">
                               {funnelBars.map((bar) => {
-                                const width = estimatedMonthlyViews ? Math.max(8, (bar.value / estimatedMonthlyViews) * 100) : 8;
+                                const width = totalViews ? Math.max(8, (bar.value / totalViews) * 100) : 8;
                                 return (
                                   <div key={bar.label}>
                                     <div className="mb-1 flex items-center justify-between text-sm">

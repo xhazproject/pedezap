@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { isSubscriptionBlocked, readStore } from "@/lib/store";
+import { isSubscriptionBlocked, readStore, writeStore } from "@/lib/store";
 
 export async function GET(
   _request: Request,
   { params }: { params: { slug: string } }
 ) {
   const store = await readStore();
-  const restaurant = store.restaurants.find((item) => item.slug === params.slug);
+  const index = store.restaurants.findIndex((item) => item.slug === params.slug);
+  const restaurant = index >= 0 ? store.restaurants[index] : null;
 
   if (!restaurant || !restaurant.active) {
     return NextResponse.json(
@@ -21,7 +22,15 @@ export async function GET(
     );
   }
 
-  const { ownerEmail: _ownerEmail, ownerPassword: _ownerPassword, ...publicRestaurant } = restaurant;
+  store.restaurants[index] = {
+    ...restaurant,
+    viewCount: (restaurant.viewCount ?? 0) + 1,
+    lastViewAt: new Date().toISOString()
+  };
+  await writeStore(store);
+
+  const { ownerEmail: _ownerEmail, ownerPassword: _ownerPassword, ...publicRestaurant } =
+    store.restaurants[index];
 
   return NextResponse.json({
     success: true,
