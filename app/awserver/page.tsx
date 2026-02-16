@@ -1409,6 +1409,10 @@ export default function AdminPage() {
 
   async function handleSaveRestaurant(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (modalTab !== 'access') {
+      setModalTab(modalTab === 'general' ? 'address' : 'access');
+      return;
+    }
     setSaving(true);
     const selectedPlan = plans.find((plan) => plan.id === form.subscribedPlanId) ?? null;
     const resolvedPlanName = selectedPlan?.name ?? form.plan;
@@ -1417,6 +1421,11 @@ export default function AdminPage() {
     if (!editingRestaurant) {
       // CREATE MODE
       const finalSlug = slugify(form.slug || form.name);
+      if (form.password && form.password.length < 6) {
+        alert('A senha deve ter no minimo 6 caracteres.');
+        setSaving(false);
+        return;
+      }
     const response = await fetch('/api/admin/restaurants', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1453,6 +1462,11 @@ export default function AdminPage() {
     await loadData();
     } else {
       // EDIT MODE
+      if (form.password && form.password.length < 6) {
+        alert('A senha deve ter no minimo 6 caracteres.');
+        setSaving(false);
+        return;
+      }
       const response = await fetch(`/api/admin/restaurants/${editingRestaurant.slug}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -4424,6 +4438,7 @@ export default function AdminPage() {
 
             <div className="flex border-b border-slate-100 px-8">
               <button
+                type="button"
                 onClick={() => setModalTab('general')}
                 className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
                   modalTab === 'general' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -4433,6 +4448,7 @@ export default function AdminPage() {
                 Dados Gerais
               </button>
               <button
+                type="button"
                 onClick={() => setModalTab('address')}
                 className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
                   modalTab === 'address' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -4442,6 +4458,7 @@ export default function AdminPage() {
                 Endereco
               </button>
               <button
+                type="button"
                 onClick={() => setModalTab('access')}
                 className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
                   modalTab === 'access' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'

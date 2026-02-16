@@ -29,6 +29,9 @@ export async function GET() {
     ordersCount: store.orders.filter((order) => order.restaurantSlug === item.slug).length,
     ownerEmail: item.ownerEmail,
     document: item.taxId ?? "",
+    address: item.address ?? "",
+    city: item.city ?? "",
+    state: item.state ?? "",
     subscribedPlanId: item.subscribedPlanId ?? null,
     trialEndsAt: item.trialEndsAt ?? null,
     subscriptionStatus: item.subscriptionStatus ?? "expired"
