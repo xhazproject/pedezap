@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 const defaultSeedPath = path.join(process.cwd(), "data", "store.json");
 const DB_STATE_KEY = "app_store";
+let dbSchemaReady: Promise<boolean> | null = null;
 const runtimeStorePath = (() => {
   if (process.env.STORE_FILE_PATH) return process.env.STORE_FILE_PATH;
   if (process.env.STORE_DATA_DIR) return path.join(process.env.STORE_DATA_DIR, "store.json");
@@ -86,6 +87,28 @@ async function readSeedFromFileOrDefault(): Promise<Partial<AppStore>> {
   }
 }
 
+async function ensureDbSchemaReady(): Promise<boolean> {
+  if (!process.env.DATABASE_URL) return false;
+  if (!dbSchemaReady) {
+    dbSchemaReady = (async () => {
+      try {
+        const db = prisma as any;
+        await db.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS "SystemState" (
+            "key" TEXT PRIMARY KEY,
+            "payload" JSONB NOT NULL,
+            "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+          );
+        `);
+        return true;
+      } catch {
+        return false;
+      }
+    })();
+  }
+  return dbSchemaReady;
+}
+
 function normalizeStore(parsed: Partial<AppStore>): AppStore {
   const now = new Date().toISOString();
   const restaurants = (parsed.restaurants ?? defaultStore.restaurants).map((item) => ({
@@ -159,6 +182,8 @@ function normalizeStore(parsed: Partial<AppStore>): AppStore {
 async function readStoreFromDb(): Promise<AppStore | null> {
   if (!process.env.DATABASE_URL) return null;
   try {
+    const schemaReady = await ensureDbSchemaReady();
+    if (!schemaReady) return null;
     const db = prisma as any;
     const state = await db.systemState.findUnique({ where: { key: DB_STATE_KEY } });
     if (!state) {
@@ -178,6 +203,8 @@ async function readStoreFromDb(): Promise<AppStore | null> {
 async function writeStoreToDb(store: AppStore): Promise<boolean> {
   if (!process.env.DATABASE_URL) return false;
   try {
+    const schemaReady = await ensureDbSchemaReady();
+    if (!schemaReady) return false;
     const db = prisma as any;
     await db.systemState.upsert({
       where: { key: DB_STATE_KEY },

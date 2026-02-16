@@ -1424,7 +1424,7 @@ export default function AdminPage() {
         name: form.name,
         slug: finalSlug,
         whatsapp: form.whatsapp,
-        plan: resolvedPlanName,
+        plan: resolvedPlanName || undefined,
         subscribedPlanId: resolvedPlanId || undefined,
         document: form.document || undefined,
         ownerEmail: form.email || undefined,
@@ -1437,7 +1437,8 @@ export default function AdminPage() {
     });
 
     if (!response.ok) {
-      alert('Nao foi possivel criar restaurante. Verifique slug e dados.');
+      const errorPayload = await response.json().catch(() => null);
+      alert(errorPayload?.message || 'Nao foi possivel criar restaurante. Verifique slug e dados.');
       setSaving(false);
       return;
     }
