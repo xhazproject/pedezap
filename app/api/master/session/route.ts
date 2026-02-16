@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { MASTER_SESSION_COOKIE, verifySessionToken } from "@/lib/auth-session";
+import { isRestaurantBlocked, readStore } from "@/lib/store";
 
 export async function GET() {
   const token = cookies().get(MASTER_SESSION_COOKIE)?.value;
@@ -9,6 +10,21 @@ export async function GET() {
     return NextResponse.json(
       { success: false, message: "Sessao invalida." },
       { status: 401 }
+    );
+  }
+
+  const store = await readStore();
+  const restaurant = store.restaurants.find((item) => item.slug === payload.restaurantSlug);
+  if (!restaurant) {
+    return NextResponse.json(
+      { success: false, message: "Restaurante nao encontrado." },
+      { status: 404 }
+    );
+  }
+  if (isRestaurantBlocked(restaurant)) {
+    return NextResponse.json(
+      { success: false, message: "Sistema bloqueado. Entre em contato com o suporte." },
+      { status: 403 }
     );
   }
 

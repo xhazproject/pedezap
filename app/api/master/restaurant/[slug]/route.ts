@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { isSubscriptionBlocked, makeId, readStore, writeStore } from "@/lib/store";
+import { isRestaurantBlocked, isSubscriptionBlocked, makeId, readStore, writeStore } from "@/lib/store";
 
 const imageStringSchema = z
   .string()
@@ -122,6 +122,13 @@ export async function GET(
     );
   }
 
+  if (isRestaurantBlocked(restaurant)) {
+    return NextResponse.json(
+      { success: false, message: "Sistema bloqueado. Entre em contato com o suporte." },
+      { status: 403 }
+    );
+  }
+
   if (isSubscriptionBlocked(restaurant)) {
     return NextResponse.json(
       { success: false, message: "Assinatura expirada. Renove seu plano para acessar o painel." },
@@ -154,6 +161,12 @@ export async function PUT(
       { status: 404 }
     );
   }
+  if (isRestaurantBlocked(store.restaurants[index])) {
+    return NextResponse.json(
+      { success: false, message: "Sistema bloqueado. Entre em contato com o suporte." },
+      { status: 403 }
+    );
+  }
   if (isSubscriptionBlocked(store.restaurants[index])) {
     return NextResponse.json(
       { success: false, message: "Assinatura expirada. Renove seu plano para editar dados." },
@@ -182,6 +195,12 @@ export async function POST(
     return NextResponse.json(
       { success: false, message: "Restaurante nao encontrado." },
       { status: 404 }
+    );
+  }
+  if (isRestaurantBlocked(store.restaurants[index])) {
+    return NextResponse.json(
+      { success: false, message: "Sistema bloqueado. Entre em contato com o suporte." },
+      { status: 403 }
     );
   }
   if (isSubscriptionBlocked(store.restaurants[index])) {

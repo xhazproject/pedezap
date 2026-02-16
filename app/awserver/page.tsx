@@ -1312,11 +1312,16 @@ export default function AdminPage() {
   const filteredPayoutHistory = payouts;
 
   async function toggleRestaurantStatus(slug: string, active: boolean) {
-    await fetch(`/api/admin/restaurants/${slug}/status`, {
+    const response = await fetch(`/api/admin/restaurants/${slug}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ active: !active })
     });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      alert(payload?.message ?? 'Nao foi possivel alterar o status do restaurante.');
+      return;
+    }
     await loadData();
   }
 
@@ -1618,7 +1623,10 @@ export default function AdminPage() {
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
       <aside className="w-72 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800 shadow-xl z-10">
         <div className="h-20 px-6 flex items-center gap-3 border-b border-slate-800/50">
-          <BrandLogo imageClassName="h-14 w-auto object-contain" />
+          <BrandLogo
+            src="/pedezappp.png"
+            imageClassName="h-14 w-auto object-contain brightness-0 invert"
+          />
           <div>
             <p className="text-[10px] font-bold text-emerald-500 tracking-widest uppercase">Admin Master</p>
           </div>

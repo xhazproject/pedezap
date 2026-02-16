@@ -567,22 +567,14 @@ export default function MasterPage() {
 
   useEffect(() => {
     const bootstrap = async () => {
-      const raw = localStorage.getItem('pedezap_master_session');
-      if (raw) {
-        try {
-          const parsed = JSON.parse(raw) as MasterSession;
-          if (parsed?.restaurantSlug && parsed?.email) {
-            setSession(parsed);
-            return;
-          }
-        } catch {}
-      }
-
       const response = await fetch('/api/master/session');
       const payload = await response.json().catch(() => null);
       if (!response.ok || !payload?.success || !payload?.user?.restaurantSlug || !payload?.user?.email) {
         localStorage.removeItem('pedezap_master_session');
-        router.replace('/master/login');
+        const blockedByAdmin =
+          response.status === 403 ||
+          String(payload?.message ?? '').toLowerCase().includes('bloqueado');
+        router.replace(blockedByAdmin ? '/master/login?blocked=1' : '/master/login');
         return;
       }
 

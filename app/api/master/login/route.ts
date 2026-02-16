@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { isSubscriptionBlocked, readStore, writeStore } from "@/lib/store";
+import { isRestaurantBlocked, isSubscriptionBlocked, readStore, writeStore } from "@/lib/store";
 import { createSessionToken, MASTER_SESSION_COOKIE } from "@/lib/auth-session";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { hashPassword, verifyPassword } from "@/lib/password";
@@ -68,6 +68,24 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { success: false, message: "Email ou senha invalidos." },
       { status: 401 }
+    );
+  }
+
+  if (isRestaurantBlocked(restaurant)) {
+    await appendAuditLog(store, {
+      request,
+      action: "auth.master.login.blocked_by_admin",
+      targetType: "restaurant",
+      targetId: restaurant.slug,
+      actor: { actorType: "master", actorId: restaurant.slug, actorName: restaurant.ownerEmail }
+    });
+    await writeStore(store);
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Sistema bloqueado. Entre em contato com o suporte."
+      },
+      { status: 403 }
     );
   }
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { isSubscriptionBlocked, makeId, readStore, writeStore } from "@/lib/store";
+import { isRestaurantBlocked, isSubscriptionBlocked, makeId, readStore, writeStore } from "@/lib/store";
 
 const customerUpsertSchema = z.object({
   name: z.string().min(2),
@@ -19,6 +19,12 @@ export async function GET(
     return NextResponse.json(
       { success: false, message: "Restaurante nao encontrado." },
       { status: 404 }
+    );
+  }
+  if (isRestaurantBlocked(restaurant)) {
+    return NextResponse.json(
+      { success: false, message: "Sistema bloqueado. Entre em contato com o suporte." },
+      { status: 403 }
     );
   }
   if (isSubscriptionBlocked(restaurant)) {
@@ -70,6 +76,12 @@ export async function POST(
     return NextResponse.json(
       { success: false, message: "Restaurante nao encontrado." },
       { status: 404 }
+    );
+  }
+  if (isRestaurantBlocked(restaurant)) {
+    return NextResponse.json(
+      { success: false, message: "Sistema bloqueado. Entre em contato com o suporte." },
+      { status: 403 }
     );
   }
   if (isSubscriptionBlocked(restaurant)) {

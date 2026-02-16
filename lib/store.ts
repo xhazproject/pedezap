@@ -51,6 +51,12 @@ export function isSubscriptionBlocked(
   return normalized === "expired" || normalized === "canceled";
 }
 
+export function isRestaurantBlocked(
+  restaurant: Pick<Restaurant, "active">
+) {
+  return restaurant.active === false;
+}
+
 async function ensureStoreFile() {
   try {
     await fs.access(runtimeStorePath);

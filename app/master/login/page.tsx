@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, ChefHat } from 'lucide-react';
 
@@ -10,6 +10,14 @@ export default function MasterLoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const blocked = new URLSearchParams(window.location.search).get('blocked');
+    if (blocked === '1') {
+      setError('Sistema bloqueado. Entre em contato com o suporte.');
+    }
+  }, []);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
