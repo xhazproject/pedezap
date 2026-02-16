@@ -1,5 +1,6 @@
 import { LeadForm } from '@/components/lead-form';
 import React from 'react';
+import { readStore } from '@/lib/store';
 import {
   Check,
   ChevronRight,
@@ -12,6 +13,8 @@ import {
   Store,
   Zap
 } from 'lucide-react';
+
+export const dynamic = 'force-dynamic';
 
 const Link = ({ href, children, className }: { href: string; children?: React.ReactNode; className?: string }) => (
   <a href={href} className={className}>
@@ -39,7 +42,27 @@ function StepCard({
   );
 }
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const store = await readStore().catch(() => null);
+  const activePlans = (store?.plans ?? []).filter((plan) => plan.active).slice(0, 2);
+  const planCards =
+    activePlans.length > 0
+      ? activePlans
+      : [
+          {
+            id: 'starter_fallback',
+            name: 'Starter',
+            description: 'Essencial para quem esta comecando.',
+            features: ['Pagamento na entrega', 'Pedidos ilimitados', 'Link exclusivo', 'Suporte por email']
+          },
+          {
+            id: 'pro_fallback',
+            name: 'Pro',
+            description: 'Gestao e controle total.',
+            features: ['Tudo do plano Starter', 'Relatorios de Vendas', 'Impressao automatica', 'Gestor de pedidos']
+          }
+        ];
+
   return (
     <>
       <section className="border-b border-slate-200 bg-white py-12 md:py-16 lg:py-24">
@@ -191,52 +214,45 @@ export default function LandingPage() {
           </div>
 
           <div className="mx-auto mt-10 grid max-w-5xl gap-5 md:mt-14 md:grid-cols-2 md:gap-6">
-            <article className="rounded-3xl border border-slate-200 bg-white p-6 md:p-8">
-              <h3 className="text-3xl font-bold text-slate-950 md:text-4xl">Starter</h3>
-              <p className="mt-2 text-lg text-slate-500 md:text-xl">Essencial para quem esta comecando.</p>
-              <ul className="mt-7 space-y-4 text-lg text-slate-700 md:mt-8 md:text-xl">
-                {['Pagamento na entrega', 'Pedidos ilimitados', 'Link exclusivo', 'Suporte por email'].map((item) => (
-                  <li key={item} className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-slate-900" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href="#contato"
-                className="mt-8 flex w-full items-center justify-center rounded-full border border-slate-900 py-3 text-lg font-semibold text-slate-900 transition hover:bg-slate-50 md:mt-10 md:py-4 md:text-xl"
-              >
-                Selecionar Starter
-              </Link>
-            </article>
-
-            <article className="relative rounded-3xl border border-slate-900 bg-black p-6 text-white shadow-lg shadow-black/25 md:p-8">
-              <div className="absolute right-4 top-4 rounded-full bg-white px-3 py-1 text-[10px] font-bold tracking-wide text-slate-900 md:right-6 md:top-6 md:px-4 md:text-xs">
-                MAIS POPULAR
-              </div>
-              <h3 className="text-3xl font-bold md:text-4xl">Pro</h3>
-              <p className="mt-2 text-lg text-slate-300 md:text-xl">Gestao e controle total.</p>
-              <ul className="mt-7 space-y-4 text-lg text-slate-100 md:mt-8 md:text-xl">
-                {[
-                  'Tudo do plano Starter',
-                  'Relatorios de Vendas',
-                  'Impressao automatica',
-                  'Gestor de pedidos',
-                  'Suporte Prioritario'
-                ].map((item) => (
-                  <li key={item} className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-white" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href="#contato"
-                className="mt-8 flex w-full items-center justify-center rounded-full bg-white py-3 text-lg font-semibold text-slate-900 transition hover:bg-slate-100 md:mt-10 md:py-4 md:text-xl"
-              >
-                Selecionar Pro
-              </Link>
-            </article>
+            {planCards.map((plan, index) => {
+              const highlighted = index === 1;
+              return (
+                <article
+                  key={plan.id}
+                  className={
+                    highlighted
+                      ? 'relative rounded-3xl border border-slate-900 bg-black p-6 text-white shadow-lg shadow-black/25 md:p-8'
+                      : 'rounded-3xl border border-slate-200 bg-white p-6 md:p-8'
+                  }
+                >
+                  {highlighted && (
+                    <div className="absolute right-4 top-4 rounded-full bg-white px-3 py-1 text-[10px] font-bold tracking-wide text-slate-900 md:right-6 md:top-6 md:px-4 md:text-xs">
+                      MAIS POPULAR
+                    </div>
+                  )}
+                  <h3 className={`text-3xl font-bold md:text-4xl ${highlighted ? 'text-white' : 'text-slate-950'}`}>{plan.name}</h3>
+                  <p className={`mt-2 text-lg md:text-xl ${highlighted ? 'text-slate-300' : 'text-slate-500'}`}>{plan.description}</p>
+                  <ul className={`mt-7 space-y-4 text-lg md:mt-8 md:text-xl ${highlighted ? 'text-slate-100' : 'text-slate-700'}`}>
+                    {plan.features.slice(0, 5).map((item) => (
+                      <li key={item} className="flex items-center gap-3">
+                        <Check className={`h-5 w-5 ${highlighted ? 'text-white' : 'text-slate-900'}`} />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link
+                    href="#contato"
+                    className={
+                      highlighted
+                        ? 'mt-8 flex w-full items-center justify-center rounded-full bg-white py-3 text-lg font-semibold text-slate-900 transition hover:bg-slate-100 md:mt-10 md:py-4 md:text-xl'
+                        : 'mt-8 flex w-full items-center justify-center rounded-full border border-slate-900 py-3 text-lg font-semibold text-slate-900 transition hover:bg-slate-50 md:mt-10 md:py-4 md:text-xl'
+                    }
+                  >
+                    Selecionar {plan.name}
+                  </Link>
+                </article>
+              );
+            })}
           </div>
         </div>
       </section>

@@ -6,7 +6,8 @@ import { prisma } from "@/lib/prisma";
 const defaultSeedPath = path.join(process.cwd(), "data", "store.json");
 const DB_STATE_KEY = "app_store";
 let dbSchemaReady: Promise<boolean> | null = null;
-const requireDatabase = process.env.REQUIRE_DATABASE === "true";
+const requireDatabase =
+  process.env.REQUIRE_DATABASE === "true" || process.env.NODE_ENV === "production";
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 const shouldStrictRequireDatabase = requireDatabase && !isBuildPhase;
 
@@ -236,6 +237,9 @@ export async function readStore(): Promise<AppStore> {
   if (shouldStrictRequireDatabase && process.env.DATABASE_URL) {
     throw new Error("Falha ao carregar estado no banco de dados.");
   }
+  if (process.env.NODE_ENV === "production") {
+    console.warn("[store] Using file fallback in production:", runtimeStorePath);
+  }
   await ensureStoreFile();
 
   try {
@@ -252,6 +256,9 @@ export async function writeStore(store: AppStore): Promise<void> {
   if (wroteDb) return;
   if (shouldStrictRequireDatabase && process.env.DATABASE_URL) {
     throw new Error("Falha ao persistir estado no banco de dados.");
+  }
+  if (process.env.NODE_ENV === "production") {
+    console.warn("[store] Writing file fallback in production:", runtimeStorePath);
   }
   await ensureStoreFile();
   await fs.writeFile(runtimeStorePath, JSON.stringify(store, null, 2), "utf8");
