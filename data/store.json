@@ -89,14 +89,16 @@
       "passwordResetToken": null,
       "passwordResetExpiresAt": null,
       "banners": [],
-      "marketingCampaigns": []
+      "marketingCampaigns": [],
+      "viewCount": 0,
+      "lastViewAt": null
     },
     {
       "id": "r_burguercentral",
       "name": "Burguer Central",
       "slug": "burguercentral",
       "whatsapp": "5511987776655",
-      "plan": "Local",
+      "plan": "Plano Local",
       "active": true,
       "createdAt": "2025-11-05T12:00:00.000Z",
       "canceledAt": null,
@@ -109,7 +111,7 @@
       "logoUrl": "https://picsum.photos/200/200?random=31",
       "coverUrl": "https://picsum.photos/1200/500?random=32",
       "ownerEmail": "central@pedezap.app",
-      "ownerPassword": "123456",
+      "ownerPassword": "scrypt$e94f0e1c7fa25ba240705abe630e44b6$1c1cbf14eaab2fc884cdf17b1755dc738f6f59d8f9244bfd4a53bd8c0d600b44ad8207827253998ac29ba53a2a72884d020a6468fbd132a4a1b7692fd33819c5",
       "categories": [
         {
           "id": "cat_burger",
@@ -193,12 +195,197 @@
       "passwordResetToken": null,
       "passwordResetExpiresAt": null,
       "banners": [],
-      "marketingCampaigns": []
+      "marketingCampaigns": [],
+      "viewCount": 0,
+      "lastViewAt": null,
+      "taxId": null
     }
   ],
   "orders": [],
   "customers": [],
   "auditLogs": [
+    {
+      "id": "audit_67r7nf3c",
+      "createdAt": "2026-02-18T17:50:16.512Z",
+      "action": "auth.master.login.success",
+      "ip": "::1",
+      "actorType": "master",
+      "actorId": "burguercentral",
+      "actorName": "central@pedezap.app",
+      "targetType": "restaurant",
+      "targetId": "burguercentral"
+    },
+    {
+      "id": "audit_8242zvd3",
+      "createdAt": "2026-02-18T17:47:56.578Z",
+      "action": "auth.admin.login.success",
+      "ip": "::1",
+      "actorType": "admin",
+      "actorId": "renan@gmail.com",
+      "actorName": "Renan",
+      "targetType": "admin_user",
+      "targetId": "renan@gmail.com",
+      "metadata": {
+        "role": "Admin Master"
+      }
+    },
+    {
+      "id": "audit_akcwaxha",
+      "createdAt": "2026-02-18T17:45:36.793Z",
+      "action": "auth.admin.login.failed",
+      "ip": "::1",
+      "actorType": "anonymous",
+      "actorId": "anonymous",
+      "actorName": "admin@pedezap.ai",
+      "targetType": "admin_user",
+      "targetId": "admin@pedezap.ai"
+    },
+    {
+      "id": "audit_ud6nxdie",
+      "createdAt": "2026-02-18T17:45:30.994Z",
+      "action": "auth.admin.login.failed",
+      "ip": "::1",
+      "actorType": "anonymous",
+      "actorId": "anonymous",
+      "actorName": "admin@pedezap.ai",
+      "targetType": "admin_user",
+      "targetId": "admin@pedezap.ai"
+    },
+    {
+      "id": "audit_06m3ydmh",
+      "createdAt": "2026-02-18T17:45:23.979Z",
+      "action": "auth.admin.login.failed",
+      "ip": "::1",
+      "actorType": "anonymous",
+      "actorId": "anonymous",
+      "actorName": "admin@pedezap.site",
+      "targetType": "admin_user",
+      "targetId": "admin@pedezap.site"
+    },
+    {
+      "id": "audit_82s8s23m",
+      "createdAt": "2026-02-18T17:45:02.117Z",
+      "action": "auth.admin.login.failed",
+      "ip": "::1",
+      "actorType": "anonymous",
+      "actorId": "anonymous",
+      "actorName": "renan@pedezap.ai",
+      "targetType": "admin_user",
+      "targetId": "renan@pedezap.ai"
+    },
+    {
+      "id": "audit_c8u6hvpz",
+      "createdAt": "2026-02-18T17:44:49.936Z",
+      "action": "auth.admin.login.failed",
+      "ip": "::1",
+      "actorType": "anonymous",
+      "actorId": "anonymous",
+      "actorName": "renan@pedezap.site",
+      "targetType": "admin_user",
+      "targetId": "renan@pedezap.site"
+    },
+    {
+      "id": "audit_rvnftrqh",
+      "createdAt": "2026-02-18T17:44:46.233Z",
+      "action": "auth.admin.login.failed",
+      "ip": "::1",
+      "actorType": "anonymous",
+      "actorId": "anonymous",
+      "actorName": "renan@pedezap.site",
+      "targetType": "admin_user",
+      "targetId": "renan@pedezap.site"
+    },
+    {
+      "id": "audit_dugvmm25",
+      "createdAt": "2026-02-17T02:28:17.536Z",
+      "action": "auth.master.login.success",
+      "ip": "::1",
+      "actorType": "master",
+      "actorId": "burguercentral",
+      "actorName": "central@pedezap.app",
+      "targetType": "restaurant",
+      "targetId": "burguercentral"
+    },
+    {
+      "id": "audit_oyk1h2km",
+      "createdAt": "2026-02-16T17:54:53.258Z",
+      "action": "admin.plan.update",
+      "ip": "::1",
+      "actorType": "admin",
+      "actorId": "renan@gmail.com",
+      "actorName": "Renan",
+      "targetType": "plan",
+      "targetId": "plan_local"
+    },
+    {
+      "id": "audit_xvyyyjlr",
+      "createdAt": "2026-02-16T17:54:36.247Z",
+      "action": "auth.admin.login.success",
+      "ip": "::1",
+      "actorType": "admin",
+      "actorId": "renan@gmail.com",
+      "actorName": "Renan",
+      "targetType": "admin_user",
+      "targetId": "renan@gmail.com",
+      "metadata": {
+        "role": "Admin Master"
+      }
+    },
+    {
+      "id": "audit_rzfjgs84",
+      "createdAt": "2026-02-16T17:53:12.042Z",
+      "action": "auth.admin.login.failed",
+      "ip": "::1",
+      "actorType": "anonymous",
+      "actorId": "anonymous",
+      "actorName": "admin@pedezap.ai",
+      "targetType": "admin_user",
+      "targetId": "admin@pedezap.ai"
+    },
+    {
+      "id": "audit_juju150h",
+      "createdAt": "2026-02-16T17:53:11.315Z",
+      "action": "auth.admin.login.failed",
+      "ip": "::1",
+      "actorType": "anonymous",
+      "actorId": "anonymous",
+      "actorName": "admin@pedezap.ai",
+      "targetType": "admin_user",
+      "targetId": "admin@pedezap.ai"
+    },
+    {
+      "id": "audit_2vr8pbyu",
+      "createdAt": "2026-02-16T17:53:02.204Z",
+      "action": "auth.admin.login.failed",
+      "ip": "::1",
+      "actorType": "anonymous",
+      "actorId": "anonymous",
+      "actorName": "renan@pedezap.ai",
+      "targetType": "admin_user",
+      "targetId": "renan@pedezap.ai"
+    },
+    {
+      "id": "audit_cv80gg0z",
+      "createdAt": "2026-02-16T17:52:32.298Z",
+      "action": "auth.admin.login.failed",
+      "ip": "::1",
+      "actorType": "anonymous",
+      "actorId": "anonymous",
+      "actorName": "renan@pedezap.site",
+      "targetType": "admin_user",
+      "targetId": "renan@pedezap.site"
+    },
+    {
+      "id": "audit_hmr70cyj",
+      "createdAt": "2026-02-16T17:52:27.957Z",
+      "action": "auth.admin.login.failed",
+      "ip": "::1",
+      "actorType": "anonymous",
+      "actorId": "anonymous",
+      "actorName": "renan@pedezap.site",
+      "targetType": "admin_user",
+      "targetId": "renan@pedezap.site"
+    },
     {
       "id": "audit_v8nt7a6c",
       "createdAt": "2026-02-13T23:57:47.311Z",
@@ -387,6 +574,27 @@
       ],
       "createdAt": "2025-09-20T12:00:00.000Z",
       "lastAccessAt": "2025-10-20T12:00:00.000Z"
+    },
+    {
+      "id": "adm_bootstrap_1771264476069",
+      "name": "Renan",
+      "email": "renan@gmail.com",
+      "role": "Admin Master",
+      "status": "Ativo",
+      "password": "scrypt$d0ba2fd1967f1dc371dec12e1c7384cd$8b1013bf794e516b7dc361262084e84e65ec66f2232d4478cc9233b5b7678fa2510b137296cb1ee38fe0256c6b8bf7a2ddc08940fc53273a21682fbd0817842b",
+      "permissions": [
+        "dashboard",
+        "restaurants",
+        "leads",
+        "financial",
+        "stats",
+        "team",
+        "support",
+        "settings",
+        "security"
+      ],
+      "createdAt": "2026-02-16T17:54:36.158Z",
+      "lastAccessAt": "2026-02-18T17:47:56.578Z"
     }
   ],
   "adminRoles": [
@@ -556,14 +764,14 @@
       "color": "#6366f1",
       "description": "Ideal para pequenos comercios que vendem apenas no bairro.",
       "features": [
-        "Cardapio Digital",
+        "teste",
         "Recebimento via WhatsApp",
         "Ate 500 pedidos/mes",
         "Suporte por Email"
       ],
       "active": true,
       "createdAt": "2026-02-01T00:00:00.000Z",
-      "updatedAt": "2026-02-01T00:00:00.000Z"
+      "updatedAt": "2026-02-16T17:54:53.256Z"
     },
     {
       "id": "plan_local_online",

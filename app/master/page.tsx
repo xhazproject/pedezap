@@ -1,4 +1,4 @@
-﻿'use client';
+﻿﻿﻿﻿'use client';
 
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
@@ -8,13 +8,17 @@ import {
   Calendar,
   Clock3,
   Copy,
+  Check,
+  ChevronRight,
   CreditCard,
+  Download,
   ExternalLink,
   Eye,
   LayoutDashboard,
   List,
   LogOut,
   Mail,
+  MessageCircle,
   MessageSquare,
   MapPin,
   Megaphone,
@@ -28,6 +32,7 @@ import {
   Settings,
   ShieldCheck,
   ShoppingBag,
+  Smartphone,
   Star,
   Store,
   TicketPercent,
@@ -226,6 +231,15 @@ type CampaignForm = {
   active: boolean;
 };
 
+type FlyerTheme = {
+  key: string;
+  dotClass: string;
+  swatchClass: string;
+  previewClass: string;
+  titleRibbonClass: string;
+  ctaClass: string;
+};
+
 type SupportAttachmentDraft = {
   name: string;
   url: string;
@@ -340,6 +354,12 @@ function escapeHtml(value: string) {
     .replace(/'/g, '&#39;');
 }
 
+function splitPriceParts(value: number) {
+  const normalized = value.toFixed(2).replace('.', ',');
+  const [intPart, decimalPart] = normalized.split(',');
+  return { intPart, decimalPart: decimalPart ?? '00' };
+}
+
 function createDefaultProductForm(categoryId = ''): MenuProductForm {
   return {
     categoryId,
@@ -451,6 +471,13 @@ export default function MasterPage() {
   const [supportAttachment, setSupportAttachment] = useState<SupportAttachmentDraft | null>(null);
   const [settingsSection, setSettingsSection] = useState<'store' | 'hours' | 'address' | 'delivery' | 'messages' | 'orderMessages' | 'payments'>('store');
   const [marketingSection, setMarketingSection] = useState<'overview' | 'performance' | 'tools' | 'campaigns'>('overview');
+  const [marketingQrColor, setMarketingQrColor] = useState('000000');
+  const [showFlyerModal, setShowFlyerModal] = useState(false);
+  const [flyerMobileTab, setFlyerMobileTab] = useState<'edit' | 'preview'>('edit');
+  const [flyerHeadline, setFlyerHeadline] = useState('CONFIRA OS PREÇOS');
+  const [flyerThemeKey, setFlyerThemeKey] = useState('dark');
+  const [flyerProductQuery, setFlyerProductQuery] = useState('');
+  const [flyerSelectedProductIds, setFlyerSelectedProductIds] = useState<string[]>([]);
   const [settingsDraft, setSettingsDraft] = useState<RestaurantForm | null>(null);
   const [settingsDeliveryEta, setSettingsDeliveryEta] = useState('45-60 min');
   const [settingsMessageTemplate, setSettingsMessageTemplate] = useState('Ola, gostaria de fazer um pedido pelo catalogo!');
@@ -1087,15 +1114,64 @@ export default function MasterPage() {
     });
   const leastSoldProducts = [...topProducts].sort((a, b) => a.soldQuantity - b.soldQuantity).slice(0, 4);
   const marketingLink = restaurant ? `https://pedezap.site/${restaurant.slug}` : '';
-  const marketingActiveBanners = useMemo(
-    () => banners.filter((item) => item.active).slice(0, 4),
-    [banners]
-  );
   const marketingTopProductsForFlyer = useMemo(() => {
     const withSales = topProducts.filter((item) => item.soldQuantity > 0).slice(0, 6);
     if (withSales.length > 0) return withSales;
     return topProducts.slice(0, 6);
   }, [topProducts]);
+  const flyerThemes: FlyerTheme[] = [
+    {
+      key: 'dark',
+      dotClass: 'bg-yellow-400',
+      swatchClass: 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800',
+      previewClass: 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-white',
+      titleRibbonClass: 'bg-yellow-400 text-slate-900',
+      ctaClass: 'bg-white/15 text-white'
+    },
+    {
+      key: 'red',
+      dotClass: 'bg-yellow-300',
+      swatchClass: 'bg-gradient-to-br from-red-700 to-red-500',
+      previewClass: 'bg-gradient-to-br from-red-700 to-red-500 text-white',
+      titleRibbonClass: 'bg-yellow-300 text-red-900',
+      ctaClass: 'bg-white/15 text-white'
+    },
+    {
+      key: 'green',
+      dotClass: 'bg-gray-100',
+      swatchClass: 'bg-gradient-to-br from-emerald-600 to-teal-500',
+      previewClass: 'bg-gradient-to-br from-emerald-600 to-teal-500 text-white',
+      titleRibbonClass: 'bg-white text-emerald-700',
+      ctaClass: 'bg-white/15 text-white'
+    },
+    {
+      key: 'orange',
+      dotClass: 'bg-gray-100',
+      swatchClass: 'bg-gradient-to-br from-orange-500 to-amber-400',
+      previewClass: 'bg-gradient-to-br from-orange-500 to-amber-400 text-white',
+      titleRibbonClass: 'bg-white text-orange-700',
+      ctaClass: 'bg-white/15 text-white'
+    }
+  ];
+  const activeFlyerTheme = flyerThemes.find((theme) => theme.key === flyerThemeKey) ?? flyerThemes[0];
+  const flyerProductsSource = useMemo(() => {
+    if (!restaurant) return [];
+    return restaurant.products.filter((item) => item.active).map((item) => ({
+      ...item,
+      imageUrl: item.imageUrl || 'https://picsum.photos/seed/pedezap-produto/240/240'
+    }));
+  }, [restaurant]);
+  const flyerFilteredProducts = useMemo(() => {
+    const query = flyerProductQuery.trim().toLowerCase();
+    if (!query) return flyerProductsSource;
+    return flyerProductsSource.filter((item) => item.name.toLowerCase().includes(query));
+  }, [flyerProductQuery, flyerProductsSource]);
+  const flyerSelectedProducts = useMemo(() => {
+    return flyerSelectedProductIds
+      .map((id) => flyerProductsSource.find((item) => item.id === id))
+      .filter(Boolean)
+      .slice(0, 4) as RestaurantProduct[];
+  }, [flyerProductsSource, flyerSelectedProductIds]);
 
   const getOrderAgeMinutes = (createdAt: string) => {
     const diffMs = Date.now() - new Date(createdAt).getTime();
@@ -1160,7 +1236,7 @@ export default function MasterPage() {
     @media print {
       body { background: #fff; }
       .toolbar { display: none; }
-      .page { margin: 0; max-width: 100%; padding: 0; }
+      .page { margin: 0; max-width: 100%; padding: 0; display: block; }
       .card { border: none; border-radius: 0; }
     }
   </style>
@@ -1170,7 +1246,7 @@ export default function MasterPage() {
     <h1>${escapeHtml(title)}</h1>
     <div class="actions">
       <button class="btn" onclick="window.close()">Fechar</button>
-      <button class="btn btn-primary" onclick="window.print()">Imprimir / Salvar PDF</button>
+      <button class="btn btn-primary" onclick="window.print()">Baixar Imagem / PDF</button>
     </div>
   </div>
   ${content}
@@ -1182,79 +1258,110 @@ export default function MasterPage() {
 
   const openFlyerOffers = () => {
     if (!restaurant) return;
-    const bannerCards = (marketingActiveBanners.length > 0
-      ? marketingActiveBanners
-      : [
-          {
-            id: 'fallback-banner',
-            title: 'Promocao Especial',
-            description: 'Confira nossos melhores produtos com ofertas do dia.',
-            imageUrl: restaurant.coverUrl || 'https://picsum.photos/seed/pedezap-flyer/1200/600',
-            active: true,
-            productIds: []
-          }
-        ]
-    )
-      .map(
-        (banner) => `
-        <article class="banner">
-          <img src="${escapeHtml(banner.imageUrl)}" alt="${escapeHtml(banner.title)}" />
-          <div class="meta">
-            <h4>${escapeHtml(banner.title)}</h4>
-            <p>${escapeHtml(banner.description || 'Oferta especial por tempo limitado')}</p>
-          </div>
-        </article>
-      `
-      )
-      .join('');
+    const defaults = marketingTopProductsForFlyer.slice(0, 4).map((item) => item.id);
+    setFlyerSelectedProductIds(defaults);
+    setFlyerProductQuery('');
+    setFlyerHeadline('CONFIRA OS PREÇOS');
+    setFlyerThemeKey('dark');
+    setFlyerMobileTab('edit');
+    setShowFlyerModal(true);
+  };
 
-    const productCards = marketingTopProductsForFlyer
-      .map(
-        (product) => `
-        <article class="product">
-          <img src="${escapeHtml(product.imageUrl || 'https://picsum.photos/seed/pedezap-produto/240/240')}" alt="${escapeHtml(product.name)}" />
-          <div>
-            <p class="name">${escapeHtml(product.name)}</p>
-            <p class="price">${moneyFormatter.format(product.price)}</p>
-          </div>
-        </article>
-      `
-      )
-      .join('');
+  const toggleFlyerProduct = (productId: string) => {
+    setFlyerSelectedProductIds((prev) => {
+      if (prev.includes(productId)) return prev.filter((id) => id !== productId);
+      if (prev.length >= 4) return prev;
+      return [...prev, productId];
+    });
+  };
 
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(marketingLink)}`;
-    const content = `
-      <main class="page">
-        <section class="card">
-          <header class="hero">
-            <h2>${escapeHtml(restaurant.name)}</h2>
-            <p>Flyer automatico com banners e produtos para divulgacao.</p>
-          </header>
-          <div class="section">
-            <h3>Destaques Promocionais</h3>
-            <div class="grid grid-2">${bannerCards}</div>
-          </div>
-          <div class="section">
-            <h3>Produtos em Evidencia</h3>
-            <div class="products">${productCards || '<p class="muted">Nenhum produto disponivel no momento.</p>'}</div>
-          </div>
-          <footer class="footer">
-            <div>
-              <p style="margin:0 0 4px;font-weight:700;">Peca agora</p>
-              <p style="margin:0;font-size:13px;">${escapeHtml(marketingLink)}</p>
-              <p class="muted" style="margin:6px 0 0;">WhatsApp: ${escapeHtml(restaurant.whatsapp)}</p>
+  const buildFlyerPreviewMarkup = () => {
+    if (!restaurant) return '';
+    const singleProduct = flyerSelectedProducts.length === 1 ? flyerSelectedProducts[0] : null;
+    const cardRows =
+      flyerSelectedProducts.length > 0
+        ? flyerSelectedProducts
+            .map(
+              (product) => `
+      <div style="display:flex;align-items:center;gap:24px;border:1px solid rgba(255,255,255,.2);background:rgba(2,6,23,.3);border-radius:24px;padding:24px;">
+        <img src="${escapeHtml(product.imageUrl || 'https://picsum.photos/seed/pedezap-produto/240/240')}" alt="${escapeHtml(product.name)}" style="width:140px;height:140px;border-radius:16px;object-fit:cover;" />
+        <div>
+          <p style="margin:0;font-size:32px;font-weight:700;line-height:1.2;">${escapeHtml(product.name)}</p>
+          <p style="margin:8px 0 0;font-size:36px;font-weight:900;color:#86efac;">${moneyFormatter.format(product.price)}</p>
+        </div>
+      </div>`
+            )
+            .join('')
+        : `<div style="display:flex;align-items:center;justify-content:center;min-height:400px;border:2px dashed rgba(255,255,255,.35);border-radius:24px;color:#cbd5e1;font-size:32px;font-weight:600;">Selecione produtos no painel ao lado</div>`;
+    const previewClass =
+      flyerThemeKey === 'red'
+        ? 'linear-gradient(140deg, #b91c1c, #ef4444)'
+        : flyerThemeKey === 'green'
+          ? 'linear-gradient(140deg, #059669, #14b8a6)'
+          : flyerThemeKey === 'orange'
+            ? 'linear-gradient(140deg, #f97316, #f59e0b)'
+            : 'linear-gradient(140deg, #020617, #0f172a)';
+    const ribbonBg =
+      flyerThemeKey === 'dark' ? '#facc15' : flyerThemeKey === 'red' ? '#fde047' : '#ffffff';
+    const ribbonColor =
+      flyerThemeKey === 'dark' ? '#0f172a' : flyerThemeKey === 'red' ? '#7f1d1d' : '#065f46';
+    const singleMarkup = singleProduct
+      ? (() => {
+          const parts = splitPriceParts(singleProduct.price);
+          return `
+            <div style="display:flex;flex-direction:column;align-items:center;gap:40px;padding:20px;margin-top:auto;margin-bottom:auto;z-index:10;">
+              <div style="padding:16px;border-radius:40px;background:#fff;transform:rotate(-2deg);box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+                <img src="${escapeHtml(singleProduct.imageUrl || 'https://picsum.photos/seed/pedezap-produto/800/800')}" alt="${escapeHtml(singleProduct.name)}" style="width:600px;height:600px;border-radius:32px;object-fit:cover;" />
+              </div>
+              <p style="margin:0;font-size:64px;font-weight:900;text-transform:uppercase;letter-spacing:.02em;text-align:center;line-height:1.1;text-shadow:0 4px 12px rgba(0,0,0,0.3);">${escapeHtml(singleProduct.name)}</p>
+              <div style="display:inline-flex;align-items:flex-end;gap:8px;background:#ffffff;color:#0f172a;border-radius:32px;padding:20px 60px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);">
+                <span style="font-size:40px;font-weight:700;color:#64748b;padding-bottom:10px;">R$</span>
+                <span style="font-size:110px;font-weight:900;line-height:0.9;">${parts.intPart}</span>
+                <span style="font-size:50px;font-weight:700;color:#64748b;padding-bottom:10px;">,${parts.decimalPart}</span>
+              </div>
             </div>
-            <img class="qrcode" src="${qrUrl}" alt="QR Code do cardapio" />
-          </footer>
+          `;
+        })()
+      : '';
+    return `
+      <main class="page" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f1f5f9;padding:0;">
+        <section style="position:relative;overflow:hidden;width:1080px;height:1920px;background:${previewClass};color:#fff;font-family:sans-serif;display:flex;flex-direction:column;padding:60px;">
+          <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.08) 1px, transparent 1px);background-size:40px 40px;opacity:.18;"></div>
+          <div style="position:absolute;right:-100px;bottom:-150px;height:500px;width:500px;border-radius:999px;background:rgba(255,255,255,.08);filter:blur(4px);"></div>
+          
+          <div style="position:relative;z-index:10;height:100%;display:flex;flex-direction:column;">
+          <div style="text-align:center;margin-bottom:40px;margin-top:40px;">
+             <div style="display:inline-flex;align-items:center;justify-content:center;width:140px;height:140px;border-radius:999px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.2);margin-bottom:20px;box-shadow:0 10px 30px rgba(0,0,0,0.2);">
+                <span style="font-size:60px;font-weight:700;">${escapeHtml(restaurant.name.charAt(0).toUpperCase())}</span>
+             </div>
+            <p style="margin:0;font-size:24px;font-weight:700;letter-spacing:.2em;opacity:.9;text-transform:uppercase;">${escapeHtml(restaurant.name)}</p>
+          </div>
+          <div style="margin:0 auto 40px;width:100%;transform:skew(-3deg);background:${ribbonBg};color:${ribbonColor};padding:20px 40px;border-radius:16px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.3);">
+            <span style="display:block;transform:skew(3deg);font-size:56px;font-weight:900;line-height:1;text-transform:uppercase;">${escapeHtml(flyerHeadline || 'OFERTAS DO DIA')}</span>
+          </div>
+          ${
+            singleProduct
+              ? singleMarkup
+              : `<div style="flex:1;display:flex;flex-direction:column;gap:24px;overflow:hidden;margin-top:40px;">${cardRows}</div>`
+          }
+          <div style="margin-top:auto;text-align:center;padding-bottom:60px;">
+            <p style="margin:0;font-size:24px;font-weight:500;opacity:.9;background:rgba(0,0,0,0.3);padding:10px 30px;border-radius:999px;display:inline-block;">${escapeHtml(marketingLink.replace('https://', ''))}</p>
+            <p style="margin:24px 0 0;font-size:18px;font-weight:700;opacity:0.4;text-transform:uppercase;letter-spacing:0.2em;">pedezap.site</p>
+          </div>
+          </div>
         </section>
       </main>
     `;
-    openMarketingPrintWindow(content, `Flyer de Ofertas - ${restaurant.name}`);
+  };
+
+  const downloadFlyerFromModal = () => {
+    if (!restaurant) return;
+    openMarketingPrintWindow(buildFlyerPreviewMarkup(), `Flyer de Ofertas - ${restaurant.name}`);
   };
 
   const openDigitalBusinessCard = () => {
     if (!restaurant) return;
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(marketingLink)}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(marketingLink)}&color=${marketingQrColor}&bgcolor=ffffff`;
     const logo = settingsDraft?.logoUrl || restaurant.logoUrl;
     const content = `
       <main class="page" style="max-width:760px;">
@@ -1285,6 +1392,51 @@ export default function MasterPage() {
       </main>
     `;
     openMarketingPrintWindow(content, `Cartao Digital - ${restaurant.name}`);
+  };
+
+  const openReviewRequestCard = () => {
+    if (!restaurant) return;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(marketingLink)}&color=${marketingQrColor}&bgcolor=ffffff`;
+    const content = `
+      <main class="page" style="max-width:680px;">
+        <section class="card">
+          <header class="hero" style="background:linear-gradient(135deg,#0f172a,#1e293b);">
+            <h2>${escapeHtml(restaurant.name)}</h2>
+            <p>Avalie nossa loja e ajude outros clientes.</p>
+          </header>
+          <div class="section" style="text-align:center;">
+            <p style="margin:0 0 10px;font-size:18px;font-weight:700;">Gostou do atendimento? Deixe 5 estrelas.</p>
+            <img class="qrcode" style="width:220px;height:220px;" src="${qrUrl}" alt="QR Code de avaliacao" />
+            <p style="margin:10px 0 0;font-size:14px;color:#475569;">Escaneie o QR Code para abrir nosso cardapio e fazer sua avaliacao.</p>
+          </div>
+        </section>
+      </main>
+    `;
+    openMarketingPrintWindow(content, `Card de Avaliacao - ${restaurant.name}`);
+  };
+
+  const openDeliveryPamphlet = () => {
+    if (!restaurant) return;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(marketingLink)}&color=${marketingQrColor}&bgcolor=ffffff`;
+    const content = `
+      <main class="page" style="max-width:820px;">
+        <section class="card">
+          <header class="hero" style="background:linear-gradient(135deg,#0f172a,#334155);">
+            <h2>${escapeHtml(restaurant.name)}</h2>
+            <p>Obrigado pelo pedido. Volte sempre!</p>
+          </header>
+          <div class="section" style="display:grid;grid-template-columns:1fr 220px;gap:16px;align-items:center;">
+            <div>
+              <p style="margin:0 0 8px;font-size:20px;font-weight:700;">Seu delivery favorito agora esta a um clique.</p>
+              <p style="margin:0 0 8px;font-size:14px;color:#475569;">Aponte a camera para o QR Code e faca seu proximo pedido em segundos.</p>
+              <p style="margin:0;font-size:14px;color:#475569;"><strong>Link direto:</strong> ${escapeHtml(marketingLink)}</p>
+            </div>
+            <img class="qrcode" style="width:200px;height:200px;" src="${qrUrl}" alt="QR Code do cardapio" />
+          </div>
+        </section>
+      </main>
+    `;
+    openMarketingPrintWindow(content, `Panfleto de Entrega - ${restaurant.name}`);
   };
 
   const normalizeWhatsapp = (value: string) => value.replace(/\D/g, '');
@@ -4456,6 +4608,273 @@ export default function MasterPage() {
               </div>
             )}
 
+            {showFlyerModal && restaurant && (
+              <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm p-3 md:p-5 flex items-center justify-center">
+                <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
+                  <div className="flex items-center justify-between border-b border-gray-200 px-4 py-4 md:px-5">
+                    <div className="inline-flex items-center gap-2 text-lg font-semibold text-gray-900">
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-orange-400 to-pink-500 text-white shadow-sm">
+                        <Megaphone size={18} />
+                      </span>
+                      Criador de Stories
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowFlyerModal(false)}
+                      className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[400px_1fr] md:grid-cols-[320px_1fr]">
+                    <div className="min-h-0 border-r border-gray-200 bg-white flex flex-col">
+                      <div className="flex border-b border-gray-200 md:hidden">
+                        <button
+                          type="button"
+                          onClick={() => setFlyerMobileTab('edit')}
+                          className={`flex-1 px-4 py-2 text-sm font-medium ${
+                            flyerMobileTab === 'edit' ? 'border-b-2 border-gray-900 text-gray-900' : 'text-gray-500'
+                          }`}
+                        >
+                          <span className="inline-flex items-center gap-2">
+                            <Pencil size={14} /> Editar
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFlyerMobileTab('preview')}
+                          className={`flex-1 px-4 py-2 text-sm font-medium ${
+                            flyerMobileTab === 'preview' ? 'border-b-2 border-gray-900 text-gray-900' : 'text-gray-500'
+                          }`}
+                        >
+                          <span className="inline-flex items-center gap-2">
+                            <Eye size={14} /> Visualizar
+                          </span>
+                        </button>
+                      </div>
+
+                      <div className={`${flyerMobileTab === 'preview' ? 'hidden md:flex' : 'flex'} flex-col h-full overflow-hidden`}>
+                        <div className="flex-1 overflow-y-auto p-5 space-y-6">
+                          <div>
+                            <div className="flex justify-between items-center mb-2">
+                              <label className="text-sm font-semibold text-gray-900">Manchete</label>
+                              <span className="text-[10px] text-gray-400">{flyerHeadline.length}/30</span>
+                            </div>
+                            <input
+                              value={flyerHeadline}
+                              onChange={(event) => setFlyerHeadline(event.target.value.slice(0, 30))}
+                              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-bold uppercase tracking-wide focus:border-slate-900 focus:ring-0 transition-colors"
+                              placeholder="CONFIRA OS PREÇOS"
+                            />
+
+                            <p className="mt-5 mb-3 text-sm font-semibold text-gray-900">Tema Visual</p>
+                            <div className="grid grid-cols-4 gap-3">
+                              {flyerThemes.map((theme) => (
+                                <button
+                                  key={theme.key}
+                                  type="button"
+                                  onClick={() => setFlyerThemeKey(theme.key)}
+                                  className={`h-16 rounded-xl border-2 p-1 transition-all ${flyerThemeKey === theme.key ? 'border-slate-900 scale-105 shadow-md' : 'border-transparent hover:border-gray-200'}`}
+                                >
+                                  <div className={`h-full w-full rounded-md ${theme.swatchClass} flex items-center justify-center`}>
+                                    <span className={`h-3 w-3 rounded-full ${theme.dotClass}`} />
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="pt-2 border-t border-gray-100">
+                            <div className="mb-2 flex items-center justify-between">
+                              <p className="text-sm font-semibold text-gray-900">Selecionar Produtos</p>
+                              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                                {flyerSelectedProductIds.length}/4
+                              </span>
+                            </div>
+                            <div className="relative">
+                              <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                              <input
+                                value={flyerProductQuery}
+                                onChange={(event) => setFlyerProductQuery(event.target.value)}
+                                className="w-full rounded-xl border border-gray-200 py-2.5 pl-9 pr-3 text-sm focus:border-slate-400 focus:ring-0"
+                                placeholder="Buscar..."
+                              />
+                            </div>
+                            <div className="mt-3 max-h-[320px] overflow-y-auto rounded-xl border border-gray-100 bg-white pr-1">
+                              {flyerFilteredProducts.map((product) => {
+                                const selected = flyerSelectedProductIds.includes(product.id);
+                                return (
+                                  <label
+                                    key={product.id}
+                                    className={`group flex cursor-pointer items-center gap-3 border-b border-gray-50 px-3 py-3 transition-colors last:border-b-0 hover:bg-gray-50 ${
+                                      selected ? 'bg-indigo-50/50' : 'bg-transparent'
+                                    }`}
+                                  >
+                                    <div className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border transition-all ${selected ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white group-hover:border-gray-400'}`}>
+                                        {selected && <Check size={12} strokeWidth={3} />}
+                                    </div>
+                                    <input
+                                      type="checkbox"
+                                      checked={selected}
+                                      onChange={() => toggleFlyerProduct(product.id)}
+                                      className="hidden"
+                                    />
+                                    <img src={product.imageUrl} alt={product.name} className="h-10 w-10 rounded-md object-cover" />
+                                    <div className="min-w-0">
+                                      <p className="truncate text-sm font-semibold text-gray-900">{product.name}</p>
+                                      <p className="text-xs text-gray-500">{moneyFormatter.format(product.price)}</p>
+                                    </div>
+                                  </label>
+                                );
+                              })}
+                              {!flyerFilteredProducts.length && (
+                                <div className="px-3 py-6 text-center text-sm text-gray-500">Nenhum produto encontrado.</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="border-t border-gray-200 p-3 md:hidden">
+                          <button
+                            type="button"
+                            onClick={() => setFlyerMobileTab('preview')}
+                            className="w-full rounded-lg bg-black px-4 py-2.5 text-sm font-semibold text-white"
+                          >
+                            Ver Resultado →
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={`min-h-0 bg-slate-100 p-4 md:p-8 flex items-center justify-center relative overflow-hidden ${flyerMobileTab === 'edit' ? 'hidden md:flex' : 'flex'}`}>
+                      {/* Background Pattern */}
+                      <div className="absolute inset-0 opacity-40" style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
+
+                      {/* Phone Mockup */}
+                      <div className="relative w-auto h-auto max-h-full max-w-full aspect-[9/16] bg-black rounded-[2.5rem] border-[8px] border-slate-900 shadow-2xl overflow-hidden ring-1 ring-slate-900/5 select-none z-10">
+                        {/* Status Bar Mockup */}
+                        <div className="absolute top-0 inset-x-0 h-8 z-20 flex justify-between px-6 items-center bg-gradient-to-b from-black/40 to-transparent pointer-events-none">
+                            <div className="text-[10px] font-medium text-white/90">9:41</div>
+                            <div className="flex gap-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-white/90"></div>
+                                <div className="w-1.5 h-1.5 rounded-full bg-white/90"></div>
+                                <div className="w-4 h-1.5 rounded-full bg-white/90"></div>
+                            </div>
+                        </div>
+
+                        <div className={`h-full w-full flex flex-col ${activeFlyerTheme.previewClass} relative p-5 pt-12`}>
+                          <div
+                            className="pointer-events-none absolute inset-0 opacity-20 mix-blend-overlay"
+                            style={{
+                              backgroundImage: 'radial-gradient(rgba(255,255,255,.4) 1px, transparent 1px)',
+                              backgroundSize: '24px 24px'
+                            }}
+                          />
+                          
+                          <div className="relative text-center mb-6 z-10">
+                             <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-3 shadow-lg">
+                                <span className="text-xl font-bold text-white">{restaurant.name.charAt(0).toUpperCase()}</span>
+                             </div>
+                             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/90 drop-shadow-sm">{restaurant.name}</p>
+                          </div>
+
+                          <div className={`relative mx-auto w-full -skew-x-3 rounded-lg px-4 py-3 text-center shadow-xl z-10 ${activeFlyerTheme.titleRibbonClass}`}>
+                            <span className="block skew-x-3 text-2xl font-black uppercase leading-none tracking-tight">{flyerHeadline || 'OFERTAS DO DIA'}</span>
+                          </div>
+
+                          {flyerSelectedProducts.length === 1 ? (
+                            <div className="relative mt-auto mb-auto flex flex-col items-center gap-4 px-2 z-10">
+                              <div className="-rotate-2 rounded-2xl bg-white p-2 shadow-2xl shadow-black/40">
+                                <img
+                                  src={flyerSelectedProducts[0].imageUrl}
+                                  alt={flyerSelectedProducts[0].name}
+                                  className="h-64 w-64 rounded-xl object-cover"
+                                />
+                              </div>
+                              <p className="text-center text-3xl font-black uppercase leading-tight text-white drop-shadow-md px-2">
+                                {flyerSelectedProducts[0].name}
+                              </p>
+                              <div className="inline-flex items-end gap-1 rounded-2xl bg-white px-6 py-3 text-slate-900 shadow-xl">
+                                <span className="pb-1.5 text-lg font-bold text-slate-500">R$</span>
+                                <span className="text-5xl font-black leading-none tracking-tighter">
+                                  {splitPriceParts(flyerSelectedProducts[0].price).intPart}
+                                </span>
+                                <span className="pb-1.5 text-2xl font-bold text-slate-500">
+                                  ,{splitPriceParts(flyerSelectedProducts[0].price).decimalPart}
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-6 flex-1 space-y-3 overflow-hidden z-10">
+                              {flyerSelectedProducts.length ? (
+                                flyerSelectedProducts.map((product) => (
+                                  <div key={product.id} className="flex items-center gap-3 rounded-xl border border-white/20 bg-white/10 backdrop-blur-md p-3 shadow-sm">
+                                    <img src={product.imageUrl} alt={product.name} className="h-14 w-14 rounded-lg object-cover shadow-sm" />
+                                    <div className="min-w-0">
+                                      <p className="truncate text-sm font-bold text-white leading-tight">{product.name}</p>
+                                      <p className="text-sm font-black text-white/90 mt-0.5">{moneyFormatter.format(product.price)}</p>
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="flex h-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-white/20 bg-white/5 p-6 text-center">
+                                  <div className="mb-2 rounded-full bg-white/10 p-3">
+                                    <ShoppingBag className="text-white/50" size={24} />
+                                  </div>
+                                  <p className="text-sm font-medium text-white/70">Selecione produtos ao lado</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="relative mt-auto text-center pb-6 z-10">
+                            <div className="flex justify-center">
+                               <p className="text-[10px] font-medium text-white/90 bg-black/30 px-3 py-1.5 rounded-full backdrop-blur-sm border border-white/10">
+                                 {marketingLink.replace('https://', '')}
+                               </p>
+                            </div>
+                            <p className="mt-3 text-[8px] font-bold text-white/40 uppercase tracking-widest">pedezap.site</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-200 bg-white px-4 py-4 md:px-6">
+                    <button
+                      type="button"
+                      onClick={() => setShowFlyerModal(false)}
+                      className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Fechar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={downloadFlyerFromModal}
+                      className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                    >
+                      <Download size={16} />
+                      Baixar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        window.open(
+                          `https://wa.me/?text=${encodeURIComponent(`Confira nossas ofertas: ${marketingLink}`)}`,
+                          '_blank',
+                          'noopener,noreferrer'
+                        )
+                      }
+                      className="rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700 shadow-lg shadow-green-600/20 transition-all flex items-center gap-2"
+                    >
+                      <MessageCircle size={16} />
+                      Compartilhar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {activeTab === 'marketing' && (
               <section className="space-y-4">
                 <div className="rounded-xl border border-gray-200 bg-white px-4 py-4">
@@ -4467,9 +4886,9 @@ export default function MasterPage() {
                   <div className="rounded-xl border border-gray-200 bg-white p-2 h-fit">
                     {[
                       { key: 'overview' as const, label: 'Visao Geral', icon: BarChart3, disabled: false },
-                      { key: 'performance' as const, label: 'Performance de Produtos', icon: ShoppingBag, disabled: false },
-                      { key: 'tools' as const, label: 'Ferramentas de Divulgacao', icon: Share2, disabled: false },
-                      { key: 'campaigns' as const, label: 'Campanhas', icon: Megaphone, disabled: false }
+                      { key: 'performance' as const, label: 'Performance', icon: ShoppingBag, disabled: false },
+                      { key: 'tools' as const, label: 'Ferramentas', icon: Share2, disabled: false },
+                      { key: 'campaigns' as const, label: 'Campanhas', icon: Megaphone, disabled: true }
                     ].map((item) => {
                       const active = marketingSection === item.key;
                       const Icon = item.icon;
@@ -4480,8 +4899,10 @@ export default function MasterPage() {
                             if (!item.disabled) setMarketingSection(item.key);
                           }}
                           className={`mb-1 flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm transition ${
-                            active ? 'bg-slate-100 text-slate-900 font-semibold' : 'text-gray-700 hover:bg-gray-50'
-                          } ${item.disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                            active
+                              ? 'border-l-2 border-slate-900 bg-slate-100 text-slate-900 font-semibold'
+                              : 'border-l-2 border-transparent text-gray-700 hover:bg-gray-50'
+                          } ${item.disabled ? 'cursor-not-allowed text-gray-400 hover:bg-transparent' : ''}`}
                         >
                           <Icon size={16} />
                           {item.label}
@@ -4628,45 +5049,45 @@ export default function MasterPage() {
 
                     {marketingSection === 'tools' && (
                       <>
-                        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                          <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-                            <div className="border-b border-gray-100 px-4 py-3">
-                              <h3 className="text-xl font-semibold text-gray-900">Seu QR Code</h3>
-                            </div>
-                            <div className="p-4">
-                              <div className="flex flex-col items-center gap-4 md:flex-row">
+                        <div className="rounded-xl border border-gray-200 bg-white p-5">
+                          <div className="flex flex-col gap-5 lg:flex-row">
+                            <div className="flex w-full flex-col items-center lg:w-[240px]">
+                              <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
                                 <img
-                                  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(marketingLink)}`}
+                                  src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(marketingLink)}&color=${marketingQrColor}&bgcolor=ffffff`}
                                   alt="QR Code do cardapio"
-                                  className="h-40 w-40 rounded-xl border border-gray-200 p-2"
+                                  className="h-40 w-40 rounded-lg"
                                 />
-                                <div className="text-sm text-gray-600">
-                                  <p>Imprima este QR Code e coloque nas mesas ou no balcao para facilitar o acesso.</p>
-                                  <div className="mt-3 flex items-center gap-2">
-                                    <a
-                                      href={`https://api.qrserver.com/v1/create-qr-code/?size=800x800&data=${encodeURIComponent(marketingLink)}`}
-                                      download="qrcode-cardapio.png"
-                                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
-                                    >
-                                      Baixar
-                                    </a>
-                                    <button
-                                      onClick={() => window.print()}
-                                      className="rounded-lg bg-black px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-900"
-                                    >
-                                      Imprimir
-                                    </button>
-                                  </div>
-                                </div>
+                              </div>
+                              <div className="mt-3 flex items-center gap-2">
+                                {[
+                                  { value: '000000', className: 'bg-black' },
+                                  { value: 'ef4444', className: 'bg-red-400' },
+                                  { value: '22c55e', className: 'bg-green-500' },
+                                  { value: '3b82f6', className: 'bg-blue-500' },
+                                  { value: 'a855f7', className: 'bg-purple-500' }
+                                ].map((option) => (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => setMarketingQrColor(option.value)}
+                                    className={`h-6 w-6 rounded-full border-2 transition ${
+                                      marketingQrColor === option.value ? 'border-slate-900 scale-110' : 'border-transparent'
+                                    } ${option.className}`}
+                                    title={`Cor ${option.value}`}
+                                  />
+                                ))}
                               </div>
                             </div>
-                          </div>
 
-                          <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-                            <div className="border-b border-gray-100 px-4 py-3">
-                              <h3 className="text-xl font-semibold text-gray-900">Link do Cardapio</h3>
-                            </div>
-                            <div className="space-y-3 p-4">
+                            <div className="flex-1 space-y-3">
+                              <h3 className="flex items-center gap-2 text-2xl font-semibold text-gray-900">
+                                <Share2 size={20} /> Seu Cardapio Digital
+                              </h3>
+                              <p className="text-sm text-gray-600">
+                                Este e o endereco principal da sua loja. Compartilhe em todas as redes sociais.
+                              </p>
+                              <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Link Direto</label>
                               <div className="flex items-center gap-2">
                                 <input
                                   readOnly
@@ -4674,73 +5095,95 @@ export default function MasterPage() {
                                   className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm"
                                 />
                                 <button
+                                  type="button"
                                   onClick={() => navigator.clipboard.writeText(marketingLink)}
-                                  className="inline-flex items-center gap-1 rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-slate-900"
+                                  className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-slate-700 hover:bg-gray-50"
                                 >
-                                  <Copy size={14} />
-                                  Copiar
+                                  <Copy size={16} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => window.open(marketingLink, '_blank')}
+                                  className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-slate-700 hover:bg-gray-50"
+                                >
+                                  <ExternalLink size={16} />
                                 </button>
                               </div>
-                              <div className="flex flex-wrap items-center gap-2">
+                              <div className="flex flex-wrap items-center gap-2 pt-1">
+                                <a
+                                  href={`https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(marketingLink)}&color=${marketingQrColor}&bgcolor=ffffff`}
+                                  download="qrcode-cardapio.png"
+                                  className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black"
+                                >
+                                  <Printer size={14} /> Baixar QR Code
+                                </a>
                                 <button
+                                  type="button"
                                   onClick={() =>
                                     window.open(`https://wa.me/?text=${encodeURIComponent(`Confira nosso cardapio: ${marketingLink}`)}`, '_blank')
                                   }
-                                  className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
+                                  className="inline-flex items-center gap-2 rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white hover:bg-green-600"
                                 >
-                                  WhatsApp
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    window.open(
-                                      `https://www.instagram.com/?url=${encodeURIComponent(marketingLink)}`,
-                                      '_blank'
-                                    )
-                                  }
-                                  className="rounded-lg bg-pink-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-pink-600"
-                                >
-                                  Stories
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    window.open(
-                                      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(marketingLink)}`,
-                                      '_blank'
-                                    )
-                                  }
-                                  className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-900"
-                                >
-                                  Facebook
+                                  <MessageCircle size={14} /> Enviar no WhatsApp
                                 </button>
                               </div>
                             </div>
                           </div>
                         </div>
 
-                        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-                          <div className="border-b border-gray-100 px-4 py-3">
-                            <h3 className="text-xl font-semibold text-gray-900">Materiais de Campanha (Flyers)</h3>
-                          </div>
-                          <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2">
+                        <div>
+                          <h3 className="mb-3 text-xl font-semibold text-gray-900">Criadores de Conteudo</h3>
+                          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <button
+                              type="button"
                               onClick={openFlyerOffers}
-                              className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-left hover:bg-gray-100"
+                              className="rounded-xl border border-gray-200 bg-white p-6 text-center hover:bg-gray-50"
                             >
-                              <p className="flex items-center gap-2 text-base font-semibold text-gray-900">
-                                <Megaphone size={16} className="text-slate-700" />
-                                Flyer de Ofertas
-                              </p>
-                              <p className="mt-1 text-sm text-gray-600">Gerar material com banners ativos e top produtos para imprimir/salvar PDF.</p>
+                              <span className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-orange-100 text-orange-500">
+                                <Megaphone size={22} />
+                              </span>
+                              <p className="text-xl font-semibold text-gray-900">Criador de Stories</p>
+                              <p className="mt-1 text-sm text-gray-600">Crie imagens profissionais de promocao de produtos.</p>
+                              <p className="mt-3 text-sm font-semibold text-slate-900">Criar Flyer →</p>
                             </button>
+
                             <button
+                              type="button"
                               onClick={openDigitalBusinessCard}
-                              className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-left hover:bg-gray-100"
+                              className="rounded-xl border border-gray-200 bg-white p-6 text-center hover:bg-gray-50"
                             >
-                              <p className="flex items-center gap-2 text-base font-semibold text-gray-900">
-                                <QrCode size={16} className="text-slate-700" />
-                                Cartao Digital
-                              </p>
-                              <p className="mt-1 text-sm text-gray-600">Abrir cartao com QR Code, link e dados da loja para divulgacao.</p>
+                              <span className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-purple-100 text-purple-500">
+                                <Smartphone size={22} />
+                              </span>
+                              <p className="text-xl font-semibold text-gray-900">Cartao Interativo</p>
+                              <p className="mt-1 text-sm text-gray-600">Gere um cartao virtual (bio link) com seus contatos.</p>
+                              <p className="mt-3 text-sm font-semibold text-purple-600">Criar Cartao →</p>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={openReviewRequestCard}
+                              className="rounded-xl border border-gray-200 bg-white p-6 text-center hover:bg-gray-50"
+                            >
+                              <span className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+                                <Star size={22} />
+                              </span>
+                              <p className="text-xl font-semibold text-gray-900">Pedir Avaliacoes</p>
+                              <p className="mt-1 text-sm text-gray-600">Gere um card com QR Code para conseguir 5 estrelas no Google.</p>
+                              <p className="mt-3 text-sm font-semibold text-blue-600">Criar Card →</p>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={openDeliveryPamphlet}
+                              className="rounded-xl border border-gray-200 bg-white p-6 text-center hover:bg-gray-50"
+                            >
+                              <span className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-red-100 text-red-500">
+                                <TicketPercent size={22} />
+                              </span>
+                              <p className="text-xl font-semibold text-gray-900">Panfleto de Entrega</p>
+                              <p className="mt-1 text-sm text-gray-600">Imprima cartoes de agradecimento com cupom para a sacola.</p>
+                              <p className="mt-3 text-sm font-semibold text-red-500">Gerar →</p>
                             </button>
                           </div>
                         </div>
@@ -5595,7 +6038,9 @@ export default function MasterPage() {
                         <div className="space-y-2">
                           {productForm.crusts.map((crust, idx) => (
                             <div key={`${crust.name}-${idx}`} className="rounded-lg border border-gray-200 px-3 py-2 text-sm flex items-center justify-between">
-                              <p className="font-medium text-gray-900">{crust.name}</p>
+                              <div>
+                                <p className="font-medium text-gray-900">{crust.name}</p>
+                              </div>
                               <div className="flex items-center gap-3">
                                 <span className="text-slate-800 font-semibold">R$ {crust.price.toFixed(2)}</span>
                                 <button onClick={() => removePizzaCrust(idx)} className="text-red-500 hover:text-red-600">
@@ -5604,280 +6049,20 @@ export default function MasterPage() {
                               </div>
                             </div>
                           ))}
+                          {!productForm.crusts.length && (
+                            <div className="rounded-lg bg-gray-50 border border-gray-200 py-6 text-center text-xs text-gray-500">
+                              Nenhuma borda adicionada ainda.
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
                   </div>
                 </>
               )}
-
-              {productForm.kind === 'acai' ? (
-                <div className="rounded-xl border border-violet-200 bg-violet-50/30 p-4 space-y-4">
-                  <div className="flex items-start justify-between gap-3 border-b border-violet-100 pb-3">
-                    <div>
-                      <p className="font-semibold text-gray-900">Grupos de Adicionais</p>
-                      <p className="text-[11px] text-gray-500">Ex: "Escolha as Frutas", "Caldas", "Adicionais Pagos".</p>
-                    </div>
-                    <span className="rounded-full bg-violet-100 px-2.5 py-1 text-[10px] font-semibold text-violet-700">
-                      {productForm.acaiComplementGroups.length} grupos
-                    </span>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Criar novo grupo de adicionais</p>
-                    <div className="grid grid-cols-1 md:grid-cols-[1fr_84px_84px_44px] gap-2">
-                      <input
-                        value={productForm.draftAcaiGroupName}
-                        onChange={(event) => setProductForm((prev) => ({ ...prev, draftAcaiGroupName: event.target.value }))}
-                        className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
-                        placeholder="Nome do Grupo (Ex: Frutas)"
-                      />
-                      <input
-                        type="number"
-                        min={0}
-                        value={productForm.draftAcaiGroupMinSelect}
-                        onChange={(event) => setProductForm((prev) => ({ ...prev, draftAcaiGroupMinSelect: event.target.value }))}
-                        className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-center"
-                        placeholder="Min"
-                      />
-                      <input
-                        type="number"
-                        min={0}
-                        value={productForm.draftAcaiGroupMaxSelect}
-                        onChange={(event) => setProductForm((prev) => ({ ...prev, draftAcaiGroupMaxSelect: event.target.value }))}
-                        className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-center"
-                        placeholder="Max"
-                      />
-                      <button onClick={addAcaiComplementGroup} className="rounded-lg bg-violet-500 text-white hover:bg-violet-600">
-                        <Plus size={16} className="mx-auto" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    {productForm.acaiComplementGroups.map((group) => (
-                      <div key={group.id} className="rounded-lg border border-violet-100 bg-white p-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="rounded bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
-                                {group.minSelect === 0 ? 'OPCIONAL' : 'OBRIGATORIO'}
-                              </span>
-                              <p className="font-semibold text-gray-900">{group.name}</p>
-                              <span className="text-xs text-gray-500">Escolha ate {group.maxSelect}</span>
-                            </div>
-                          </div>
-                          <button onClick={() => removeAcaiComplementGroup(group.id)} className="text-red-500 hover:text-red-600">
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                        <div className="mt-2 space-y-2">
-                          <div className="grid grid-cols-1 md:grid-cols-[1fr_110px_120px_40px] gap-2">
-                            <div className="space-y-1">
-                              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Item</p>
-                              <input
-                                value={acaiDraftItemByGroup[group.id]?.name ?? ''}
-                                onChange={(event) =>
-                                  setAcaiDraftItemByGroup((prev) => ({
-                                    ...prev,
-                                    [group.id]: {
-                                      name: event.target.value,
-                                      price: prev[group.id]?.price ?? '0',
-                                      maxQty: prev[group.id]?.maxQty ?? '1'
-                                    }
-                                  }))
-                                }
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                                placeholder="Novo Item (Ex: Leite Ninho)"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Preco</p>
-                              <input
-                                value={acaiDraftItemByGroup[group.id]?.price ?? '0'}
-                                onChange={(event) =>
-                                  setAcaiDraftItemByGroup((prev) => ({
-                                    ...prev,
-                                    [group.id]: {
-                                      name: prev[group.id]?.name ?? '',
-                                      price: event.target.value,
-                                      maxQty: prev[group.id]?.maxQty ?? '1'
-                                    }
-                                  }))
-                                }
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                                placeholder="R$ 0,00"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Max por item</p>
-                              <input
-                                type="number"
-                                min={1}
-                                value={acaiDraftItemByGroup[group.id]?.maxQty ?? '1'}
-                                onChange={(event) =>
-                                  setAcaiDraftItemByGroup((prev) => ({
-                                    ...prev,
-                                    [group.id]: {
-                                      name: prev[group.id]?.name ?? '',
-                                      price: prev[group.id]?.price ?? '0',
-                                      maxQty: event.target.value
-                                    }
-                                  }))
-                                }
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                                placeholder="Max"
-                              />
-                            </div>
-                            <button
-                              onClick={() => addAcaiComplementItem(group.id)}
-                              className="rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 mt-5"
-                            >
-                              <Plus size={16} className="mx-auto" />
-                            </button>
-                          </div>
-                          {group.items.map((item) => (
-                            <div key={item.id} className="rounded-md border border-gray-200 px-3 py-2 text-sm flex items-center justify-between">
-                              <p className="font-medium text-gray-900">
-                                {item.name} <span className="text-gray-500">(max {item.maxQty}x)</span>
-                              </p>
-                              <div className="flex items-center gap-3">
-                                <span className="text-slate-800 font-semibold">R$ {item.price.toFixed(2)}</span>
-                                <button onClick={() => removeAcaiComplementItem(group.id, item.id)} className="text-red-500 hover:text-red-600">
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                          {!group.items.length && (
-                            <div className="rounded-md bg-gray-50 border border-gray-200 py-3 text-center text-xs text-gray-500">
-                              Nenhum item nesta categoria.
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    {!productForm.acaiComplementGroups.length && (
-                      <div className="rounded-lg bg-gray-50 border border-gray-200 py-4 text-center text-xs text-gray-500">
-                        Nenhuma categoria de complemento criada.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-gray-200 p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-gray-900">Complementos (Opcional)</p>
-                      <p className="text-[11px] text-gray-500">
-                        Ex: queijo extra, bacon, maionese especial.
-                      </p>
-                    </div>
-                    <span className="text-[10px] rounded-full bg-slate-100 px-2 py-1 text-slate-800 font-semibold">
-                      {productForm.complements.length} itens
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-[1fr_120px_44px] gap-2">
-                    <input
-                      value={productForm.draftComplementName}
-                      onChange={(event) => setProductForm((prev) => ({ ...prev, draftComplementName: event.target.value }))}
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                      placeholder="Nome do complemento"
-                    />
-                    <input
-                      value={productForm.draftComplementPrice}
-                      onChange={(event) => setProductForm((prev) => ({ ...prev, draftComplementPrice: event.target.value }))}
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                      placeholder="R$ 0,00"
-                    />
-                    <button onClick={addProductComplement} className="rounded-lg bg-slate-1000 text-white hover:bg-black">
-                      <Plus size={16} className="mx-auto" />
-                    </button>
-                  </div>
-
-                  <div className="mt-3 space-y-2">
-                    {productForm.complements.map((complement, idx) => (
-                      <div key={`${complement.name}-${idx}`} className="rounded-lg border border-gray-200 px-3 py-2 text-sm flex items-center justify-between">
-                        <p className="font-medium text-gray-900">{complement.name}</p>
-                        <div className="flex items-center gap-3">
-                          <span className="text-slate-800 font-semibold">R$ {complement.price.toFixed(2)}</span>
-                          <button onClick={() => removeProductComplement(idx)} className="text-red-500 hover:text-red-600">
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                    {!productForm.complements.length && (
-                      <div className="rounded-lg bg-gray-50 border border-gray-200 py-4 text-center text-xs text-gray-500">
-                        Nenhum complemento cadastrado.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div className="rounded-xl border border-gray-200 p-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs text-gray-500">
-                      {productForm.kind === 'pizza' ? 'Preco Base (calculado pelos sabores)' : 'Preco de Venda'}
-                    </label>
-                    <input
-                      value={productForm.price ?? ''}
-                      onChange={(event) => setProductForm((prev) => ({ ...prev, price: Number(event.target.value) }))}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                      type="number"
-                      step="0.01"
-                      disabled={productForm.kind === 'pizza'}
-                    />
-                  </div>
-                  {productForm.kind === 'bebida' && (
-                    <label className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-800 flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={productForm.alcoholic}
-                        onChange={(event) => setProductForm((prev) => ({ ...prev, alcoholic: event.target.checked }))}
-                      />
-                      Bebida Alcoolica (+18)
-                    </label>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between gap-2">
-              <label className="flex items-center gap-2 text-sm text-gray-600">
-                <input
-                  type="checkbox"
-                  checked={productForm.active ?? true}
-                  onChange={(event) => setProductForm((prev) => ({ ...prev, active: event.target.checked }))}
-                />
-                Produto Ativo
-              </label>
-              <label className="flex items-center gap-2 text-sm text-gray-600">
-                <input
-                  type="checkbox"
-                  checked={productForm.featured}
-                  onChange={(event) => setProductForm((prev) => ({ ...prev, featured: event.target.checked }))}
-                />
-                Destaque
-              </label>
-              <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setShowProductForm(false);
-                  setProductForm(createDefaultProductForm(selectedCategoryId ?? ''));
-                }}
-                className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={saveProduct}
-                className="rounded-lg bg-black px-4 py-2 text-sm text-white hover:bg-slate-900"
-              >
-                Salvar Produto
-              </button>
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-100">
+                <button onClick={() => setShowProductForm(false)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Cancelar</button>
+                <button onClick={saveProduct} className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900">Salvar Produto</button>
               </div>
             </div>
           </div>
@@ -5886,8 +6071,3 @@ export default function MasterPage() {
     </div>
   );
 }
-
-
-
-
-
