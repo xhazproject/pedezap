@@ -1,4 +1,4 @@
-﻿﻿﻿﻿'use client';
+'use client';
 
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
@@ -360,6 +360,19 @@ function splitPriceParts(value: number) {
   return { intPart, decimalPart: decimalPart ?? '00' };
 }
 
+function parsePriceInput(value: string | number | null | undefined) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (!value) return 0;
+  const normalized = String(value)
+    .trim()
+    .replace(/\s/g, '')
+    .replace(/\.(?=\d{3}(?:\D|$))/g, '')
+    .replace(',', '.')
+    .replace(/[^\d.-]/g, '');
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function createDefaultProductForm(categoryId = ''): MenuProductForm {
   return {
     categoryId,
@@ -474,7 +487,7 @@ export default function MasterPage() {
   const [marketingQrColor, setMarketingQrColor] = useState('000000');
   const [showFlyerModal, setShowFlyerModal] = useState(false);
   const [flyerMobileTab, setFlyerMobileTab] = useState<'edit' | 'preview'>('edit');
-  const [flyerHeadline, setFlyerHeadline] = useState('CONFIRA OS PREÇOS');
+  const [flyerHeadline, setFlyerHeadline] = useState('CONFIRA OS PREÃ‡OS');
   const [flyerThemeKey, setFlyerThemeKey] = useState('dark');
   const [flyerProductQuery, setFlyerProductQuery] = useState('');
   const [flyerSelectedProductIds, setFlyerSelectedProductIds] = useState<string[]>([]);
@@ -796,16 +809,34 @@ export default function MasterPage() {
   async function saveProduct() {
     const isPizzaProduct = productForm.kind === 'pizza';
     const hasPizzaFlavors = productForm.pizzaFlavors.length > 0;
-    const parsedFormPrice = Number(productForm.price) || 0;
+    const parsedFormPrice = parsePriceInput(productForm.price);
     const basePriceForSave = isPizzaProduct
       ? (hasPizzaFlavors
-          ? Math.min(...productForm.pizzaFlavors.map((flavor) => Number(flavor.price) || 0))
+          ? Math.min(...productForm.pizzaFlavors.map((flavor) => parsePriceInput(flavor.price)))
           : 0)
       : parsedFormPrice;
 
-    if (!session || !productForm.name || !productForm.categoryId || !productForm.description) return;
-    if (isPizzaProduct && !hasPizzaFlavors) return;
-    if (!isPizzaProduct && basePriceForSave <= 0) return;
+    if (!session) return;
+    if (!productForm.name?.trim()) {
+      alert('Informe o nome do produto.');
+      return;
+    }
+    if (!productForm.categoryId) {
+      alert('Selecione a categoria do produto.');
+      return;
+    }
+    if (!productForm.description?.trim()) {
+      alert('Informe a descricao/ingredientes do produto.');
+      return;
+    }
+    if (isPizzaProduct && !hasPizzaFlavors) {
+      alert('Adicione pelo menos um sabor para salvar a pizza.');
+      return;
+    }
+    if (!isPizzaProduct && basePriceForSave <= 0) {
+      alert('Informe um preco maior que zero para salvar o produto.');
+      return;
+    }
 
     const cleanDescription = stripFeaturedTag(productForm.description);
     const normalizedDescription = productForm.featured
@@ -827,7 +858,7 @@ export default function MasterPage() {
               ? productForm.pizzaFlavors.map((flavor) => ({
                   name: flavor.name,
                   ingredients: flavor.ingredients,
-                  price: Number(flavor.price) || 0
+                  price: parsePriceInput(flavor.price)
                 }))
               : undefined,
           crusts:
@@ -835,12 +866,12 @@ export default function MasterPage() {
               ? productForm.crusts.map((crust) => ({
                   name: crust.name,
                   ingredients: crust.ingredients ?? '',
-                  price: Number(crust.price) || 0
+                  price: parsePriceInput(crust.price)
                 }))
               : [],
           complements: productForm.complements.map((complement) => ({
             name: complement.name,
-            price: Number(complement.price) || 0
+            price: parsePriceInput(complement.price)
           })),
           acaiComplementGroups:
             productForm.kind === 'acai'
@@ -852,7 +883,7 @@ export default function MasterPage() {
                   items: group.items.map((item) => ({
                     id: item.id,
                     name: item.name,
-                    price: Number(item.price) || 0,
+                    price: parsePriceInput(item.price),
                     maxQty: Number(item.maxQty) || 1
                   }))
                 }))
@@ -1261,7 +1292,7 @@ export default function MasterPage() {
     const defaults = marketingTopProductsForFlyer.slice(0, 4).map((item) => item.id);
     setFlyerSelectedProductIds(defaults);
     setFlyerProductQuery('');
-    setFlyerHeadline('CONFIRA OS PREÇOS');
+    setFlyerHeadline('CONFIRA OS PREÃ‡OS');
     setFlyerThemeKey('dark');
     setFlyerMobileTab('edit');
     setShowFlyerModal(true);
@@ -1277,22 +1308,23 @@ export default function MasterPage() {
 
   const buildFlyerPreviewMarkup = () => {
     if (!restaurant) return '';
-    const singleProduct = flyerSelectedProducts.length === 1 ? flyerSelectedProducts[0] : null;
     const cardRows =
       flyerSelectedProducts.length > 0
         ? flyerSelectedProducts
+            .slice(0, 3)
             .map(
               (product) => `
-      <div style="display:flex;align-items:center;gap:24px;border:1px solid rgba(255,255,255,.2);background:rgba(2,6,23,.3);border-radius:24px;padding:24px;">
-        <img src="${escapeHtml(product.imageUrl || 'https://picsum.photos/seed/pedezap-produto/240/240')}" alt="${escapeHtml(product.name)}" style="width:140px;height:140px;border-radius:16px;object-fit:cover;" />
-        <div>
-          <p style="margin:0;font-size:32px;font-weight:700;line-height:1.2;">${escapeHtml(product.name)}</p>
-          <p style="margin:8px 0 0;font-size:36px;font-weight:900;color:#86efac;">${moneyFormatter.format(product.price)}</p>
+      <div style="display:flex;align-items:center;gap:10px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.12);border-radius:12px;padding:8px 10px;">
+        <img src="${escapeHtml(product.imageUrl || 'https://picsum.photos/seed/pedezap-produto/240/240')}" alt="${escapeHtml(product.name)}" style="width:52px;height:52px;border-radius:10px;object-fit:cover;" />
+        <div style="min-width:0;">
+          <p style="margin:0;font-size:13px;font-weight:800;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(product.name)}</p>
+          <p style="margin:4px 0 0;font-size:13px;font-weight:800;color:#e2e8f0;">${moneyFormatter.format(product.price)}</p>
         </div>
       </div>`
             )
             .join('')
-        : `<div style="display:flex;align-items:center;justify-content:center;min-height:400px;border:2px dashed rgba(255,255,255,.35);border-radius:24px;color:#cbd5e1;font-size:32px;font-weight:600;">Selecione produtos no painel ao lado</div>`;
+        : `<div style="display:flex;align-items:center;justify-content:center;min-height:150px;border:1px dashed rgba(255,255,255,.35);border-radius:12px;color:#cbd5e1;font-size:12px;font-weight:700;">Selecione produtos no painel ao lado</div>`;
+
     const previewClass =
       flyerThemeKey === 'red'
         ? 'linear-gradient(140deg, #b91c1c, #ef4444)'
@@ -1301,59 +1333,39 @@ export default function MasterPage() {
           : flyerThemeKey === 'orange'
             ? 'linear-gradient(140deg, #f97316, #f59e0b)'
             : 'linear-gradient(140deg, #020617, #0f172a)';
-    const ribbonBg =
-      flyerThemeKey === 'dark' ? '#facc15' : flyerThemeKey === 'red' ? '#fde047' : '#ffffff';
-    const ribbonColor =
-      flyerThemeKey === 'dark' ? '#0f172a' : flyerThemeKey === 'red' ? '#7f1d1d' : '#065f46';
-    const singleMarkup = singleProduct
-      ? (() => {
-          const parts = splitPriceParts(singleProduct.price);
-          return `
-            <div style="display:flex;flex-direction:column;align-items:center;gap:40px;padding:20px;margin-top:auto;margin-bottom:auto;z-index:10;">
-              <div style="padding:16px;border-radius:40px;background:#fff;transform:rotate(-2deg);box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
-                <img src="${escapeHtml(singleProduct.imageUrl || 'https://picsum.photos/seed/pedezap-produto/800/800')}" alt="${escapeHtml(singleProduct.name)}" style="width:600px;height:600px;border-radius:32px;object-fit:cover;" />
+
+    const ribbonBg = flyerThemeKey === 'dark' ? '#facc15' : flyerThemeKey === 'red' ? '#fde047' : '#ffffff';
+    const ribbonColor = flyerThemeKey === 'dark' ? '#0f172a' : flyerThemeKey === 'red' ? '#7f1d1d' : '#065f46';
+
+    return `
+      <main class="page" style="max-width:780px;">
+        <section style="position:relative;overflow:hidden;margin:24px auto;max-width:520px;border-radius:18px;padding:22px;background:#eceff4;border:1px solid #d8dee7;">
+          <div style="margin:0 auto;width:270px;max-width:100%;border-radius:34px;background:#0f172a;border:2px solid #111827;padding:10px;">
+            <div style="overflow:hidden;border-radius:28px;padding:14px 12px;background:${previewClass};color:#fff;min-height:520px;">
+              <div style="display:flex;justify-content:center;gap:6px;padding-bottom:8px;">
+                <span style="width:6px;height:6px;border-radius:999px;background:rgba(255,255,255,.85);"></span>
+                <span style="width:22px;height:6px;border-radius:999px;background:rgba(255,255,255,.7);"></span>
+                <span style="width:6px;height:6px;border-radius:999px;background:rgba(255,255,255,.85);"></span>
               </div>
-              <p style="margin:0;font-size:64px;font-weight:900;text-transform:uppercase;letter-spacing:.02em;text-align:center;line-height:1.1;text-shadow:0 4px 12px rgba(0,0,0,0.3);">${escapeHtml(singleProduct.name)}</p>
-              <div style="display:inline-flex;align-items:flex-end;gap:8px;background:#ffffff;color:#0f172a;border-radius:32px;padding:20px 60px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);">
-                <span style="font-size:40px;font-weight:700;color:#64748b;padding-bottom:10px;">R$</span>
-                <span style="font-size:110px;font-weight:900;line-height:0.9;">${parts.intPart}</span>
-                <span style="font-size:50px;font-weight:700;color:#64748b;padding-bottom:10px;">,${parts.decimalPart}</span>
+              <div style="text-align:center;margin:4px 0 12px;">
+                <p style="margin:0;font-size:10px;font-weight:800;letter-spacing:.15em;opacity:.95;">${escapeHtml(restaurant.name.toUpperCase())}</p>
+              </div>
+              <div style="margin:0 auto 14px;max-width:220px;background:${ribbonBg};color:${ribbonColor};padding:10px 10px;border-radius:10px;text-align:center;font-size:17px;font-weight:900;line-height:1.1;">
+                ${escapeHtml(flyerHeadline || 'CONFIRA NOSSAS OFERTAS')}
+              </div>
+              <div style="display:grid;gap:8px;">
+                ${cardRows}
+              </div>
+              <div style="margin-top:14px;text-align:center;">
+                <p style="margin:0 auto 6px;display:inline-flex;padding:5px 12px;border-radius:999px;background:rgba(15,23,42,.8);font-size:10px;font-weight:700;">PECA AGORA PELO LINK</p>
+                <p style="margin:0;font-size:10px;opacity:.95;">${escapeHtml(marketingLink.replace('https://', ''))}</p>
               </div>
             </div>
-          `;
-        })()
-      : '';
-    return `
-      <main class="page" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f1f5f9;padding:0;">
-        <section style="position:relative;overflow:hidden;width:1080px;height:1920px;background:${previewClass};color:#fff;font-family:sans-serif;display:flex;flex-direction:column;padding:60px;">
-          <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.08) 1px, transparent 1px);background-size:40px 40px;opacity:.18;"></div>
-          <div style="position:absolute;right:-100px;bottom:-150px;height:500px;width:500px;border-radius:999px;background:rgba(255,255,255,.08);filter:blur(4px);"></div>
-          
-          <div style="position:relative;z-index:10;height:100%;display:flex;flex-direction:column;">
-          <div style="text-align:center;margin-bottom:40px;margin-top:40px;">
-             <div style="display:inline-flex;align-items:center;justify-content:center;width:140px;height:140px;border-radius:999px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.2);margin-bottom:20px;box-shadow:0 10px 30px rgba(0,0,0,0.2);">
-                <span style="font-size:60px;font-weight:700;">${escapeHtml(restaurant.name.charAt(0).toUpperCase())}</span>
-             </div>
-            <p style="margin:0;font-size:24px;font-weight:700;letter-spacing:.2em;opacity:.9;text-transform:uppercase;">${escapeHtml(restaurant.name)}</p>
-          </div>
-          <div style="margin:0 auto 40px;width:100%;transform:skew(-3deg);background:${ribbonBg};color:${ribbonColor};padding:20px 40px;border-radius:16px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.3);">
-            <span style="display:block;transform:skew(3deg);font-size:56px;font-weight:900;line-height:1;text-transform:uppercase;">${escapeHtml(flyerHeadline || 'OFERTAS DO DIA')}</span>
-          </div>
-          ${
-            singleProduct
-              ? singleMarkup
-              : `<div style="flex:1;display:flex;flex-direction:column;gap:24px;overflow:hidden;margin-top:40px;">${cardRows}</div>`
-          }
-          <div style="margin-top:auto;text-align:center;padding-bottom:60px;">
-            <p style="margin:0;font-size:24px;font-weight:500;opacity:.9;background:rgba(0,0,0,0.3);padding:10px 30px;border-radius:999px;display:inline-block;">${escapeHtml(marketingLink.replace('https://', ''))}</p>
-            <p style="margin:24px 0 0;font-size:18px;font-weight:700;opacity:0.4;text-transform:uppercase;letter-spacing:0.2em;">pedezap.site</p>
-          </div>
           </div>
         </section>
       </main>
     `;
   };
-
   const downloadFlyerFromModal = () => {
     if (!restaurant) return;
     openMarketingPrintWindow(buildFlyerPreviewMarkup(), `Flyer de Ofertas - ${restaurant.name}`);
@@ -3181,7 +3193,7 @@ export default function MasterPage() {
                                       : 'border-gray-300 bg-white text-gray-500'
                                   }`}
                                 >
-                                  {settingsPaymentMethods[item.key] ? '• ' : ''}
+                                  {settingsPaymentMethods[item.key] ? 'â€¢ ' : ''}
                                   {item.label}
                                 </button>
                               ))}
@@ -3989,7 +4001,7 @@ export default function MasterPage() {
                               </div>
                               <div>
                                 <p className="font-medium text-gray-900">
-                                  {customer.name} {customer.totalOrders >= 10 ? 'â­' : ''}
+                                  {customer.name} {customer.totalOrders >= 10 ? 'Ã¢Â­Â' : ''}
                                 </p>
                                 <p className="text-xs text-gray-500">{customer.whatsapp}</p>
                               </div>
@@ -4665,7 +4677,7 @@ export default function MasterPage() {
                               value={flyerHeadline}
                               onChange={(event) => setFlyerHeadline(event.target.value.slice(0, 30))}
                               className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-bold uppercase tracking-wide focus:border-slate-900 focus:ring-0 transition-colors"
-                              placeholder="CONFIRA OS PREÇOS"
+                              placeholder="CONFIRA OS PREÃ‡OS"
                             />
 
                             <p className="mt-5 mb-3 text-sm font-semibold text-gray-900">Tema Visual</p>
@@ -4740,7 +4752,7 @@ export default function MasterPage() {
                             onClick={() => setFlyerMobileTab('preview')}
                             className="w-full rounded-lg bg-black px-4 py-2.5 text-sm font-semibold text-white"
                           >
-                            Ver Resultado →
+                            Ver Resultado ?
                           </button>
                         </div>
                       </div>
@@ -5144,7 +5156,7 @@ export default function MasterPage() {
                               </span>
                               <p className="text-xl font-semibold text-gray-900">Criador de Stories</p>
                               <p className="mt-1 text-sm text-gray-600">Crie imagens profissionais de promocao de produtos.</p>
-                              <p className="mt-3 text-sm font-semibold text-slate-900">Criar Flyer →</p>
+                              <p className="mt-3 text-sm font-semibold text-slate-900">Criar Flyer ?</p>
                             </button>
 
                             <button
@@ -5157,7 +5169,7 @@ export default function MasterPage() {
                               </span>
                               <p className="text-xl font-semibold text-gray-900">Cartao Interativo</p>
                               <p className="mt-1 text-sm text-gray-600">Gere um cartao virtual (bio link) com seus contatos.</p>
-                              <p className="mt-3 text-sm font-semibold text-purple-600">Criar Cartao →</p>
+                              <p className="mt-3 text-sm font-semibold text-purple-600">Criar Cartao ?</p>
                             </button>
 
                             <button
@@ -5170,7 +5182,7 @@ export default function MasterPage() {
                               </span>
                               <p className="text-xl font-semibold text-gray-900">Pedir Avaliacoes</p>
                               <p className="mt-1 text-sm text-gray-600">Gere um card com QR Code para conseguir 5 estrelas no Google.</p>
-                              <p className="mt-3 text-sm font-semibold text-blue-600">Criar Card →</p>
+                              <p className="mt-3 text-sm font-semibold text-blue-600">Criar Card ?</p>
                             </button>
 
                             <button
@@ -5183,7 +5195,7 @@ export default function MasterPage() {
                               </span>
                               <p className="text-xl font-semibold text-gray-900">Panfleto de Entrega</p>
                               <p className="mt-1 text-sm text-gray-600">Imprima cartoes de agradecimento com cupom para a sacola.</p>
-                              <p className="mt-3 text-sm font-semibold text-red-500">Gerar →</p>
+                              <p className="mt-3 text-sm font-semibold text-red-500">Gerar ?</p>
                             </button>
                           </div>
                         </div>
@@ -5939,6 +5951,27 @@ export default function MasterPage() {
                         onChange={(event) => setProductForm((prev) => ({ ...prev, description: event.target.value }))}
                         className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm h-20 resize-none"
                         placeholder="Descreva os detalhes deste item..."
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">
+                        {productForm.kind === 'pizza' ? 'Preco Base (calculado pelos sabores)' : 'Preco Base'}
+                      </label>
+                      <input
+                        value={String(productForm.price ?? '')}
+                        onChange={(event) =>
+                          setProductForm((prev) => ({
+                            ...prev,
+                            price: parsePriceInput(event.target.value)
+                          }))
+                        }
+                        disabled={productForm.kind === 'pizza'}
+                        className={`w-full rounded-lg border px-3 py-2 text-sm ${
+                          productForm.kind === 'pizza'
+                            ? 'border-gray-200 bg-gray-100 text-gray-500'
+                            : 'border-gray-300 bg-white text-gray-900'
+                        }`}
+                        placeholder={productForm.kind === 'pizza' ? 'Calculado automaticamente' : 'Ex: 25,90'}
                       />
                     </div>
                   </div>
