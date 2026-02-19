@@ -1382,6 +1382,52 @@ export default function MasterPage() {
     `;
   };
 
+  const toDataUrl = (blob: Blob) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') resolve(reader.result);
+        else reject(new Error('Falha ao ler arquivo.'));
+      };
+      reader.onerror = () => reject(new Error('Falha ao converter imagem.'));
+      reader.readAsDataURL(blob);
+    });
+
+  const fallbackImageDataUrl = 'data:image/svg+xml;charset=utf-8,' +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800">
+        <rect width="100%" height="100%" fill="#0f172a"/>
+        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#94a3b8" font-size="56" font-family="Arial">Imagem</text>
+      </svg>`
+    );
+
+  const inlineMarkupImages = async (content: string) => {
+    const srcMatches = Array.from(content.matchAll(/src="([^"]+)"/g));
+    const uniqueSrc = Array.from(new Set(srcMatches.map((match) => match[1]).filter(Boolean)));
+    if (!uniqueSrc.length) return content;
+
+    const replacements = await Promise.all(
+      uniqueSrc.map(async (src) => {
+        if (src.startsWith('data:')) return { src, dataUrl: src };
+        try {
+          const response = await fetch(src, { mode: 'cors', credentials: 'omit' });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const blob = await response.blob();
+          const dataUrl = await toDataUrl(blob);
+          return { src, dataUrl };
+        } catch {
+          return { src, dataUrl: fallbackImageDataUrl };
+        }
+      })
+    );
+
+    let next = content;
+    replacements.forEach(({ src, dataUrl }) => {
+      next = next.replaceAll(`src="${src}"`, `src="${dataUrl}"`);
+    });
+    return next;
+  };
+
   const triggerDownloadFromBlob = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -1404,7 +1450,8 @@ export default function MasterPage() {
     const allowSvgFallback = options?.allowSvgFallback ?? true;
     const preferredFormat = options?.preferredFormat ?? 'png';
     const safeName = sanitizeDownloadName(title);
-    const svgMarkup = createSvgFromMarkup(content, width, height);
+    const contentWithInlineImages = await inlineMarkupImages(content);
+    const svgMarkup = createSvgFromMarkup(contentWithInlineImages, width, height);
     const svgBlob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
 
     try {
