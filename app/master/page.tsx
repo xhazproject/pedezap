@@ -46,7 +46,12 @@ import {
   Wallet,
   Save,
   X,
-  Paperclip
+  Paperclip,
+  Instagram,
+  Facebook,
+  Youtube,
+  Music2,
+  Twitter
 } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import {
@@ -240,6 +245,20 @@ type FlyerTheme = {
   ctaClass: string;
 };
 
+type BioLinkAppearance = 'dark' | 'light' | 'brand';
+
+type BioLinkSettings = {
+  appearance: BioLinkAppearance;
+  headline: string;
+  whatsappEnabled: boolean;
+  whatsappValue: string;
+  instagramEnabled: boolean;
+  instagramValue: string;
+  customEnabled: boolean;
+  customLabel: string;
+  customUrl: string;
+};
+
 type SupportAttachmentDraft = {
   name: string;
   url: string;
@@ -373,6 +392,13 @@ function parsePriceInput(value: string | number | null | undefined) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function normalizeExternalUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
 function createDefaultProductForm(categoryId = ''): MenuProductForm {
   return {
     categoryId,
@@ -440,6 +466,20 @@ function createDefaultManualOrderForm(): ManualOrderForm {
   };
 }
 
+function createDefaultBioLinkSettings(): BioLinkSettings {
+  return {
+    appearance: 'dark',
+    headline: 'Nossos Links Oficiais',
+    whatsappEnabled: true,
+    whatsappValue: '',
+    instagramEnabled: true,
+    instagramValue: '',
+    customEnabled: false,
+    customLabel: 'Meu Site',
+    customUrl: ''
+  };
+}
+
 function getLocalDateKey(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -486,11 +526,16 @@ export default function MasterPage() {
   const [marketingSection, setMarketingSection] = useState<'overview' | 'performance' | 'tools' | 'campaigns'>('overview');
   const [marketingQrColor, setMarketingQrColor] = useState('000000');
   const [showFlyerModal, setShowFlyerModal] = useState(false);
+  const [showBioLinkModal, setShowBioLinkModal] = useState(false);
+  const [showDeliveryPamphletModal, setShowDeliveryPamphletModal] = useState(false);
+  const [deliveryPamphletCouponId, setDeliveryPamphletCouponId] = useState('');
+  const [bioLinkMobileTab, setBioLinkMobileTab] = useState<'edit' | 'preview'>('edit');
   const [flyerMobileTab, setFlyerMobileTab] = useState<'edit' | 'preview'>('edit');
-  const [flyerHeadline, setFlyerHeadline] = useState('CONFIRA OS PREÃ‡OS');
+  const [flyerHeadline, setFlyerHeadline] = useState('CONFIRA OS PREÃƒâ€¡OS');
   const [flyerThemeKey, setFlyerThemeKey] = useState('dark');
   const [flyerProductQuery, setFlyerProductQuery] = useState('');
   const [flyerSelectedProductIds, setFlyerSelectedProductIds] = useState<string[]>([]);
+  const [bioLinkSettings, setBioLinkSettings] = useState<BioLinkSettings>(createDefaultBioLinkSettings());
   const [settingsDraft, setSettingsDraft] = useState<RestaurantForm | null>(null);
   const [settingsDeliveryEta, setSettingsDeliveryEta] = useState('45-60 min');
   const [settingsMessageTemplate, setSettingsMessageTemplate] = useState('Ola, gostaria de fazer um pedido pelo catalogo!');
@@ -728,6 +773,14 @@ export default function MasterPage() {
   useEffect(() => {
     setMarketingCampaigns(restaurant?.marketingCampaigns ?? []);
   }, [restaurant?.marketingCampaigns]);
+
+  useEffect(() => {
+    if (!restaurant) return;
+    setBioLinkSettings({
+      ...createDefaultBioLinkSettings(),
+      ...(restaurant.bioLink ?? {})
+    });
+  }, [restaurant]);
 
   async function saveRestaurant(data: RestaurantForm) {
     if (!session) return;
@@ -1145,6 +1198,29 @@ export default function MasterPage() {
     });
   const leastSoldProducts = [...topProducts].sort((a, b) => a.soldQuantity - b.soldQuantity).slice(0, 4);
   const marketingLink = restaurant ? `https://pedezap.site/${restaurant.slug}` : '';
+  const bioLinkPublicUrl = restaurant ? `https://pedezap.site/${restaurant.slug}/bio` : '';
+  const flyerLogoUrl = settingsDraft?.logoUrl || restaurant?.logoUrl || '';
+  const bioPreviewCardClass =
+    bioLinkSettings.appearance === 'light'
+      ? 'bg-white text-slate-900'
+      : bioLinkSettings.appearance === 'brand'
+        ? 'bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-900 text-white'
+        : 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-white';
+  const bioPreviewMutedClass = bioLinkSettings.appearance === 'light' ? 'text-slate-500' : 'text-white/75';
+  const bioPreviewLinkBaseClass =
+    bioLinkSettings.appearance === 'light'
+      ? 'border border-slate-200 bg-slate-50 text-slate-900'
+      : 'border border-white/20 bg-white/10 text-white';
+  const bioWhatsAppHref = bioLinkSettings.whatsappValue.includes('http')
+    ? bioLinkSettings.whatsappValue
+    : `https://wa.me/${bioLinkSettings.whatsappValue.replace(/\D/g, '')}`;
+  const bioInstagramHref = bioLinkSettings.instagramValue.includes('http')
+    ? bioLinkSettings.instagramValue
+    : `https://instagram.com/${bioLinkSettings.instagramValue.replace('@', '')}`;
+  const bioCustomHref = normalizeExternalUrl(bioLinkSettings.customUrl);
+  const canUseWhatsApp = bioLinkSettings.whatsappEnabled && bioLinkSettings.whatsappValue.replace(/\D/g, '').length >= 10;
+  const canUseInstagram = bioLinkSettings.instagramEnabled && bioLinkSettings.instagramValue.trim().length > 0;
+  const canUseCustomLink = bioLinkSettings.customEnabled && bioCustomHref.length > 0;
   const marketingTopProductsForFlyer = useMemo(() => {
     const withSales = topProducts.filter((item) => item.soldQuantity > 0).slice(0, 6);
     if (withSales.length > 0) return withSales;
@@ -1287,12 +1363,106 @@ export default function MasterPage() {
     win.focus();
   };
 
+  const sanitizeDownloadName = (value: string) => {
+    return value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'arquivo';
+  };
+
+  const createSvgFromMarkup = (content: string, width: number, height: number) => {
+    return `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+        <foreignObject x="0" y="0" width="100%" height="100%">
+          <div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;background:#ffffff;">
+            ${content}
+          </div>
+        </foreignObject>
+      </svg>
+    `;
+  };
+
+  const triggerDownloadFromBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+  };
+
+  const downloadMarketingMarkup = async (
+    content: string,
+    title: string,
+    options?: { width?: number; height?: number; allowSvgFallback?: boolean; preferredFormat?: 'png' | 'jpg' }
+  ) => {
+    if (typeof window === 'undefined') return;
+    const width = options?.width ?? 1080;
+    const height = options?.height ?? 1920;
+    const allowSvgFallback = options?.allowSvgFallback ?? true;
+    const preferredFormat = options?.preferredFormat ?? 'png';
+    const safeName = sanitizeDownloadName(title);
+    const svgMarkup = createSvgFromMarkup(content, width, height);
+    const svgBlob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+
+    try {
+      const svgUrl = URL.createObjectURL(svgBlob);
+      const image = new Image();
+      image.decoding = 'sync';
+
+      const imageBlob = await new Promise<Blob>((resolve, reject) => {
+        image.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const context = canvas.getContext('2d');
+            if (!context) {
+              reject(new Error('Nao foi possivel criar contexto do canvas.'));
+              return;
+            }
+            context.fillStyle = '#ffffff';
+            context.fillRect(0, 0, width, height);
+            context.drawImage(image, 0, 0, width, height);
+            canvas.toBlob((blob) => {
+              if (!blob) {
+                reject(new Error('Nao foi possivel gerar imagem.'));
+                return;
+              }
+              resolve(blob);
+            }, preferredFormat === 'jpg' ? 'image/jpeg' : 'image/png', preferredFormat === 'jpg' ? 0.95 : undefined);
+          } catch (error) {
+            reject(error instanceof Error ? error : new Error('Falha ao renderizar imagem.'));
+          } finally {
+            URL.revokeObjectURL(svgUrl);
+          }
+        };
+        image.onerror = () => {
+          URL.revokeObjectURL(svgUrl);
+          reject(new Error('Nao foi possivel carregar o SVG para converter em PNG.'));
+        };
+        image.src = svgUrl;
+      });
+
+      triggerDownloadFromBlob(imageBlob, `${safeName}.${preferredFormat}`);
+      return;
+    } catch {
+      if (allowSvgFallback) {
+        triggerDownloadFromBlob(svgBlob, `${safeName}.svg`);
+      } else {
+        alert('Nao foi possivel gerar PNG/JPG para este conteudo. Verifique se as imagens do flyer sao locais ou upload da plataforma.');
+      }
+    }
+  };
+
   const openFlyerOffers = () => {
     if (!restaurant) return;
     const defaults = marketingTopProductsForFlyer.slice(0, 4).map((item) => item.id);
     setFlyerSelectedProductIds(defaults);
     setFlyerProductQuery('');
-    setFlyerHeadline('CONFIRA OS PREÃ‡OS');
+    setFlyerHeadline('CONFIRA OS PRECOS');
     setFlyerThemeKey('dark');
     setFlyerMobileTab('edit');
     setShowFlyerModal(true);
@@ -1308,6 +1478,10 @@ export default function MasterPage() {
 
   const buildFlyerPreviewMarkup = () => {
     if (!restaurant) return '';
+    const singleProduct = flyerSelectedProducts.length === 1 ? flyerSelectedProducts[0] : null;
+    const logoMarkup = flyerLogoUrl
+      ? `<img src="${escapeHtml(flyerLogoUrl)}" alt="${escapeHtml(`Logo ${restaurant.name}`)}" style="width:100%;height:100%;object-fit:cover;" />`
+      : `<span style="font-size:22px;font-weight:700;color:#fff;">${escapeHtml(restaurant.name.charAt(0).toUpperCase())}</span>`;
     const cardRows =
       flyerSelectedProducts.length > 0
         ? flyerSelectedProducts
@@ -1336,6 +1510,24 @@ export default function MasterPage() {
 
     const ribbonBg = flyerThemeKey === 'dark' ? '#facc15' : flyerThemeKey === 'red' ? '#fde047' : '#ffffff';
     const ribbonColor = flyerThemeKey === 'dark' ? '#0f172a' : flyerThemeKey === 'red' ? '#7f1d1d' : '#065f46';
+    const singleProductMarkup = singleProduct
+      ? (() => {
+          const parts = splitPriceParts(singleProduct.price);
+          return `
+            <div style="margin-top:12px;display:flex;flex-direction:column;align-items:center;gap:10px;">
+              <div style="padding:4px;border-radius:14px;background:#ffffff;transform:rotate(-2deg);box-shadow:0 14px 28px rgba(2,6,23,.4);">
+                <img src="${escapeHtml(singleProduct.imageUrl || 'https://picsum.photos/seed/pedezap-produto/480/480')}" alt="${escapeHtml(singleProduct.name)}" style="width:170px;height:170px;border-radius:12px;object-fit:cover;" />
+              </div>
+              <p style="margin:0;text-align:center;font-size:24px;line-height:1.05;font-weight:900;text-transform:uppercase;">${escapeHtml(singleProduct.name)}</p>
+              <div style="display:inline-flex;align-items:flex-end;gap:3px;border-radius:14px;background:#facc15;color:#0f172a;padding:8px 12px;font-weight:900;box-shadow:0 8px 20px rgba(250,204,21,.35);">
+                <span style="font-size:13px;line-height:1.1;">R$</span>
+                <span style="font-size:34px;line-height:.95;">${parts.intPart}</span>
+                <span style="font-size:15px;line-height:1.1;">,${parts.decimalPart}</span>
+              </div>
+            </div>
+          `;
+        })()
+      : '';
 
     return `
       <main class="page" style="max-width:780px;">
@@ -1348,14 +1540,15 @@ export default function MasterPage() {
                 <span style="width:6px;height:6px;border-radius:999px;background:rgba(255,255,255,.85);"></span>
               </div>
               <div style="text-align:center;margin:4px 0 12px;">
+                <div style="margin:0 auto 8px;width:54px;height:54px;border-radius:999px;overflow:hidden;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;">
+                  ${logoMarkup}
+                </div>
                 <p style="margin:0;font-size:10px;font-weight:800;letter-spacing:.15em;opacity:.95;">${escapeHtml(restaurant.name.toUpperCase())}</p>
               </div>
               <div style="margin:0 auto 14px;max-width:220px;background:${ribbonBg};color:${ribbonColor};padding:10px 10px;border-radius:10px;text-align:center;font-size:17px;font-weight:900;line-height:1.1;">
-                ${escapeHtml(flyerHeadline || 'CONFIRA NOSSAS OFERTAS')}
+                ${escapeHtml((flyerHeadline || 'CONFIRA NOSSAS OFERTAS').toUpperCase())}
               </div>
-              <div style="display:grid;gap:8px;">
-                ${cardRows}
-              </div>
+              ${singleProduct ? singleProductMarkup : `<div style="display:grid;gap:8px;">${cardRows}</div>`}
               <div style="margin-top:14px;text-align:center;">
                 <p style="margin:0 auto 6px;display:inline-flex;padding:5px 12px;border-radius:999px;background:rgba(15,23,42,.8);font-size:10px;font-weight:700;">PECA AGORA PELO LINK</p>
                 <p style="margin:0;font-size:10px;opacity:.95;">${escapeHtml(marketingLink.replace('https://', ''))}</p>
@@ -1366,44 +1559,147 @@ export default function MasterPage() {
       </main>
     `;
   };
-  const downloadFlyerFromModal = () => {
-    if (!restaurant) return;
-    openMarketingPrintWindow(buildFlyerPreviewMarkup(), `Flyer de Ofertas - ${restaurant.name}`);
-  };
 
-  const openDigitalBusinessCard = () => {
-    if (!restaurant) return;
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(marketingLink)}&color=${marketingQrColor}&bgcolor=ffffff`;
-    const logo = settingsDraft?.logoUrl || restaurant.logoUrl;
-    const content = `
-      <main class="page" style="max-width:760px;">
-        <section class="card">
-          <header class="hero" style="display:flex;align-items:center;gap:14px;">
-            ${
-              logo
-                ? `<img src="${escapeHtml(logo)}" alt="Logo ${escapeHtml(restaurant.name)}" style="width:68px;height:68px;border-radius:999px;object-fit:cover;border:2px solid rgba(255,255,255,.45);" />`
-                : `<div style="width:68px;height:68px;border-radius:999px;background:#065f46;color:#fff;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;">${escapeHtml(restaurant.name.charAt(0).toUpperCase())}</div>`
-            }
-            <div>
-              <h2 style="margin:0 0 4px;font-size:30px;">${escapeHtml(restaurant.name)}</h2>
-              <p style="margin:0;">Cartao digital para compartilhamento rapido.</p>
+  const buildFlyerStoryExportMarkup = () => {
+    if (!restaurant) return '';
+    const singleProduct = flyerSelectedProducts.length === 1 ? flyerSelectedProducts[0] : null;
+    const logoMarkup = flyerLogoUrl
+      ? `<img src="${escapeHtml(flyerLogoUrl)}" alt="${escapeHtml(`Logo ${restaurant.name}`)}" style="width:100%;height:100%;object-fit:cover;" />`
+      : `<span style="font-size:30px;font-weight:900;color:#fff;">${escapeHtml(restaurant.name.charAt(0).toUpperCase())}</span>`;
+
+    const previewClass =
+      flyerThemeKey === 'red'
+        ? 'linear-gradient(140deg, #b91c1c, #ef4444)'
+        : flyerThemeKey === 'green'
+          ? 'linear-gradient(140deg, #059669, #14b8a6)'
+          : flyerThemeKey === 'orange'
+            ? 'linear-gradient(140deg, #f97316, #f59e0b)'
+            : 'linear-gradient(140deg, #020617, #0f172a)';
+
+    const ribbonBg = flyerThemeKey === 'dark' ? '#facc15' : flyerThemeKey === 'red' ? '#fde047' : '#ffffff';
+    const ribbonColor = flyerThemeKey === 'dark' ? '#0f172a' : flyerThemeKey === 'red' ? '#7f1d1d' : '#065f46';
+
+    const productRows =
+      flyerSelectedProducts.length > 0
+        ? flyerSelectedProducts
+            .slice(0, 3)
+            .map(
+              (product) => `
+                <div style="display:flex;align-items:center;gap:14px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.12);border-radius:20px;padding:14px;">
+                  <img src="${escapeHtml(product.imageUrl || '')}" alt="${escapeHtml(product.name)}" style="width:94px;height:94px;border-radius:16px;object-fit:cover;" />
+                  <div style="min-width:0;">
+                    <p style="margin:0;font-size:34px;font-weight:900;line-height:1.02;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(product.name)}</p>
+                    <p style="margin:8px 0 0;font-size:30px;font-weight:900;color:#f8fafc;">${moneyFormatter.format(product.price)}</p>
+                  </div>
+                </div>
+              `
+            )
+            .join('')
+        : `<div style="display:flex;align-items:center;justify-content:center;min-height:360px;border:2px dashed rgba(255,255,255,.35);border-radius:20px;color:#cbd5e1;font-size:30px;font-weight:700;">Selecione produtos</div>`;
+
+    const singleProductMarkup = singleProduct
+      ? (() => {
+          const parts = splitPriceParts(singleProduct.price);
+          return `
+            <div style="margin-top:26px;display:flex;flex-direction:column;align-items:center;gap:20px;">
+              <div style="padding:7px;border-radius:22px;background:#ffffff;transform:rotate(-2deg);box-shadow:0 20px 35px rgba(2,6,23,.4);">
+                <img src="${escapeHtml(singleProduct.imageUrl || '')}" alt="${escapeHtml(singleProduct.name)}" style="width:470px;height:470px;border-radius:18px;object-fit:cover;" />
+              </div>
+              <p style="margin:0;text-align:center;font-size:66px;line-height:1.02;font-weight:900;text-transform:uppercase;">${escapeHtml(singleProduct.name)}</p>
+              <div style="display:inline-flex;align-items:flex-end;gap:5px;border-radius:22px;background:#facc15;color:#0f172a;padding:14px 20px;font-weight:900;box-shadow:0 10px 25px rgba(250,204,21,.35);">
+                <span style="font-size:24px;line-height:1.1;">R$</span>
+                <span style="font-size:80px;line-height:.95;">${parts.intPart}</span>
+                <span style="font-size:36px;line-height:1.1;">,${parts.decimalPart}</span>
+              </div>
             </div>
-          </header>
-          <div class="section" style="display:grid;grid-template-columns:1.1fr .9fr;gap:16px;align-items:center;">
-            <div>
-              <p style="margin:0 0 10px;font-size:15px;"><strong>Link do cardapio:</strong><br/>${escapeHtml(marketingLink)}</p>
-              <p style="margin:0 0 10px;font-size:15px;"><strong>WhatsApp:</strong><br/>${escapeHtml(restaurant.whatsapp)}</p>
-              <p style="margin:0;font-size:15px;"><strong>Endereco:</strong><br/>${escapeHtml(restaurant.address)} - ${escapeHtml(restaurant.city)}/${escapeHtml(restaurant.state)}</p>
+          `;
+        })()
+      : '';
+
+    return `
+      <main style="width:1080px;height:1920px;overflow:hidden;position:relative;background:${previewClass};color:#ffffff;font-family:Arial,sans-serif;">
+        <div style="position:absolute;inset:0;opacity:.2;background-image:radial-gradient(rgba(255,255,255,.4) 1px, transparent 1px);background-size:24px 24px;"></div>
+        <section style="position:relative;height:100%;display:flex;flex-direction:column;padding:74px 62px 68px;">
+          <div style="display:flex;justify-content:center;gap:12px;padding-bottom:16px;">
+            <span style="width:10px;height:10px;border-radius:999px;background:rgba(255,255,255,.85);"></span>
+            <span style="width:44px;height:10px;border-radius:999px;background:rgba(255,255,255,.7);"></span>
+            <span style="width:10px;height:10px;border-radius:999px;background:rgba(255,255,255,.85);"></span>
+          </div>
+          <div style="text-align:center;margin:8px 0 22px;">
+            <div style="margin:0 auto 12px;width:110px;height:110px;border-radius:999px;overflow:hidden;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;">
+              ${logoMarkup}
             </div>
-            <div style="text-align:center;">
-              <img class="qrcode" style="width:180px;height:180px;" src="${qrUrl}" alt="QR Code do cardapio" />
-              <p class="muted" style="margin-top:8px;">Escaneie para abrir o cardapio</p>
-            </div>
+            <p style="margin:0;font-size:22px;font-weight:800;letter-spacing:.18em;opacity:.95;">${escapeHtml(restaurant.name.toUpperCase())}</p>
+          </div>
+          <div style="margin:0 auto 24px;max-width:870px;background:${ribbonBg};color:${ribbonColor};padding:18px;border-radius:16px;text-align:center;font-size:72px;font-weight:900;line-height:1.03;">
+            ${escapeHtml((flyerHeadline || 'CONFIRA NOSSAS OFERTAS').toUpperCase())}
+          </div>
+          ${singleProduct ? singleProductMarkup : `<div style="display:grid;gap:16px;">${productRows}</div>`}
+          <div style="margin-top:auto;text-align:center;">
+            <p style="margin:0 auto 10px;display:inline-flex;padding:8px 16px;border-radius:999px;background:rgba(15,23,42,.8);font-size:15px;font-weight:700;">PECA AGORA PELO LINK</p>
+            <p style="margin:0;font-size:18px;opacity:.95;">${escapeHtml(marketingLink.replace('https://', ''))}</p>
           </div>
         </section>
       </main>
     `;
-    openMarketingPrintWindow(content, `Cartao Digital - ${restaurant.name}`);
+  };
+  const downloadFlyerFromModal = () => {
+    if (!restaurant) return;
+    void downloadMarketingMarkup(buildFlyerStoryExportMarkup(), `Flyer de Ofertas - ${restaurant.name}`, {
+      width: 1080,
+      height: 1920,
+      preferredFormat: 'png',
+      allowSvgFallback: false
+    });
+  };
+
+  const openBioLinkBuilder = () => {
+    if (!restaurant) return;
+    setBioLinkSettings((prev) => ({
+      ...createDefaultBioLinkSettings(),
+      ...prev,
+      whatsappValue: prev.whatsappValue || restaurant.whatsapp
+    }));
+    setBioLinkMobileTab('edit');
+    setShowBioLinkModal(true);
+  };
+
+  const saveBioLinkAndPublish = async () => {
+    if (!session || !restaurant) return;
+    if (bioLinkSettings.whatsappEnabled && bioLinkSettings.whatsappValue.replace(/\D/g, '').length < 10) {
+      alert('Preencha um WhatsApp valido para o botao funcionar.');
+      return;
+    }
+    if (bioLinkSettings.instagramEnabled && !bioLinkSettings.instagramValue.trim()) {
+      alert('Preencha o Instagram ou desative o botao Instagram.');
+      return;
+    }
+    if (bioLinkSettings.customEnabled && !normalizeExternalUrl(bioLinkSettings.customUrl)) {
+      alert('Preencha uma URL valida no link personalizado ou desative esta opcao.');
+      return;
+    }
+
+    const response = await fetch(`/api/master/restaurant/${session.restaurantSlug}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'saveBioLink',
+        data: bioLinkSettings
+      })
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.success) {
+      alert(payload?.message ?? 'Nao foi possivel salvar o bio link.');
+      return;
+    }
+    if (payload?.bioLink && restaurant) {
+      setRestaurant({ ...restaurant, bioLink: payload.bioLink });
+    }
+    await fetch(`/api/master/restaurant/${session.restaurantSlug}`, { cache: 'no-store' }).catch(() => null);
+    setShowBioLinkModal(false);
+    setMessage('Bio link salvo e publicado.');
+    const nextUrl = `${bioLinkPublicUrl || marketingLink}?v=${Date.now()}`;
+    window.open(nextUrl, '_blank', 'noopener,noreferrer');
   };
 
   const openReviewRequestCard = () => {
@@ -1424,31 +1720,52 @@ export default function MasterPage() {
         </section>
       </main>
     `;
-    openMarketingPrintWindow(content, `Card de Avaliacao - ${restaurant.name}`);
+    void downloadMarketingMarkup(content, `Card de Avaliacao - ${restaurant.name}`, {
+      width: 1080,
+      height: 1350
+    });
   };
 
   const openDeliveryPamphlet = () => {
     if (!restaurant) return;
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(marketingLink)}&color=${marketingQrColor}&bgcolor=ffffff`;
+    const firstActiveCouponId = activeCoupons[0]?.id ?? '';
+    setDeliveryPamphletCouponId(firstActiveCouponId);
+    setShowDeliveryPamphletModal(true);
+  };
+
+  const downloadDeliveryPamphlet = () => {
+    if (!restaurant) return;
+    const coupon = selectedDeliveryPamphletCoupon;
+    const couponLabel = coupon ? formatCouponDiscount(coupon) : 'SELECIONE UM CUPOM';
+    const couponHint = coupon
+      ? coupon.minOrderValue > 0
+        ? `Em pedidos acima de ${formatMoney(coupon.minOrderValue)}`
+        : 'Valido em qualquer pedido'
+      : 'Ative um cupom para gerar o panfleto';
+
     const content = `
-      <main class="page" style="max-width:820px;">
-        <section class="card">
-          <header class="hero" style="background:linear-gradient(135deg,#0f172a,#334155);">
-            <h2>${escapeHtml(restaurant.name)}</h2>
-            <p>Obrigado pelo pedido. Volte sempre!</p>
-          </header>
-          <div class="section" style="display:grid;grid-template-columns:1fr 220px;gap:16px;align-items:center;">
-            <div>
-              <p style="margin:0 0 8px;font-size:20px;font-weight:700;">Seu delivery favorito agora esta a um clique.</p>
-              <p style="margin:0 0 8px;font-size:14px;color:#475569;">Aponte a camera para o QR Code e faca seu proximo pedido em segundos.</p>
-              <p style="margin:0;font-size:14px;color:#475569;"><strong>Link direto:</strong> ${escapeHtml(marketingLink)}</p>
+      <main class="page" style="max-width:760px;">
+        <section style="display:flex;justify-content:center;padding:22px 0;">
+          <div style="width:380px;max-width:100%;border:1px dashed #d1d5db;background:#ffffff;border-radius:8px;padding:22px 20px;">
+            <div style="text-align:center;color:#ef4444;font-size:36px;line-height:1;">&#10084;</div>
+            <h2 style="margin:8px 0 0;text-align:center;font-size:38px;line-height:1.05;font-weight:900;color:#0f172a;">OBRIGADO!</h2>
+            <p style="margin:8px 0 14px;text-align:center;font-size:14px;color:#475569;">Esperamos que ame seu pedido.</p>
+            <div style="height:1px;background:#e2e8f0;margin:12px 0;"></div>
+            <p style="margin:0 0 8px;text-align:center;font-size:11px;font-weight:700;letter-spacing:.08em;color:#64748b;">PARA A SUA PROXIMA COMPRA</p>
+            <div style="border:1px solid #e2e8f0;background:#f8fafc;border-radius:8px;padding:10px 8px;">
+              <p style="margin:0;text-align:center;font-size:28px;font-weight:900;color:#0f172a;line-height:1.1;">${escapeHtml(couponLabel.toUpperCase())}</p>
             </div>
-            <img class="qrcode" style="width:200px;height:200px;" src="${qrUrl}" alt="QR Code do cardapio" />
+            <p style="margin:10px 0 0;text-align:center;font-size:12px;color:#64748b;">${escapeHtml(couponHint)}</p>
+            <p style="margin:20px 0 0;text-align:center;font-size:20px;font-weight:800;color:#0f172a;">${escapeHtml(restaurant.name)}</p>
+            <p style="margin:4px 0 0;text-align:center;font-size:11px;color:#94a3b8;">Peca pelo nosso site: ${escapeHtml(marketingLink.replace('https://', ''))}</p>
           </div>
         </section>
       </main>
     `;
-    openMarketingPrintWindow(content, `Panfleto de Entrega - ${restaurant.name}`);
+    void downloadMarketingMarkup(content, `Panfleto de Entrega - ${restaurant.name}`, {
+      width: 1080,
+      height: 1350
+    });
   };
 
   const normalizeWhatsapp = (value: string) => value.replace(/\D/g, '');
@@ -1835,6 +2152,12 @@ export default function MasterPage() {
     }
     return 'Valido sempre';
   };
+
+  const activeCoupons = useMemo(() => coupons.filter((coupon) => coupon.active), [coupons]);
+  const selectedDeliveryPamphletCoupon = useMemo(() => {
+    if (!activeCoupons.length) return null;
+    return activeCoupons.find((coupon) => coupon.id === deliveryPamphletCouponId) ?? activeCoupons[0];
+  }, [activeCoupons, deliveryPamphletCouponId]);
 
   const openCreateCouponModal = () => {
     setEditingCouponId(null);
@@ -3193,7 +3516,7 @@ export default function MasterPage() {
                                       : 'border-gray-300 bg-white text-gray-500'
                                   }`}
                                 >
-                                  {settingsPaymentMethods[item.key] ? 'â€¢ ' : ''}
+                                  {settingsPaymentMethods[item.key] ? 'Ã¢â‚¬Â¢ ' : ''}
                                   {item.label}
                                 </button>
                               ))}
@@ -4001,7 +4324,7 @@ export default function MasterPage() {
                               </div>
                               <div>
                                 <p className="font-medium text-gray-900">
-                                  {customer.name} {customer.totalOrders >= 10 ? 'Ã¢Â­Â' : ''}
+                                  {customer.name} {customer.totalOrders >= 10 ? 'ÃƒÂ¢Ã‚Â­Ã‚Â' : ''}
                                 </p>
                                 <p className="text-xs text-gray-500">{customer.whatsapp}</p>
                               </div>
@@ -4675,9 +4998,9 @@ export default function MasterPage() {
                             </div>
                             <input
                               value={flyerHeadline}
-                              onChange={(event) => setFlyerHeadline(event.target.value.slice(0, 30))}
+                              onChange={(event) => setFlyerHeadline(event.target.value.toUpperCase().slice(0, 30))}
                               className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-bold uppercase tracking-wide focus:border-slate-900 focus:ring-0 transition-colors"
-                              placeholder="CONFIRA OS PREÃ‡OS"
+                              placeholder="CONFIRA OS PRECOS"
                             />
 
                             <p className="mt-5 mb-3 text-sm font-semibold text-gray-900">Tema Visual</p>
@@ -4784,14 +5107,18 @@ export default function MasterPage() {
                           />
                           
                           <div className="relative text-center mb-6 z-10">
-                             <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-3 shadow-lg">
+                            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-3 shadow-lg overflow-hidden">
+                              {flyerLogoUrl ? (
+                                <img src={flyerLogoUrl} alt={`Logo ${restaurant.name}`} className="h-full w-full object-cover" />
+                              ) : (
                                 <span className="text-xl font-bold text-white">{restaurant.name.charAt(0).toUpperCase()}</span>
-                             </div>
-                             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/90 drop-shadow-sm">{restaurant.name}</p>
+                              )}
+                            </div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/90 drop-shadow-sm">{restaurant.name}</p>
                           </div>
 
                           <div className={`relative mx-auto w-full -skew-x-3 rounded-lg px-4 py-3 text-center shadow-xl z-10 ${activeFlyerTheme.titleRibbonClass}`}>
-                            <span className="block skew-x-3 text-2xl font-black uppercase leading-none tracking-tight">{flyerHeadline || 'OFERTAS DO DIA'}</span>
+                            <span className="block skew-x-3 text-2xl font-black uppercase leading-none tracking-tight">{(flyerHeadline || 'OFERTAS DO DIA').toUpperCase()}</span>
                           </div>
 
                           {flyerSelectedProducts.length === 1 ? (
@@ -4882,6 +5209,399 @@ export default function MasterPage() {
                       <MessageCircle size={16} />
                       Compartilhar
                     </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {showBioLinkModal && restaurant && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/65 p-3 backdrop-blur-sm md:p-5">
+                <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
+                  <div className="flex items-center justify-between border-b border-gray-200 px-4 py-4 md:px-6">
+                    <div className="inline-flex items-center gap-2 text-lg font-semibold text-gray-900">
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-purple-100 text-purple-600">
+                        <Smartphone size={18} />
+                      </span>
+                      Bio Link para Instagram
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowBioLinkModal(false)}
+                      className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  <div className="flex border-b border-gray-200 md:hidden">
+                    <button
+                      type="button"
+                      onClick={() => setBioLinkMobileTab('edit')}
+                      className={`flex-1 px-4 py-2 text-sm font-medium ${
+                        bioLinkMobileTab === 'edit' ? 'border-b-2 border-gray-900 text-gray-900' : 'text-gray-500'
+                      }`}
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <Pencil size={14} /> Editar
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBioLinkMobileTab('preview')}
+                      className={`flex-1 px-4 py-2 text-sm font-medium ${
+                        bioLinkMobileTab === 'preview' ? 'border-b-2 border-gray-900 text-gray-900' : 'text-gray-500'
+                      }`}
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <Eye size={14} /> Preview
+                      </span>
+                    </button>
+                  </div>
+
+                  <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[430px_1fr]">
+                    <div
+                      className={`${bioLinkMobileTab === 'preview' ? 'hidden md:block' : 'block'} min-h-0 overflow-y-auto border-r border-gray-200 bg-white p-5`}
+                    >
+                      <div className="space-y-5">
+                        <section>
+                          <h4 className="mb-3 text-sm font-semibold text-gray-900">Aparencia</h4>
+                          <div className="grid grid-cols-3 gap-2">
+                            {[
+                              { key: 'dark' as const, label: 'Escuro' },
+                              { key: 'light' as const, label: 'Claro' },
+                              { key: 'brand' as const, label: 'Cor da Marca' }
+                            ].map((item) => (
+                              <button
+                                key={item.key}
+                                type="button"
+                                onClick={() => setBioLinkSettings((prev) => ({ ...prev, appearance: item.key }))}
+                                className={`rounded-xl border px-3 py-2 text-sm font-semibold transition ${
+                                  bioLinkSettings.appearance === item.key
+                                    ? 'border-slate-900 bg-slate-900 text-white'
+                                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                                }`}
+                              >
+                                {item.label}
+                              </button>
+                            ))}
+                          </div>
+                        </section>
+
+                        <section className="space-y-3 border-t border-gray-100 pt-4">
+                          <h4 className="text-sm font-semibold text-gray-900">Conteudo</h4>
+                          <div>
+                            <label className="text-xs font-semibold uppercase text-gray-500">Frase de destaque</label>
+                            <input
+                              value={bioLinkSettings.headline}
+                              onChange={(event) =>
+                                setBioLinkSettings((prev) => ({ ...prev, headline: event.target.value.slice(0, 80) }))
+                              }
+                              className="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm"
+                              placeholder="Nossos links oficiais"
+                            />
+                          </div>
+
+                          <div className="rounded-xl border border-gray-200 p-3">
+                            <div className="mb-2 flex items-center justify-between">
+                              <span className="text-sm font-semibold text-gray-800">Botao WhatsApp</span>
+                              <input
+                                type="checkbox"
+                                checked={bioLinkSettings.whatsappEnabled}
+                                onChange={(event) =>
+                                  setBioLinkSettings((prev) => ({ ...prev, whatsappEnabled: event.target.checked }))
+                                }
+                                className="h-4 w-4 rounded border-gray-300 text-green-600"
+                              />
+                            </div>
+                            <input
+                              value={bioLinkSettings.whatsappValue}
+                              onChange={(event) =>
+                                setBioLinkSettings((prev) => ({ ...prev, whatsappValue: event.target.value }))
+                              }
+                              className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm"
+                              placeholder="Numero com DDD ou link"
+                            />
+                            <p className="mt-1 text-[11px] text-gray-500">Ex: 11999998888 ou https://wa.me/5511999998888</p>
+                          </div>
+
+                          <div className="rounded-xl border border-gray-200 p-3">
+                            <div className="mb-2 flex items-center justify-between">
+                              <span className="text-sm font-semibold text-gray-800">Botao Instagram</span>
+                              <input
+                                type="checkbox"
+                                checked={bioLinkSettings.instagramEnabled}
+                                onChange={(event) =>
+                                  setBioLinkSettings((prev) => ({ ...prev, instagramEnabled: event.target.checked }))
+                                }
+                                className="h-4 w-4 rounded border-gray-300 text-pink-600"
+                              />
+                            </div>
+                            <input
+                              value={bioLinkSettings.instagramValue}
+                              onChange={(event) =>
+                                setBioLinkSettings((prev) => ({ ...prev, instagramValue: event.target.value }))
+                              }
+                              className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm"
+                              placeholder="Link do perfil"
+                            />
+                            <p className="mt-1 text-[11px] text-gray-500">Ex: @seuperfil ou instagram.com/seuperfil</p>
+                          </div>
+
+                          <div className="rounded-xl border border-gray-200 p-3">
+                            <div className="mb-2 flex items-center justify-between">
+                              <span className="text-sm font-semibold text-gray-800">Link Personalizado</span>
+                              <input
+                                type="checkbox"
+                                checked={bioLinkSettings.customEnabled}
+                                onChange={(event) =>
+                                  setBioLinkSettings((prev) => ({ ...prev, customEnabled: event.target.checked }))
+                                }
+                                className="h-4 w-4 rounded border-gray-300 text-blue-600"
+                              />
+                            </div>
+                            <div className="grid grid-cols-1 gap-2">
+                              <input
+                                value={bioLinkSettings.customLabel}
+                                onChange={(event) =>
+                                  setBioLinkSettings((prev) => ({ ...prev, customLabel: event.target.value.slice(0, 60) }))
+                                }
+                                className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm"
+                                placeholder="Meu site"
+                              />
+                              <input
+                                value={bioLinkSettings.customUrl}
+                                onChange={(event) =>
+                                  setBioLinkSettings((prev) => ({ ...prev, customUrl: event.target.value }))
+                                }
+                                className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm"
+                                placeholder="https://..."
+                              />
+                              <p className="text-[11px] text-gray-500">Aceita URL com ou sem https://</p>
+                            </div>
+                          </div>
+                        </section>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`${bioLinkMobileTab === 'edit' ? 'hidden md:block' : 'block'} relative min-h-0 overflow-y-auto bg-slate-900 p-4 md:p-6`}
+                    >
+                      <div
+                        className="absolute inset-0 opacity-30"
+                        style={{
+                          backgroundImage:
+                            'radial-gradient(circle at 1px 1px, rgba(148,163,184,.45) 1px, transparent 0)',
+                          backgroundSize: '20px 20px'
+                        }}
+                      />
+                      <div className="relative z-10 mx-auto flex w-full max-w-[390px] items-center justify-center">
+                        <div className="w-full rounded-[2.2rem] border-[8px] border-slate-900 bg-black p-2.5 shadow-[0_24px_80px_rgba(2,6,23,.45)]">
+                          <div className={`relative overflow-hidden rounded-[1.6rem] pb-8 ${bioPreviewCardClass}`}>
+                            <div className="h-40 w-full overflow-hidden">
+                              <img
+                                src={settingsDraft?.coverUrl || restaurant.coverUrl || 'https://picsum.photos/seed/pedezap-bio-cover/900/500'}
+                                alt={`Capa ${restaurant.name}`}
+                                className="h-full w-full object-cover opacity-90"
+                              />
+                            </div>
+                            <div className="-mt-12 flex justify-center">
+                              <div className="relative z-10 h-24 w-24 rounded-full bg-white p-1 shadow-lg ring-4 ring-white/70">
+                                <div className="h-full w-full overflow-hidden rounded-full border border-gray-200 bg-white">
+                                  {flyerLogoUrl ? (
+                                    <img src={flyerLogoUrl} alt={restaurant.name} className="h-full w-full object-cover" />
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center text-2xl font-black text-slate-900">
+                                      {restaurant.name.charAt(0).toUpperCase()}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="px-6 text-center">
+                              <p className="mt-3 text-xl font-bold leading-tight">{restaurant.name}</p>
+                              <p className={`mt-1 text-xs font-medium uppercase tracking-wider ${bioPreviewMutedClass}`}>
+                                {bioLinkSettings.headline || 'Nossos links oficiais'}
+                              </p>
+
+                              <div className="mt-6 space-y-4">
+                                <a
+                                  href={marketingLink}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className={`flex min-h-[50px] w-full items-center justify-center rounded-full px-6 text-sm font-bold transition-all hover:scale-[1.02] active:scale-95 ${bioPreviewLinkBaseClass}`}
+                                >
+                                  Ver Cardapio
+                                </a>
+
+                                {canUseWhatsApp && (
+                                  <a
+                                    href={bioWhatsAppHref}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className={`flex min-h-[50px] w-full items-center justify-center rounded-full px-6 text-sm font-bold transition-all hover:scale-[1.02] active:scale-95 ${bioPreviewLinkBaseClass}`}
+                                  >
+                                    Chamar no WhatsApp
+                                  </a>
+                                )}
+
+                                {canUseInstagram && (
+                                  <a
+                                    href={bioInstagramHref}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className={`flex min-h-[50px] w-full items-center justify-center rounded-full px-6 text-sm font-bold transition-all hover:scale-[1.02] active:scale-95 ${bioPreviewLinkBaseClass}`}
+                                  >
+                                    Seguir no Instagram
+                                  </a>
+                                )}
+
+                                {canUseCustomLink && (
+                                  <a
+                                    href={bioCustomHref}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className={`flex min-h-[50px] w-full items-center justify-center rounded-full px-6 text-sm font-bold transition-all hover:scale-[1.02] active:scale-95 ${bioPreviewLinkBaseClass}`}
+                                  >
+                                    {bioLinkSettings.customLabel || 'Link Personalizado'}
+                                  </a>
+                                )}
+                              </div>
+
+                              <p className={`mt-8 text-center text-[10px] uppercase tracking-widest ${bioPreviewMutedClass} opacity-60`}>Made with PedeZap</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 bg-white px-4 py-4 md:px-6">
+                    <div className="flex w-full items-center gap-2 md:w-auto">
+                      <input
+                        readOnly
+                        value={bioLinkPublicUrl}
+                        className="w-full min-w-[260px] rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm md:w-[320px]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => navigator.clipboard.writeText(bioLinkPublicUrl)}
+                        className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                      >
+                        <Copy size={14} />
+                        Copiar
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowBioLinkModal(false)}
+                        className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={saveBioLinkAndPublish}
+                        className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:from-purple-700 hover:to-indigo-700"
+                      >
+                        <Save size={14} />
+                        Salvar e Publicar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {showDeliveryPamphletModal && restaurant && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm md:p-6">
+                <div className="mx-auto flex h-full w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
+                  <div className="flex items-center justify-between border-b border-gray-200 px-4 py-4 md:px-5">
+                    <div className="inline-flex items-center gap-2 text-lg font-semibold text-gray-900">
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-100 text-red-500">
+                        <TicketPercent size={18} />
+                      </span>
+                      Panfleto de Entrega
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowDeliveryPamphletModal(false)}
+                      className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[44%_56%]">
+                    <div className="min-h-0 overflow-y-auto border-r border-gray-200 bg-white p-5">
+                      <p className="mb-4 text-sm text-gray-600">
+                        Selecione um cupom ativo para gerar um cartao de agradecimento. Imprima e coloque dentro da sacola.
+                      </p>
+
+                      <div>
+                        <label className="mb-1.5 block text-sm font-semibold text-gray-800">Cupom de Desconto</label>
+                        <select
+                          value={selectedDeliveryPamphletCoupon?.id ?? ''}
+                          onChange={(event) => setDeliveryPamphletCouponId(event.target.value)}
+                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 focus:border-slate-500 focus:ring-0"
+                        >
+                          {!activeCoupons.length && <option value="">Nenhum cupom ativo</option>}
+                          {activeCoupons.map((coupon) => (
+                            <option key={coupon.id} value={coupon.id}>
+                              {coupon.code} - {formatCouponDiscount(coupon)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                        Dica: imprima 4 folhas por pagina para economizar papel.
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={downloadDeliveryPamphlet}
+                        disabled={!selectedDeliveryPamphletCoupon}
+                        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gray-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Download size={15} />
+                        Baixar para Imprimir
+                      </button>
+                    </div>
+
+                    <div className="min-h-0 overflow-y-auto bg-gray-100 p-5 md:p-6">
+                      <div className="flex min-h-full items-center justify-center rounded-xl border border-gray-200 bg-gray-50 p-5">
+                        <div className="w-full max-w-[360px] rounded-sm border border-dashed border-gray-300 bg-white px-6 py-8 shadow-sm">
+                          <div className="text-center text-3xl leading-none text-red-500">❤</div>
+                          <h4 className="mt-1 text-center text-4xl font-black leading-none text-slate-900">OBRIGADO!</h4>
+                          <p className="mt-2 text-center text-sm text-gray-600">Esperamos que ame seu pedido.</p>
+                          <div className="my-4 h-px bg-gray-200" />
+                          <p className="text-center text-[11px] font-bold uppercase tracking-[0.08em] text-gray-500">
+                            Para a sua proxima compra
+                          </p>
+                          <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-3">
+                            <p className="text-center text-3xl font-black leading-none text-slate-800">
+                              {(selectedDeliveryPamphletCoupon
+                                ? formatCouponDiscount(selectedDeliveryPamphletCoupon)
+                                : 'SELECIONE UM CUPOM'
+                              ).toUpperCase()}
+                            </p>
+                          </div>
+                          <p className="mt-3 text-center text-xs text-gray-500">
+                            {selectedDeliveryPamphletCoupon
+                              ? selectedDeliveryPamphletCoupon.minOrderValue > 0
+                                ? `Em pedidos acima de ${formatMoney(selectedDeliveryPamphletCoupon.minOrderValue)}`
+                                : 'Valido em qualquer pedido'
+                              : 'Ative um cupom para gerar o panfleto'}
+                          </p>
+                          <p className="mt-7 text-center text-xl font-extrabold text-slate-900">{restaurant.name}</p>
+                          <p className="mt-1 text-center text-[10px] text-slate-400">
+                            Peca pelo nosso site: {marketingLink.replace('https://', '')}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -5161,15 +5881,15 @@ export default function MasterPage() {
 
                             <button
                               type="button"
-                              onClick={openDigitalBusinessCard}
+                              onClick={openBioLinkBuilder}
                               className="rounded-xl border border-gray-200 bg-white p-6 text-center hover:bg-gray-50"
                             >
                               <span className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-purple-100 text-purple-500">
                                 <Smartphone size={22} />
                               </span>
-                              <p className="text-xl font-semibold text-gray-900">Cartao Interativo</p>
-                              <p className="mt-1 text-sm text-gray-600">Gere um cartao virtual (bio link) com seus contatos.</p>
-                              <p className="mt-3 text-sm font-semibold text-purple-600">Criar Cartao ?</p>
+                              <p className="text-xl font-semibold text-gray-900">Bio Link para Instagram</p>
+                              <p className="mt-1 text-sm text-gray-600">Crie e publique seu bio link oficial da loja.</p>
+                              <p className="mt-3 text-sm font-semibold text-purple-600">Criar Bio Link ?</p>
                             </button>
 
                             <button

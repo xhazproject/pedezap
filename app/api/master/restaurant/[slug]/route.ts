@@ -108,6 +108,18 @@ const marketingCampaignSchema = z.object({
   createdAt: z.string().min(1)
 });
 
+const bioLinkSchema = z.object({
+  appearance: z.enum(["dark", "light", "brand"]).default("dark"),
+  headline: z.string().max(80).default("Nossos Links Oficiais"),
+  whatsappEnabled: z.boolean().default(true),
+  whatsappValue: z.string().max(120).default(""),
+  instagramEnabled: z.boolean().default(false),
+  instagramValue: z.string().max(240).default(""),
+  customEnabled: z.boolean().default(false),
+  customLabel: z.string().max(60).default(""),
+  customUrl: z.string().max(240).default("")
+});
+
 export async function GET(
   _request: Request,
   { params }: { params: { slug: string } }
@@ -334,6 +346,22 @@ export async function POST(
     return NextResponse.json({
       success: true,
       marketingCampaigns: store.restaurants[index].marketingCampaigns
+    });
+  }
+
+  if (action === "saveBioLink") {
+    const parsed = bioLinkSchema.safeParse(payload?.data);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, message: "Bio link invalido." },
+        { status: 400 }
+      );
+    }
+    store.restaurants[index].bioLink = parsed.data;
+    await writeStore(store);
+    return NextResponse.json({
+      success: true,
+      bioLink: store.restaurants[index].bioLink
     });
   }
 

@@ -143,7 +143,18 @@ function normalizeStore(parsed: Partial<AppStore>): AppStore {
     passwordResetToken: item.passwordResetToken ?? null,
     passwordResetExpiresAt: item.passwordResetExpiresAt ?? null,
     banners: item.banners ?? [],
-    marketingCampaigns: item.marketingCampaigns ?? []
+    marketingCampaigns: item.marketingCampaigns ?? [],
+    bioLink: {
+      appearance: item.bioLink?.appearance ?? "dark",
+      headline: item.bioLink?.headline ?? "Nossos links oficiais",
+      whatsappEnabled: item.bioLink?.whatsappEnabled ?? true,
+      whatsappValue: item.bioLink?.whatsappValue ?? item.whatsapp ?? "",
+      instagramEnabled: item.bioLink?.instagramEnabled ?? false,
+      instagramValue: item.bioLink?.instagramValue ?? "",
+      customEnabled: item.bioLink?.customEnabled ?? false,
+      customLabel: item.bioLink?.customLabel ?? "Meu Site",
+      customUrl: item.bioLink?.customUrl ?? ""
+    }
   }));
   const adminUsers = (parsed.adminUsers ?? defaultStore.adminUsers).map((user) => ({
     ...user,

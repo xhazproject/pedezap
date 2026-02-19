@@ -91,7 +91,18 @@
       "banners": [],
       "marketingCampaigns": [],
       "viewCount": 0,
-      "lastViewAt": null
+      "lastViewAt": null,
+      "bioLink": {
+        "appearance": "dark",
+        "headline": "Nossos links oficiais",
+        "whatsappEnabled": true,
+        "whatsappValue": "5511991112233",
+        "instagramEnabled": false,
+        "instagramValue": "",
+        "customEnabled": false,
+        "customLabel": "Meu Site",
+        "customUrl": ""
+      }
     },
     {
       "id": "r_burguercentral",
@@ -181,7 +192,7 @@
           "imageUrl": "https://picsum.photos/400/300?random=37"
         }
       ],
-      "openForOrders": true,
+      "openForOrders": false,
       "subscribedPlanId": "plan_local",
       "subscriptionStatus": "active",
       "trialStartedAt": null,
@@ -196,14 +207,72 @@
       "passwordResetExpiresAt": null,
       "banners": [],
       "marketingCampaigns": [],
-      "viewCount": 0,
-      "lastViewAt": null,
-      "taxId": null
+      "viewCount": 4,
+      "lastViewAt": "2026-02-19T17:38:05.419Z",
+      "taxId": null,
+      "bioLink": {
+        "appearance": "dark",
+        "headline": "Nossos Links Oficiais",
+        "whatsappEnabled": true,
+        "whatsappValue": "5511987776655",
+        "instagramEnabled": true,
+        "instagramValue": "",
+        "customEnabled": false,
+        "customLabel": "Meu Site",
+        "customUrl": ""
+      }
     }
   ],
   "orders": [],
   "customers": [],
   "auditLogs": [
+    {
+      "id": "audit_6y1lwcj0",
+      "createdAt": "2026-02-19T17:39:38.700Z",
+      "action": "auth.master.login.success",
+      "ip": "::1",
+      "actorType": "master",
+      "actorId": "burguercentral",
+      "actorName": "central@pedezap.app",
+      "targetType": "restaurant",
+      "targetId": "burguercentral"
+    },
+    {
+      "id": "audit_y7f2fltv",
+      "createdAt": "2026-02-19T17:39:31.920Z",
+      "action": "auth.master.login.failed",
+      "ip": "::1",
+      "actorType": "anonymous",
+      "actorId": "anonymous",
+      "actorName": "central@pedezap.app",
+      "targetType": "restaurant",
+      "targetId": "burguercentral"
+    },
+    {
+      "id": "audit_xxykz6c8",
+      "createdAt": "2026-02-19T17:39:08.337Z",
+      "action": "auth.admin.login.success",
+      "ip": "::1",
+      "actorType": "admin",
+      "actorId": "renan@gmail.com",
+      "actorName": "Renan",
+      "targetType": "admin_user",
+      "targetId": "renan@gmail.com",
+      "metadata": {
+        "role": "Admin Master"
+      }
+    },
+    {
+      "id": "audit_270g8488",
+      "createdAt": "2026-02-19T17:38:45.861Z",
+      "action": "auth.admin.login.failed",
+      "ip": "::1",
+      "actorType": "anonymous",
+      "actorId": "anonymous",
+      "actorName": "renan@pedezap.site",
+      "targetType": "admin_user",
+      "targetId": "renan@pedezap.site"
+    },
     {
       "id": "audit_67r7nf3c",
       "createdAt": "2026-02-18T17:50:16.512Z",
@@ -594,7 +663,7 @@
         "security"
       ],
       "createdAt": "2026-02-16T17:54:36.158Z",
-      "lastAccessAt": "2026-02-18T17:47:56.578Z"
+      "lastAccessAt": "2026-02-19T17:39:08.336Z"
     }
   ],
   "adminRoles": [

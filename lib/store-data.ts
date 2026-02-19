@@ -72,6 +72,18 @@ export type RestaurantMarketingCampaign = {
   createdAt: string;
 };
 
+export type RestaurantBioLink = {
+  appearance: "dark" | "light" | "brand";
+  headline: string;
+  whatsappEnabled: boolean;
+  whatsappValue: string;
+  instagramEnabled: boolean;
+  instagramValue: string;
+  customEnabled: boolean;
+  customLabel: string;
+  customUrl: string;
+};
+
 export type Restaurant = {
   id: string;
   name: string;
@@ -110,6 +122,7 @@ export type Restaurant = {
   lastViewAt?: string | null;
   banners?: RestaurantBanner[];
   marketingCampaigns?: RestaurantMarketingCampaign[];
+  bioLink?: RestaurantBioLink;
   categories: RestaurantCategory[];
   products: RestaurantProduct[];
 };
