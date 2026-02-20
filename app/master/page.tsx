@@ -1198,8 +1198,10 @@ export default function MasterPage() {
     });
   const leastSoldProducts = [...topProducts].sort((a, b) => a.soldQuantity - b.soldQuantity).slice(0, 4);
   const marketingLink = restaurant ? `https://pedezap.site/${restaurant.slug}` : '';
-  const bioLinkPublicUrl = restaurant ? `https://pedezap.site/${restaurant.slug}/bio` : '';
+  const bioLinkPublicUrl = restaurant ? `https://pedezap.site/r/${restaurant.slug}/bio` : '';
   const flyerLogoUrl = settingsDraft?.logoUrl || restaurant?.logoUrl || '';
+  const bioPreviewCoverUrl = restaurant?.coverUrl || 'https://picsum.photos/seed/pedezap-bio-cover/900/500';
+  const bioPreviewLogoUrl = restaurant?.logoUrl || '';
   const bioPreviewCardClass =
     bioLinkSettings.appearance === 'light'
       ? 'bg-white text-slate-900'
@@ -1437,6 +1439,172 @@ export default function MasterPage() {
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 3000);
+  };
+
+  const roundedRectPath = (
+    context: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    radius: number
+  ) => {
+    const r = Math.min(radius, width / 2, height / 2);
+    context.beginPath();
+    context.moveTo(x + r, y);
+    context.lineTo(x + width - r, y);
+    context.quadraticCurveTo(x + width, y, x + width, y + r);
+    context.lineTo(x + width, y + height - r);
+    context.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+    context.lineTo(x + r, y + height);
+    context.quadraticCurveTo(x, y + height, x, y + height - r);
+    context.lineTo(x, y + r);
+    context.quadraticCurveTo(x, y, x + r, y);
+    context.closePath();
+  };
+
+  const loadImageForCanvas = async (src: string) => {
+    const fallbackSvg = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800">
+        <rect width="100%" height="100%" fill="#0f172a"/>
+        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#94a3b8" font-size="56" font-family="Arial">Imagem</text>
+      </svg>`
+    )}`;
+
+    const createImage = (url: string) =>
+      new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.decoding = 'sync';
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('Falha ao carregar imagem.'));
+        img.src = url;
+      });
+
+    try {
+      if (!src) return await createImage(fallbackSvg);
+      const response = await fetch(src, { mode: 'cors', credentials: 'omit' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      try {
+        const image = await createImage(objectUrl);
+        return image;
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    } catch {
+      return await createImage(fallbackSvg);
+    }
+  };
+
+  const drawImageRounded = (
+    context: CanvasRenderingContext2D,
+    image: CanvasImageSource,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    radius: number
+  ) => {
+    context.save();
+    roundedRectPath(context, x, y, width, height, radius);
+    context.clip();
+    context.drawImage(image, x, y, width, height);
+    context.restore();
+  };
+
+  const buildHeadlineLayout = (
+    context: CanvasRenderingContext2D,
+    headline: string,
+    maxWidth: number
+  ) => {
+    const words = headline.trim().split(/\s+/).filter(Boolean);
+    let fontSize = 74;
+    let lines: string[] = [headline];
+    let longestLine = 0;
+
+    const buildLines = (size: number) => {
+      context.font = `900 ${size}px Arial`;
+      const built: string[] = [];
+      let current = '';
+      const splitWordByWidth = (word: string) => {
+        const chunks: string[] = [];
+        let chunk = '';
+        for (const char of word) {
+          const nextChunk = `${chunk}${char}`;
+          if (context.measureText(nextChunk).width <= maxWidth) {
+            chunk = nextChunk;
+          } else {
+            if (chunk) chunks.push(chunk);
+            chunk = char;
+          }
+        }
+        if (chunk) chunks.push(chunk);
+        return chunks.length ? chunks : [word];
+      };
+      for (const word of words) {
+        const next = current ? `${current} ${word}` : word;
+        if (context.measureText(next).width <= maxWidth) {
+          current = next;
+        } else if (!current) {
+          const chunks = splitWordByWidth(word);
+          chunks.forEach((chunk) => built.push(chunk));
+        } else {
+          built.push(current);
+          current = word;
+        }
+      }
+      if (current) built.push(current);
+      return built;
+    };
+
+    while (fontSize >= 40) {
+      lines = buildLines(fontSize);
+      longestLine = Math.max(...lines.map((line) => context.measureText(line).width));
+      if (lines.length <= 2 && longestLine <= maxWidth) break;
+      fontSize -= 4;
+    }
+    if (lines.length > 2) {
+      lines = [lines[0], lines[1]];
+    }
+
+    const lineHeight = Math.round(fontSize * 1.05);
+    longestLine = Math.max(...lines.map((line) => context.measureText(line).width));
+    const paddingX = 34;
+    const paddingY = 20;
+    const boxWidth = Math.min(maxWidth + paddingX * 2, Math.max(longestLine + paddingX * 2, 360));
+    const boxHeight = lineHeight * lines.length + paddingY * 2;
+
+    return { lines, fontSize, lineHeight, boxWidth, boxHeight };
+  };
+
+  const drawHeadlineInRibbon = (
+    context: CanvasRenderingContext2D,
+    headline: string,
+    centerX: number,
+    topY: number,
+    maxWidth: number,
+    backgroundColor: string,
+    textColor: string
+  ) => {
+    const layout = buildHeadlineLayout(context, headline, maxWidth);
+    const ribbonX = centerX - layout.boxWidth / 2;
+    const ribbonY = topY;
+
+    roundedRectPath(context, ribbonX, ribbonY, layout.boxWidth, layout.boxHeight, 26);
+    context.fillStyle = backgroundColor;
+    context.fill();
+
+    const totalHeight = layout.lineHeight * layout.lines.length;
+    let textY = ribbonY + (layout.boxHeight - totalHeight) / 2 + layout.fontSize * 0.82;
+
+    context.textAlign = 'center';
+    context.fillStyle = textColor;
+    context.font = `900 ${layout.fontSize}px Arial`;
+    for (const line of layout.lines) {
+      context.fillText(line, centerX, textY);
+      textY += layout.lineHeight;
+    }
   };
 
   const downloadMarketingMarkup = async (
@@ -1692,12 +1860,132 @@ export default function MasterPage() {
   };
   const downloadFlyerFromModal = () => {
     if (!restaurant) return;
-    void downloadMarketingMarkup(buildFlyerStoryExportMarkup(), `Flyer de Ofertas - ${restaurant.name}`, {
-      width: 1080,
-      height: 1920,
-      preferredFormat: 'png',
-      allowSvgFallback: false
-    });
+    const exportFlyerAsCanvas = async () => {
+      const width = 1080;
+      const height = 1920;
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d');
+      if (!context) {
+        alert('Nao foi possivel gerar imagem do flyer.');
+        return;
+      }
+
+      const gradients: Record<string, [string, string]> = {
+        dark: ['#020617', '#0f172a'],
+        red: ['#b91c1c', '#ef4444'],
+        green: ['#059669', '#14b8a6'],
+        orange: ['#f97316', '#f59e0b']
+      };
+      const [from, to] = gradients[flyerThemeKey] ?? gradients.dark;
+      const bg = context.createLinearGradient(0, 0, width, height);
+      bg.addColorStop(0, from);
+      bg.addColorStop(1, to);
+      context.fillStyle = bg;
+      context.fillRect(0, 0, width, height);
+
+      context.fillStyle = 'rgba(255,255,255,.08)';
+      for (let y = 0; y < height; y += 28) {
+        for (let x = 0; x < width; x += 28) {
+          context.fillRect(x, y, 2, 2);
+        }
+      }
+
+      const logoSize = 118;
+      const logoX = width / 2 - logoSize / 2;
+      const logoY = 106;
+      context.save();
+      context.beginPath();
+      context.arc(width / 2, logoY + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
+      context.fillStyle = 'rgba(255,255,255,.1)';
+      context.fill();
+      context.clip();
+      const logoImg = await loadImageForCanvas(flyerLogoUrl || '');
+      context.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
+      context.restore();
+
+      context.fillStyle = '#ffffff';
+      context.font = '700 26px Arial';
+      context.textAlign = 'center';
+      context.fillText((restaurant.name || '').toUpperCase(), width / 2, 270);
+
+      const ribbonBg = flyerThemeKey === 'dark' ? '#facc15' : flyerThemeKey === 'red' ? '#fde047' : '#ffffff';
+      const ribbonColor = flyerThemeKey === 'dark' ? '#0f172a' : flyerThemeKey === 'red' ? '#7f1d1d' : '#065f46';
+      drawHeadlineInRibbon(
+        context,
+        (flyerHeadline || 'CONFIRA NOSSAS OFERTAS').toUpperCase(),
+        width / 2,
+        310,
+        900,
+        ribbonBg,
+        ribbonColor
+      );
+
+      if (flyerSelectedProducts.length === 1) {
+        const product = flyerSelectedProducts[0];
+        const image = await loadImageForCanvas(product.imageUrl || '');
+        drawImageRounded(context, image, 252, 500, 576, 576, 28);
+
+        context.fillStyle = '#ffffff';
+        context.font = '900 72px Arial';
+        context.fillText(product.name.toUpperCase(), width / 2, 1160);
+
+        const parts = splitPriceParts(product.price);
+        roundedRectPath(context, 340, 1220, 400, 146, 26);
+        context.fillStyle = '#facc15';
+        context.fill();
+        context.fillStyle = '#0f172a';
+        context.font = '800 34px Arial';
+        context.fillText('R$', 396, 1302);
+        context.font = '900 92px Arial';
+        context.fillText(parts.intPart, 520, 1312);
+        context.font = '900 44px Arial';
+        context.fillText(`,${parts.decimalPart}`, 646, 1306);
+      } else {
+        const products = flyerSelectedProducts.slice(0, 3);
+        let y = 500;
+        for (const product of products) {
+          roundedRectPath(context, 110, y, 860, 184, 22);
+          context.fillStyle = 'rgba(255,255,255,.14)';
+          context.fill();
+          context.strokeStyle = 'rgba(255,255,255,.2)';
+          context.stroke();
+
+          const image = await loadImageForCanvas(product.imageUrl || '');
+          drawImageRounded(context, image, 138, y + 18, 148, 148, 18);
+
+          context.fillStyle = '#ffffff';
+          context.textAlign = 'left';
+          context.font = '800 52px Arial';
+          context.fillText(product.name, 314, y + 86);
+          context.font = '900 46px Arial';
+          context.fillStyle = '#f8fafc';
+          context.fillText(moneyFormatter.format(product.price), 314, y + 146);
+          y += 206;
+        }
+        context.textAlign = 'center';
+      }
+
+      roundedRectPath(context, 315, 1710, 450, 58, 999);
+      context.fillStyle = 'rgba(15,23,42,.82)';
+      context.fill();
+      context.fillStyle = '#ffffff';
+      context.font = '700 24px Arial';
+      context.fillText('PECA AGORA PELO LINK', width / 2, 1748);
+      context.font = '500 24px Arial';
+      context.fillText(marketingLink.replace('https://', ''), width / 2, 1800);
+
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          alert('Nao foi possivel gerar PNG/JPG para este conteudo.');
+          return;
+        }
+        triggerDownloadFromBlob(blob, `${sanitizeDownloadName(`Flyer de Ofertas - ${restaurant.name}`)}.png`);
+      }, 'image/png');
+    };
+
+    void exportFlyerAsCanvas();
   };
 
   const openBioLinkBuilder = () => {
@@ -5164,8 +5452,23 @@ export default function MasterPage() {
                             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/90 drop-shadow-sm">{restaurant.name}</p>
                           </div>
 
-                          <div className={`relative mx-auto w-full -skew-x-3 rounded-lg px-4 py-3 text-center shadow-xl z-10 ${activeFlyerTheme.titleRibbonClass}`}>
-                            <span className="block skew-x-3 text-2xl font-black uppercase leading-none tracking-tight">{(flyerHeadline || 'OFERTAS DO DIA').toUpperCase()}</span>
+                          <div
+                            className={`relative mx-auto inline-block max-w-[92%] -skew-x-3 rounded-lg px-4 py-3 text-center shadow-xl z-10 ${activeFlyerTheme.titleRibbonClass}`}
+                            style={{ width: 'fit-content' }}
+                          >
+                            <span
+                              className="block max-w-full skew-x-3 whitespace-normal break-words font-black uppercase tracking-tight leading-[1.02]"
+                              style={{
+                                fontSize:
+                                  (flyerHeadline || 'OFERTAS DO DIA').length > 28
+                                    ? '1.35rem'
+                                    : (flyerHeadline || 'OFERTAS DO DIA').length > 18
+                                      ? '1.55rem'
+                                      : '2rem'
+                              }}
+                            >
+                              {(flyerHeadline || 'OFERTAS DO DIA').toUpperCase()}
+                            </span>
                           </div>
 
                           {flyerSelectedProducts.length === 1 ? (
@@ -5446,7 +5749,7 @@ export default function MasterPage() {
                           <div className={`relative overflow-hidden rounded-[1.6rem] pb-8 ${bioPreviewCardClass}`}>
                             <div className="h-40 w-full overflow-hidden">
                               <img
-                                src={settingsDraft?.coverUrl || restaurant.coverUrl || 'https://picsum.photos/seed/pedezap-bio-cover/900/500'}
+                                  src={bioPreviewCoverUrl}
                                 alt={`Capa ${restaurant.name}`}
                                 className="h-full w-full object-cover opacity-90"
                               />
@@ -5454,8 +5757,8 @@ export default function MasterPage() {
                             <div className="-mt-12 flex justify-center">
                               <div className="relative z-10 h-24 w-24 rounded-full bg-white p-1 shadow-lg ring-4 ring-white/70">
                                 <div className="h-full w-full overflow-hidden rounded-full border border-gray-200 bg-white">
-                                  {flyerLogoUrl ? (
-                                    <img src={flyerLogoUrl} alt={restaurant.name} className="h-full w-full object-cover" />
+                                  {bioPreviewLogoUrl ? (
+                                    <img src={bioPreviewLogoUrl} alt={restaurant.name} className="h-full w-full object-cover" />
                                   ) : (
                                     <div className="flex h-full w-full items-center justify-center text-2xl font-black text-slate-900">
                                       {restaurant.name.charAt(0).toUpperCase()}
