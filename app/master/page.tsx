@@ -5744,12 +5744,12 @@ export default function MasterPage() {
                           backgroundSize: '20px 20px'
                         }}
                       />
-                      <div className="relative z-10 mx-auto flex w-full max-w-[390px] items-center justify-center">
-                        <div className="w-full rounded-[2.2rem] border-[8px] border-slate-900 bg-black p-2.5 shadow-[0_24px_80px_rgba(2,6,23,.45)]">
-                          <div className={`relative overflow-hidden rounded-[1.6rem] pb-8 ${bioPreviewCardClass}`}>
+                      <div className="relative z-10 mx-auto flex w-full max-w-[520px] items-center justify-center">
+                        <div className={`w-full overflow-hidden rounded-[2rem] border border-white/10 p-0 shadow-[0_24px_80px_rgba(2,6,23,.45)] ${bioPreviewCardClass}`}>
+                          <div className="relative pb-10">
                             <div className="h-40 w-full overflow-hidden">
                               <img
-                                  src={bioPreviewCoverUrl}
+                                src={bioPreviewCoverUrl}
                                 alt={`Capa ${restaurant.name}`}
                                 className="h-full w-full object-cover opacity-90"
                               />
@@ -5768,18 +5768,18 @@ export default function MasterPage() {
                               </div>
                             </div>
 
-                            <div className="px-6 text-center">
-                              <p className="mt-3 text-xl font-bold leading-tight">{restaurant.name}</p>
+                            <div className="px-6 text-center md:px-8">
+                              <p className="mt-3 text-2xl font-bold leading-tight md:text-[2rem]">{restaurant.name}</p>
                               <p className={`mt-1 text-xs font-medium uppercase tracking-wider ${bioPreviewMutedClass}`}>
                                 {bioLinkSettings.headline || 'Nossos links oficiais'}
                               </p>
 
-                              <div className="mt-6 space-y-4">
+                              <div className="mt-7 space-y-4 md:space-y-5">
                                 <a
                                   href={marketingLink}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className={`flex min-h-[50px] w-full items-center justify-center rounded-full px-6 text-sm font-bold transition-all hover:scale-[1.02] active:scale-95 ${bioPreviewLinkBaseClass}`}
+                                  className={`flex min-h-[54px] w-full items-center justify-center rounded-full px-6 text-base font-bold transition-all hover:scale-[1.02] active:scale-95 ${bioPreviewLinkBaseClass}`}
                                 >
                                   Ver Cardapio
                                 </a>
@@ -5789,7 +5789,7 @@ export default function MasterPage() {
                                     href={bioWhatsAppHref}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className={`flex min-h-[50px] w-full items-center justify-center rounded-full px-6 text-sm font-bold transition-all hover:scale-[1.02] active:scale-95 ${bioPreviewLinkBaseClass}`}
+                                    className={`flex min-h-[54px] w-full items-center justify-center rounded-full px-6 text-base font-bold transition-all hover:scale-[1.02] active:scale-95 ${bioPreviewLinkBaseClass}`}
                                   >
                                     Chamar no WhatsApp
                                   </a>
@@ -5800,7 +5800,7 @@ export default function MasterPage() {
                                     href={bioInstagramHref}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className={`flex min-h-[50px] w-full items-center justify-center rounded-full px-6 text-sm font-bold transition-all hover:scale-[1.02] active:scale-95 ${bioPreviewLinkBaseClass}`}
+                                    className={`flex min-h-[54px] w-full items-center justify-center rounded-full px-6 text-base font-bold transition-all hover:scale-[1.02] active:scale-95 ${bioPreviewLinkBaseClass}`}
                                   >
                                     Seguir no Instagram
                                   </a>
@@ -5811,7 +5811,7 @@ export default function MasterPage() {
                                     href={bioCustomHref}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className={`flex min-h-[50px] w-full items-center justify-center rounded-full px-6 text-sm font-bold transition-all hover:scale-[1.02] active:scale-95 ${bioPreviewLinkBaseClass}`}
+                                    className={`flex min-h-[54px] w-full items-center justify-center rounded-full px-6 text-base font-bold transition-all hover:scale-[1.02] active:scale-95 ${bioPreviewLinkBaseClass}`}
                                   >
                                     {bioLinkSettings.customLabel || 'Link Personalizado'}
                                   </a>
