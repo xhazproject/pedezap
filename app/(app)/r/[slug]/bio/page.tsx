@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { isSubscriptionBlocked, readStore } from '@/lib/store';
-import { Facebook, Instagram, Music2, Twitter, Youtube } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -58,7 +57,7 @@ export default async function RestaurantBioPage({ params }: { params: { slug: st
   const canUseCustomLink = bio.customEnabled && customHref.length > 0;
 
   return (
-    <main className="relative min-h-screen bg-slate-900 p-4">
+    <main className="relative min-h-screen bg-slate-900 p-4 md:p-6">
       <div
         className="pointer-events-none absolute inset-0 opacity-30"
         style={{
@@ -66,13 +65,14 @@ export default async function RestaurantBioPage({ params }: { params: { slug: st
           backgroundSize: '20px 20px'
         }}
       />
-      <div className="relative mx-auto max-w-md rounded-3xl border-[8px] border-slate-900 bg-black p-2.5 shadow-[0_24px_80px_rgba(2,6,23,.45)]">
-        <div className={`relative overflow-hidden rounded-[1.7rem] pb-6 ${containerClass}`}>
+      <div className="relative z-10 mx-auto flex w-full max-w-[390px] items-center justify-center">
+        <div className="w-full rounded-[2.2rem] border-[8px] border-slate-900 bg-black p-2.5 shadow-[0_24px_80px_rgba(2,6,23,.45)]">
+          <div className={`relative overflow-hidden rounded-[1.6rem] pb-8 ${containerClass}`}>
           <div className="h-48 w-full overflow-hidden">
             <img
               src={restaurant.coverUrl || 'https://picsum.photos/seed/pedezap-bio-cover/900/500'}
               alt={`Capa ${restaurant.name}`}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover opacity-90"
             />
           </div>
 
@@ -90,30 +90,15 @@ export default async function RestaurantBioPage({ params }: { params: { slug: st
             </div>
           </div>
 
-          <div className="px-5 text-center">
-            <h1 className="mt-4 text-4xl font-bold leading-tight">{restaurant.name}</h1>
-            <p className={`mt-1 text-sm font-medium uppercase tracking-wider ${mutedClass}`}>{bio.headline}</p>
+          <div className="px-6 text-center">
+            <p className="mt-3 text-xl font-bold leading-tight">{restaurant.name}</p>
+            <p className={`mt-1 text-xs font-medium uppercase tracking-wider ${mutedClass}`}>{bio.headline}</p>
 
-            <div className="mt-6 flex items-center justify-center gap-4">
-              <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full ${cardClass}`}>
-                <Music2 size={16} />
-              </span>
-              <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full ${cardClass}`}>
-                <Youtube size={16} />
-              </span>
-              <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full ${cardClass}`}>
-                <Twitter size={16} />
-              </span>
-              <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full ${cardClass}`}>
-                <Facebook size={16} />
-              </span>
-              <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full ${cardClass}`}>
-                <Instagram size={16} />
-              </span>
-            </div>
-
-            <div className="mt-8 space-y-4">
-              <Link href={`/r/${restaurant.slug}`} className={`flex min-h-[60px] items-center justify-center rounded-md px-5 text-2xl font-semibold ${cardClass}`}>
+            <div className="mt-6 space-y-4">
+              <Link
+                href={`/r/${restaurant.slug}`}
+                className={`flex min-h-[50px] w-full items-center justify-center rounded-full px-6 text-sm font-bold ${cardClass}`}
+              >
                 Ver Cardapio
               </Link>
 
@@ -122,7 +107,7 @@ export default async function RestaurantBioPage({ params }: { params: { slug: st
                   href={whatsappHref}
                   target="_blank"
                   rel="noreferrer"
-                  className={`flex min-h-[60px] items-center justify-center rounded-md px-5 text-2xl font-semibold ${cardClass}`}
+                  className={`flex min-h-[50px] w-full items-center justify-center rounded-full px-6 text-sm font-bold ${cardClass}`}
                 >
                   Chamar no WhatsApp
                 </a>
@@ -133,7 +118,7 @@ export default async function RestaurantBioPage({ params }: { params: { slug: st
                   href={instagramHref}
                   target="_blank"
                   rel="noreferrer"
-                  className={`flex min-h-[60px] items-center justify-center rounded-md px-5 text-2xl font-semibold ${cardClass}`}
+                  className={`flex min-h-[50px] w-full items-center justify-center rounded-full px-6 text-sm font-bold ${cardClass}`}
                 >
                   Seguir no Instagram
                 </a>
@@ -144,14 +129,15 @@ export default async function RestaurantBioPage({ params }: { params: { slug: st
                   href={customHref}
                   target="_blank"
                   rel="noreferrer"
-                  className={`flex min-h-[60px] items-center justify-center rounded-md px-5 text-2xl font-semibold ${cardClass}`}
+                  className={`flex min-h-[50px] w-full items-center justify-center rounded-full px-6 text-sm font-bold ${cardClass}`}
                 >
                   {bio.customLabel || 'Link Personalizado'}
                 </a>
               ) : null}
             </div>
 
-            <p className="mt-9 text-center text-xs uppercase tracking-widest text-white/40">Made with PedeZap</p>
+            <p className={`mt-8 text-center text-[10px] uppercase tracking-widest ${mutedClass} opacity-60`}>Made with PedeZap</p>
+            </div>
           </div>
         </div>
       </div>
