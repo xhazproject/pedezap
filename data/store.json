@@ -102,7 +102,9 @@
         "customEnabled": false,
         "customLabel": "Meu Site",
         "customUrl": ""
-      }
+      },
+      "latitude": null,
+      "longitude": null
     },
     {
       "id": "r_burguercentral",
@@ -220,12 +222,184 @@
         "customEnabled": false,
         "customLabel": "Meu Site",
         "customUrl": ""
+      },
+      "latitude": null,
+      "longitude": null
+    },
+    {
+      "id": "r_jfkpe7d6",
+      "name": "Teste 2",
+      "slug": "teste2",
+      "whatsapp": "24124242142421",
+      "plan": "Plano Local",
+      "active": true,
+      "createdAt": "2026-02-20T03:55:50.264Z",
+      "canceledAt": null,
+      "openingHours": "Seg a Dom - 18h as 23h",
+      "address": "Rua joaquim pedro",
+      "city": "Rancharia",
+      "state": "SP",
+      "latitude": -22.2296368,
+      "longitude": -50.8853731,
+      "minOrderValue": 15,
+      "deliveryFee": 5,
+      "logoUrl": "https://picsum.photos/200/200?random=66",
+      "coverUrl": "https://picsum.photos/1200/500?random=67",
+      "ownerEmail": "teste2@gmail.com",
+      "ownerPassword": "scrypt$9b5dba77213510c7ec796670eb862499$47fba0ddf8d4cd336c76f4d20ab2df461601427de9e6013742215fb6ccb8928ca1a1d440ef820faa3d3596e3a8e82d7ae3847861e184a9454c88618616e2ce88",
+      "taxId": "2",
+      "subscribedPlanId": "plan_local",
+      "subscriptionStatus": "trial",
+      "trialStartedAt": "2026-02-20T03:55:49.817Z",
+      "trialEndsAt": "2026-02-27T03:55:49.817Z",
+      "nextBillingAt": null,
+      "subscriptionStartedAt": null,
+      "subscriptionEndsAt": null,
+      "pendingPlanId": null,
+      "pendingCheckoutExternalId": null,
+      "lastCheckoutUrl": null,
+      "viewCount": 2,
+      "lastViewAt": "2026-02-21T00:01:26.713Z",
+      "categories": [
+        {
+          "id": "cat_ehur8nml",
+          "name": "Categoria 1",
+          "active": true
+        }
+      ],
+      "products": [
+        {
+          "id": "prod_tcjxfxgq",
+          "categoryId": "cat_ehur8nml",
+          "name": "Produto exemplo",
+          "description": "Edite no painel master.",
+          "price": 10,
+          "active": true
+        }
+      ],
+      "openForOrders": true,
+      "passwordResetToken": null,
+      "passwordResetExpiresAt": null,
+      "banners": [],
+      "marketingCampaigns": [],
+      "bioLink": {
+        "appearance": "dark",
+        "headline": "Nossos links oficiais",
+        "whatsappEnabled": true,
+        "whatsappValue": "24124242142421",
+        "instagramEnabled": false,
+        "instagramValue": "",
+        "customEnabled": false,
+        "customLabel": "Meu Site",
+        "customUrl": ""
       }
     }
   ],
   "orders": [],
   "customers": [],
   "auditLogs": [
+    {
+      "id": "audit_83j42uo5",
+      "createdAt": "2026-02-21T11:27:51.602Z",
+      "action": "auth.master.login.success",
+      "ip": "::1",
+      "actorType": "master",
+      "actorId": "teste2",
+      "actorName": "teste2@gmail.com",
+      "targetType": "restaurant",
+      "targetId": "teste2"
+    },
+    {
+      "id": "audit_ej9cnto8",
+      "createdAt": "2026-02-21T11:27:48.675Z",
+      "action": "auth.master.login.failed",
+      "ip": "::1",
+      "actorType": "anonymous",
+      "actorId": "anonymous",
+      "actorName": "teste2@gmail.com",
+      "targetType": "restaurant",
+      "targetId": "teste2"
+    },
+    {
+      "id": "audit_8v8i3i7g",
+      "createdAt": "2026-02-21T00:12:50.556Z",
+      "action": "auth.admin.login.success",
+      "ip": "::1",
+      "actorType": "admin",
+      "actorId": "renan@gmail.com",
+      "actorName": "Renan",
+      "targetType": "admin_user",
+      "targetId": "renan@gmail.com",
+      "metadata": {
+        "role": "Admin Master"
+      }
+    },
+    {
+      "id": "audit_a1bddp5l",
+      "createdAt": "2026-02-20T23:37:20.394Z",
+      "action": "auth.master.login.failed",
+      "ip": "::1",
+      "actorType": "anonymous",
+      "actorId": "anonymous",
+      "actorName": "renan@gmail.com",
+      "targetType": "restaurant",
+      "targetId": "renan@gmail.com"
+    },
+    {
+      "id": "audit_6ds25nac",
+      "createdAt": "2026-02-20T23:37:01.535Z",
+      "action": "auth.master.login.failed",
+      "ip": "::1",
+      "actorType": "anonymous",
+      "actorId": "anonymous",
+      "actorName": "central@pedzap.site",
+      "targetType": "restaurant",
+      "targetId": "central@pedzap.site"
+    },
+    {
+      "id": "audit_9xnnx63v",
+      "createdAt": "2026-02-20T23:36:56.825Z",
+      "action": "auth.master.login.failed",
+      "ip": "::1",
+      "actorType": "anonymous",
+      "actorId": "anonymous",
+      "actorName": "central@pedzap.site",
+      "targetType": "restaurant",
+      "targetId": "central@pedzap.site"
+    },
+    {
+      "id": "audit_0h0l4skf",
+      "createdAt": "2026-02-20T23:36:43.495Z",
+      "action": "auth.master.login.failed",
+      "ip": "::1",
+      "actorType": "anonymous",
+      "actorId": "anonymous",
+      "actorName": "central@pedzap.ai",
+      "targetType": "restaurant",
+      "targetId": "central@pedzap.ai"
+    },
+    {
+      "id": "audit_uxiif3k8",
+      "createdAt": "2026-02-20T23:36:39.087Z",
+      "action": "auth.master.login.failed",
+      "ip": "::1",
+      "actorType": "anonymous",
+      "actorId": "anonymous",
+      "actorName": "central@pedzap.ai",
+      "targetType": "restaurant",
+      "targetId": "central@pedzap.ai"
+    },
+    {
+      "id": "audit_ktvg589w",
+      "createdAt": "2026-02-20T23:36:35.089Z",
+      "action": "auth.master.login.failed",
+      "ip": "::1",
+      "actorType": "anonymous",
+      "actorId": "anonymous",
+      "actorName": "central@pedzap.ai",
+      "targetType": "restaurant",
+      "targetId": "central@pedzap.ai"
+    },
     {
       "id": "audit_6y1lwcj0",
       "createdAt": "2026-02-19T17:39:38.700Z",
@@ -663,7 +837,7 @@
         "security"
       ],
       "createdAt": "2026-02-16T17:54:36.158Z",
-      "lastAccessAt": "2026-02-19T17:39:08.336Z"
+      "lastAccessAt": "2026-02-21T00:12:50.556Z"
     }
   ],
   "adminRoles": [
@@ -955,6 +1129,7 @@
     "colorPrimary": "#10B981",
     "colorSecondary": "#0F172A",
     "colorAccent": "#FBBF24",
+    "locationAutocompleteMode": "hybrid",
     "notificationTemplates": [
       {
         "id": "tpl_welcome",

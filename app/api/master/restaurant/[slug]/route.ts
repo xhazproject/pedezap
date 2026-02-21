@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isRestaurantBlocked, isSubscriptionBlocked, makeId, readStore, writeStore } from "@/lib/store";
+import { geocodeAddress } from "@/lib/geo";
 
 const imageStringSchema = z
   .string()
@@ -190,6 +191,15 @@ export async function PUT(
     ...store.restaurants[index],
     ...parsed.data
   };
+  const geocoded = await geocodeAddress(
+    parsed.data.address,
+    parsed.data.city,
+    parsed.data.state
+  );
+  if (geocoded) {
+    store.restaurants[index].latitude = geocoded.latitude;
+    store.restaurants[index].longitude = geocoded.longitude;
+  }
   await writeStore(store);
   return NextResponse.json({ success: true, restaurant: store.restaurants[index] });
 }

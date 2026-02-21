@@ -1,0 +1,32 @@
+[
+  {
+    "label": "Rua Joaquim Pedro da Silva, Centro - Sao Paulo/SP",
+    "latitude": -23.5505,
+    "longitude": -46.6333
+  },
+  {
+    "label": "Avenida Paulista, Bela Vista - Sao Paulo/SP",
+    "latitude": -23.5614,
+    "longitude": -46.6565
+  },
+  {
+    "label": "Rua das Flores, Centro - Campinas/SP",
+    "latitude": -22.9056,
+    "longitude": -47.0608
+  },
+  {
+    "label": "Avenida Central, Cambui - Campinas/SP",
+    "latitude": -22.8924,
+    "longitude": -47.0496
+  },
+  {
+    "label": "Rua XV de Novembro, Centro - Curitiba/PR",
+    "latitude": -25.4284,
+    "longitude": -49.2733
+  },
+  {
+    "label": "Avenida Brasil, Centro - Rio de Janeiro/RJ",
+    "latitude": -22.9068,
+    "longitude": -43.1729
+  }
+]

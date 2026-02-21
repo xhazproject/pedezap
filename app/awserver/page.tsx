@@ -469,6 +469,7 @@ export default function AdminPage() {
     colorPrimary: '#10B981',
     colorSecondary: '#0F172A',
     colorAccent: '#FBBF24',
+    locationAutocompleteMode: 'internet' as 'hybrid' | 'json' | 'internet',
     notificationTemplates: [
       {
         id: 'tpl_welcome',
@@ -3416,6 +3417,26 @@ export default function AdminPage() {
                             onChange={(event) => setSettingsForm((prev) => ({ ...prev, contactEmail: event.target.value }))}
                             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                           />
+                        </div>
+                        <div className="space-y-2 md:col-span-2">
+                          <label className="text-sm font-medium text-slate-600">Fonte do autocomplete de enderecos (Lojas)</label>
+                          <select
+                            value={settingsForm.locationAutocompleteMode}
+                            onChange={(event) =>
+                              setSettingsForm((prev) => ({
+                                ...prev,
+                                locationAutocompleteMode: event.target.value as 'hybrid' | 'json' | 'internet'
+                              }))
+                            }
+                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white"
+                          >
+                            <option value="hybrid">Hibrido (JSON + API Internet)</option>
+                            <option value="json">Base JSON</option>
+                            <option value="internet">API Internet</option>
+                          </select>
+                          <p className="text-xs text-slate-500">
+                            Hibrido usa sua base local primeiro e complementa com internet.
+                          </p>
                         </div>
                       </div>
 

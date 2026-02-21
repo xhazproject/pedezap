@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { readStore, sanitizeSlug, writeStore } from "@/lib/store";
 import { hashPassword } from "@/lib/password";
+import { geocodeAddress, parseFiniteNumber } from "@/lib/geo";
 
 const updateRestaurantSchema = z.object({
   name: z.string().min(2).optional(),
@@ -14,7 +15,9 @@ const updateRestaurantSchema = z.object({
   ownerPassword: z.string().min(6).optional(),
   address: z.string().optional(),
   city: z.string().optional(),
-  state: z.string().optional()
+  state: z.string().optional(),
+  latitude: z.union([z.number(), z.string()]).nullable().optional(),
+  longitude: z.union([z.number(), z.string()]).nullable().optional()
 });
 
 export async function PUT(
@@ -65,10 +68,28 @@ export async function PUT(
       { status: 409 }
     );
   }
+  const nextAddress = nextData.address ?? current.address ?? "";
+  const nextCity = nextData.city ?? current.city ?? "";
+  const nextState = nextData.state ?? current.state ?? "";
+  const latitudeInput =
+    nextData.latitude === null ? null : parseFiniteNumber(nextData.latitude);
+  const longitudeInput =
+    nextData.longitude === null ? null : parseFiniteNumber(nextData.longitude);
+  const shouldTryGeocode =
+    latitudeInput === null ||
+    longitudeInput === null ||
+    nextAddress !== current.address ||
+    nextCity !== current.city ||
+    nextState !== current.state;
+  const geocoded = shouldTryGeocode
+    ? await geocodeAddress(nextAddress, nextCity, nextState)
+    : null;
 
   store.restaurants[index] = {
     ...current,
     ...nextData,
+    latitude: latitudeInput ?? geocoded?.latitude ?? current.latitude ?? null,
+    longitude: longitudeInput ?? geocoded?.longitude ?? current.longitude ?? null,
     plan: selectedPlan?.name ?? nextData.plan ?? current.plan,
     subscribedPlanId:
       nextData.subscribedPlanId === undefined

@@ -123,6 +123,8 @@ function normalizeStore(parsed: Partial<AppStore>): AppStore {
   const now = new Date().toISOString();
   const restaurants = (parsed.restaurants ?? defaultStore.restaurants).map((item) => ({
     ...item,
+    latitude: item.latitude ?? null,
+    longitude: item.longitude ?? null,
     createdAt: item.createdAt ?? now,
     openForOrders: item.openForOrders ?? item.active ?? true,
     canceledAt: item.canceledAt ?? null,

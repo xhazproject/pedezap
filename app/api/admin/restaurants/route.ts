@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { makeId, readStore, sanitizeSlug, writeStore } from "@/lib/store";
 import { hashPassword } from "@/lib/password";
+import { geocodeAddress, parseFiniteNumber } from "@/lib/geo";
 
 const createRestaurantSchema = z.object({
   name: z.string().min(2),
@@ -14,7 +15,9 @@ const createRestaurantSchema = z.object({
   ownerPassword: z.string().min(6).optional(),
   address: z.string().optional(),
   city: z.string().optional(),
-  state: z.string().optional()
+  state: z.string().optional(),
+  latitude: z.union([z.number(), z.string()]).optional(),
+  longitude: z.union([z.number(), z.string()]).optional()
 });
 
 export async function GET() {
@@ -32,6 +35,8 @@ export async function GET() {
     address: item.address ?? "",
     city: item.city ?? "",
     state: item.state ?? "",
+    latitude: item.latitude ?? null,
+    longitude: item.longitude ?? null,
     subscribedPlanId: item.subscribedPlanId ?? null,
     trialEndsAt: item.trialEndsAt ?? null,
     subscriptionStatus: item.subscriptionStatus ?? "expired"
@@ -70,6 +75,15 @@ export async function POST(request: Request) {
       { status: 409 }
     );
   }
+  const nextAddress = parsed.data.address || "Endereco nao informado";
+  const nextCity = parsed.data.city || "Cidade";
+  const nextState = parsed.data.state || "UF";
+  const latitudeInput = parseFiniteNumber(parsed.data.latitude);
+  const longitudeInput = parseFiniteNumber(parsed.data.longitude);
+  const geocoded =
+    latitudeInput !== null && longitudeInput !== null
+      ? { latitude: latitudeInput, longitude: longitudeInput }
+      : await geocodeAddress(nextAddress, nextCity, nextState);
 
   store.restaurants.push({
     id: makeId("r"),
@@ -81,9 +95,11 @@ export async function POST(request: Request) {
     createdAt: new Date().toISOString(),
     canceledAt: null,
     openingHours: "Seg a Dom - 18h as 23h",
-    address: parsed.data.address || "Endereco nao informado",
-    city: parsed.data.city || "Cidade",
-    state: parsed.data.state || "UF",
+    address: nextAddress,
+    city: nextCity,
+    state: nextState,
+    latitude: geocoded?.latitude ?? null,
+    longitude: geocoded?.longitude ?? null,
     minOrderValue: 15,
     deliveryFee: 5,
     logoUrl: "https://picsum.photos/200/200?random=66",

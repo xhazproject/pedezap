@@ -13,6 +13,7 @@ const settingsSchema = z.object({
   colorPrimary: z.string(),
   colorSecondary: z.string(),
   colorAccent: z.string(),
+  locationAutocompleteMode: z.enum(["hybrid", "json", "internet"]).optional(),
   notificationTemplates: z.array(
     z.object({
       id: z.string().min(1),

@@ -98,6 +98,8 @@ export type Restaurant = {
   address: string;
   city: string;
   state: string;
+  latitude?: number | null;
+  longitude?: number | null;
   minOrderValue: number;
   deliveryFee: number;
   logoUrl: string;
@@ -321,6 +323,7 @@ export type AdminSettings = {
   colorPrimary: string;
   colorSecondary: string;
   colorAccent: string;
+  locationAutocompleteMode?: "hybrid" | "json" | "internet";
   notificationTemplates: NotificationTemplate[];
   integrations: {
     abacatepay: { connected: boolean; environment: "Producao" | "Teste"; webhookUrl: string };
@@ -381,6 +384,8 @@ export const defaultStore: AppStore = {
       address: "Rua das Flores, 123",
       city: "Sao Paulo",
       state: "SP",
+      latitude: -23.5505,
+      longitude: -46.6333,
       minOrderValue: 20,
       deliveryFee: 6,
       logoUrl: "https://picsum.photos/200/200?random=21",
@@ -444,6 +449,8 @@ export const defaultStore: AppStore = {
       address: "Avenida Central, 500",
       city: "Campinas",
       state: "SP",
+      latitude: -22.9056,
+      longitude: -47.0608,
       minOrderValue: 18,
       deliveryFee: 5,
       logoUrl: "https://picsum.photos/200/200?random=31",
@@ -856,6 +863,7 @@ export const defaultStore: AppStore = {
     colorPrimary: "#10B981",
     colorSecondary: "#0F172A",
     colorAccent: "#FBBF24",
+    locationAutocompleteMode: "internet",
     notificationTemplates: [
       {
         id: "tpl_welcome",
