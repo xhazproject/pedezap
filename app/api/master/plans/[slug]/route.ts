@@ -75,6 +75,25 @@ function isStripeCheckoutUrl(value: string | null | undefined) {
   }
 }
 
+function resolveAppBaseUrl(request: Request) {
+  const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim() ?? "";
+  if (fromEnv) {
+    const hasScheme = /^https?:\/\//i.test(fromEnv);
+    const normalized = hasScheme ? fromEnv : `https://${fromEnv}`;
+    try {
+      return new URL(normalized).origin;
+    } catch {
+      // fallback below
+    }
+  }
+
+  try {
+    return new URL(request.url).origin;
+  } catch {
+    return "http://localhost:3000";
+  }
+}
+
 export async function GET(
   _request: Request,
   { params }: { params: { slug: string } }
@@ -157,7 +176,7 @@ export async function POST(
 
   const restaurant = store.restaurants[restaurantIndex];
   const externalId = `plan_${restaurant.slug}_${Date.now()}`;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const appUrl = resolveAppBaseUrl(request);
   const amountInCents = Math.round(plan.price * 100);
 
   const body = buildStripeFormBody({
