@@ -735,7 +735,18 @@ export default function MasterPage() {
     const params = new URLSearchParams(window.location.search);
     const checkoutStatus = params.get('checkout');
     const externalId = params.get('externalId');
-    if (!session || checkoutStatus !== 'success') return;
+    if (!session || !checkoutStatus) return;
+
+    if (checkoutStatus === 'cancel') {
+      setActiveTab('plans');
+      setMessage('Contratacao cancelada. Escolha um plano para tentar novamente.');
+      router.replace('/master');
+      return;
+    }
+
+    if (checkoutStatus !== 'success') return;
+    setActiveTab('plans');
+
     fetch(`/api/master/plans/${session.restaurantSlug}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
