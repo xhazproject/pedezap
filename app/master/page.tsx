@@ -860,7 +860,8 @@ export default function MasterPage() {
       return;
     }
     if (payload?.checkoutUrl) {
-      window.open(payload.checkoutUrl, '_blank');
+      navigateToExternalLink(payload.checkoutUrl);
+      return;
     } else {
       alert('Cobranca criada, mas sem URL de checkout retornada pela API.');
     }
@@ -2102,7 +2103,7 @@ export default function MasterPage() {
     setShowBioLinkModal(false);
     setMessage('Bio link salvo e publicado.');
     const nextUrl = `${bioLinkPublicUrl || marketingLink}?v=${Date.now()}`;
-    window.open(nextUrl, '_blank', 'noopener,noreferrer');
+    navigateToExternalLink(nextUrl);
   };
 
   const openReviewRequestCard = () => {
@@ -2173,6 +2174,15 @@ export default function MasterPage() {
 
   const normalizeWhatsapp = (value: string) => value.replace(/\D/g, '');
 
+  const navigateToExternalLink = (url: string) => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.location.assign(url);
+    } catch {
+      window.location.href = url;
+    }
+  };
+
   const buildOrderTemplateMessage = (template: string, order: Order) => {
     const items = order.items.map((item) => `${item.quantity}x ${item.name}`).join(', ');
     const notes = order.items
@@ -2203,7 +2213,7 @@ export default function MasterPage() {
         ? buildOrderTemplateMessage(settingsOrderPreparingMessage, order)
         : buildOrderTemplateMessage(settingsOrderOutForDeliveryMessage, order);
 
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
+    navigateToExternalLink(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`);
   };
 
   const manualOrderProducts = useMemo(
@@ -3534,7 +3544,7 @@ export default function MasterPage() {
                         <Copy size={18} />
                       </button>
                       <button
-                        onClick={() => window.open(`https://pedezap.site/${restaurant.slug}`, '_blank')}
+                        onClick={() => navigateToExternalLink(`https://pedezap.site/${restaurant.slug}`)}
                         className="bg-white/15 border border-white/20 text-white p-2 rounded-lg hover:bg-white/20 transition-colors"
                       >
                         <ExternalLink size={18} />
@@ -5669,13 +5679,11 @@ export default function MasterPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() =>
-                        window.open(
-                          `https://wa.me/?text=${encodeURIComponent(`Confira nossas ofertas: ${marketingLink}`)}`,
-                          '_blank',
-                          'noopener,noreferrer'
-                        )
-                      }
+                        onClick={() =>
+                          navigateToExternalLink(
+                            `https://wa.me/?text=${encodeURIComponent(`Confira nossas ofertas: ${marketingLink}`)}`
+                          )
+                        }
                       className="rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700 shadow-lg shadow-green-600/20 transition-all flex items-center gap-2"
                     >
                       <MessageCircle size={16} />
@@ -6307,7 +6315,7 @@ export default function MasterPage() {
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => window.open(marketingLink, '_blank')}
+                                  onClick={() => navigateToExternalLink(marketingLink)}
                                   className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-slate-700 hover:bg-gray-50"
                                 >
                                   <ExternalLink size={16} />
@@ -6324,7 +6332,9 @@ export default function MasterPage() {
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    window.open(`https://wa.me/?text=${encodeURIComponent(`Confira nosso cardapio: ${marketingLink}`)}`, '_blank')
+                                    navigateToExternalLink(
+                                      `https://wa.me/?text=${encodeURIComponent(`Confira nosso cardapio: ${marketingLink}`)}`
+                                    )
                                   }
                                   className="inline-flex items-center gap-2 rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white hover:bg-green-600"
                                 >
