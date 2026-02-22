@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   AlertCircle,
@@ -520,6 +520,8 @@ export default function MasterPage() {
   const [ordersView, setOrdersView] = useState<'board' | 'table'>('board');
   const [ordersQuery, setOrdersQuery] = useState('');
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [newOrdersAlertCount, setNewOrdersAlertCount] = useState(0);
+  const [lastOrdersRefreshAt, setLastOrdersRefreshAt] = useState<string | null>(null);
   const [showManualOrderModal, setShowManualOrderModal] = useState(false);
   const [manualOrderForm, setManualOrderForm] = useState<ManualOrderForm>(createDefaultManualOrderForm());
   const [manualSelectedProductId, setManualSelectedProductId] = useState('');
@@ -593,6 +595,8 @@ export default function MasterPage() {
   const [subscriptionSummary, setSubscriptionSummary] = useState<SubscriptionSummary | null>(null);
   const [plansLoading, setPlansLoading] = useState(false);
   const [planCheckoutLoadingId, setPlanCheckoutLoadingId] = useState<string | null>(null);
+  const knownOrderIdsRef = useRef<Set<string>>(new Set());
+  const ordersHydratedRef = useRef(false);
 
   const [newCategory, setNewCategory] = useState('');
   const [productForm, setProductForm] = useState<MenuProductForm>(createDefaultProductForm());
@@ -721,7 +725,14 @@ export default function MasterPage() {
           setRestaurant(null);
           setLoadError(restaurantPayload?.message ?? 'Restaurante nao encontrado para esta sessao.');
         }
-        if (ordersPayload?.orders) setOrders(ordersPayload.orders);
+        if (ordersPayload?.orders) {
+          setOrders(ordersPayload.orders);
+          knownOrderIdsRef.current = new Set(
+            (ordersPayload.orders as Order[]).map((order) => order.id)
+          );
+          ordersHydratedRef.current = true;
+          setLastOrdersRefreshAt(new Date().toISOString());
+        }
         if (customersPayload?.customers) setCustomers(customersPayload.customers);
         if (plansPayload?.plans) setAvailablePlans(plansPayload.plans);
         if (plansPayload?.subscription) setSubscriptionSummary(plansPayload.subscription);
@@ -732,6 +743,47 @@ export default function MasterPage() {
       })
       .finally(() => setLoading(false));
   }, [session]);
+
+  const refreshOrdersFeed = async (options?: { notifyOnNew?: boolean }) => {
+    if (!session) return;
+    const response = await fetch(`/api/orders?slug=${session.restaurantSlug}`, {
+      cache: 'no-store'
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.orders) return;
+
+    const incomingOrders = payload.orders as Order[];
+    const incomingIds = new Set(incomingOrders.map((order) => order.id));
+
+    if (ordersHydratedRef.current && options?.notifyOnNew) {
+      const newReceivedOrders = incomingOrders.filter(
+        (order) => !knownOrderIdsRef.current.has(order.id) && order.status === 'Recebido'
+      );
+      if (newReceivedOrders.length > 0) {
+        setNewOrdersAlertCount((prev) => prev + newReceivedOrders.length);
+        setMessage(
+          `${newReceivedOrders.length} novo(s) pedido(s) recebido(s).`
+        );
+        playNewOrderAlert();
+      }
+    }
+
+    knownOrderIdsRef.current = incomingIds;
+    ordersHydratedRef.current = true;
+    setOrders(incomingOrders);
+    setLastOrdersRefreshAt(new Date().toISOString());
+  };
+
+  useEffect(() => {
+    if (!session || activeTab !== 'orders') return;
+
+    void refreshOrdersFeed({ notifyOnNew: false });
+    const interval = setInterval(() => {
+      void refreshOrdersFeed({ notifyOnNew: true });
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [session, activeTab]);
 
   const loadSubscriptionPlans = async (silent = false) => {
     if (!session) return;
@@ -2180,6 +2232,33 @@ export default function MasterPage() {
       window.location.assign(url);
     } catch {
       window.location.href = url;
+    }
+  };
+
+  const playNewOrderAlert = () => {
+    if (typeof window === 'undefined') return;
+    try {
+      const AudioCtx =
+        (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext }).AudioContext ||
+        (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(880, ctx.currentTime);
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.06, ctx.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.22);
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.start();
+      oscillator.stop(ctx.currentTime + 0.24);
+      oscillator.onended = () => {
+        void ctx.close().catch(() => undefined);
+      };
+    } catch {
+      // Safari may block audio without interaction; visual alert still appears.
     }
   };
 
@@ -4366,6 +4445,27 @@ export default function MasterPage() {
                       </button>
                     </div>
                   </div>
+                </div>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-xs text-gray-500">
+                    Atualizacao automatica a cada 5s
+                    {lastOrdersRefreshAt
+                      ? ` • Ultimo refresh: ${new Date(lastOrdersRefreshAt).toLocaleTimeString('pt-BR')}`
+                      : ''}
+                  </div>
+                  {newOrdersAlertCount > 0 && (
+                    <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
+                      <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                      {newOrdersAlertCount} novo(s) pedido(s) recebido(s)
+                      <button
+                        type="button"
+                        onClick={() => setNewOrdersAlertCount(0)}
+                        className="ml-1 rounded-md border border-emerald-300 bg-white px-2 py-0.5 text-[11px] hover:bg-emerald-100"
+                      >
+                        Limpar
+                      </button>
+                    </div>
+                  )}
                 </div>
                 {manualOrderMonthlyLimit !== null && (
                   <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
