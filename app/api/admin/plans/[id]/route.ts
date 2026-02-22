@@ -3,12 +3,30 @@ import { z } from "zod";
 import { readStore, writeStore } from "@/lib/store";
 import { appendAuditLog } from "@/lib/audit";
 
+const planTabEnum = z.enum([
+  "dashboard",
+  "orders",
+  "menu",
+  "highlights",
+  "clients",
+  "billing",
+  "promotions",
+  "banners",
+  "marketing",
+  "settings",
+  "plans",
+  "support"
+]);
+
 const updatePlanSchema = z.object({
   name: z.string().min(2).optional(),
   price: z.number().positive().optional(),
   color: z.string().min(4).optional(),
   description: z.string().min(4).optional(),
   features: z.array(z.string().min(1)).min(1).optional(),
+  allowedTabs: z.array(planTabEnum).min(1).optional(),
+  manualOrderLimitEnabled: z.boolean().optional(),
+  manualOrderLimitPerMonth: z.number().int().positive().nullable().optional(),
   active: z.boolean().optional()
 });
 
@@ -37,6 +55,10 @@ export async function PUT(
   store.plans[index] = {
     ...store.plans[index],
     ...parsed.data,
+    manualOrderLimitPerMonth:
+      parsed.data.manualOrderLimitEnabled === false
+        ? null
+        : parsed.data.manualOrderLimitPerMonth ?? store.plans[index].manualOrderLimitPerMonth ?? null,
     updatedAt: new Date().toISOString()
   };
   await appendAuditLog(store, {

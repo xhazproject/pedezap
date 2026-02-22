@@ -31,11 +31,17 @@ export async function GET(
 
   const { ownerEmail: _ownerEmail, ownerPassword: _ownerPassword, ...publicRestaurant } =
     store.restaurants[index];
+  const subscribedPlan = store.plans.find((plan) => plan.id === publicRestaurant.subscribedPlanId);
+  const bannerFeatureEnabled = subscribedPlan?.allowedTabs
+    ? subscribedPlan.allowedTabs.includes("banners")
+    : true;
 
   return NextResponse.json({
     success: true,
     restaurant: {
       ...publicRestaurant,
+      bannerFeatureEnabled,
+      banners: bannerFeatureEnabled ? publicRestaurant.banners : [],
       products: publicRestaurant.products.filter((item) => item.active),
       categories: publicRestaurant.categories.filter((item) => item.active)
     }

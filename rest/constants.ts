@@ -54,6 +54,7 @@ export const PIZZA_CRUSTS: PizzaCrust[] = [
 ];
 
 export function configureRestaurantMenuData(restaurant: StoreRestaurant) {
+  const bannerFeatureEnabled = restaurant.bannerFeatureEnabled !== false;
   const whatsappDigits = (restaurant.whatsapp || '').replace(/\D/g, '');
   const activeBanners = Array.isArray(restaurant.banners)
     ? restaurant.banners.filter((banner) => banner.active)
@@ -84,7 +85,11 @@ export function configureRestaurantMenuData(restaurant: StoreRestaurant) {
     state: restaurant.state || 'UF',
     taxId: restaurant.taxId ?? null,
     minOrderValue: restaurant.minOrderValue ?? 0,
-    deliveryFee: restaurant.deliveryFee ?? 0
+    deliveryFee: restaurant.deliveryFee ?? 0,
+    coupons: (restaurant.coupons ?? []).map((coupon) => ({
+      ...coupon,
+      code: coupon.code.trim().toUpperCase()
+    }))
   };
 
   CATEGORIES = (restaurant.categories || []).map((category) => ({
@@ -165,7 +170,9 @@ export function configureRestaurantMenuData(restaurant: StoreRestaurant) {
     ...activeBanners.filter((banner) => !campaignBannerIds.has(banner.id))
   ];
 
-  OFFERS = prioritizedBanners.length
+  OFFERS = !bannerFeatureEnabled
+    ? []
+    : prioritizedBanners.length
     ? prioritizedBanners.map((banner) => ({
         id: banner.id,
         title: banner.title,

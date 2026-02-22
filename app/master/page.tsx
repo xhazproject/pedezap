@@ -93,6 +93,21 @@ type TabKey =
   | 'plans'
   | 'support';
 
+const DEFAULT_PLAN_TABS: TabKey[] = [
+  'dashboard',
+  'orders',
+  'menu',
+  'highlights',
+  'clients',
+  'billing',
+  'promotions',
+  'banners',
+  'marketing',
+  'settings',
+  'plans',
+  'support'
+];
+
 type ProductKind = 'padrao' | 'pizza' | 'bebida' | 'acai';
 
 type PizzaItemDraft = {
@@ -191,6 +206,9 @@ type AvailablePlan = {
   color: string;
   description: string;
   features: string[];
+  allowedTabs?: TabKey[];
+  manualOrderLimitEnabled?: boolean;
+  manualOrderLimitPerMonth?: number | null;
   active: boolean;
   subscribers: number;
 };
@@ -786,6 +804,24 @@ export default function MasterPage() {
   }, [restaurant?.marketingCampaigns]);
 
   useEffect(() => {
+    const nextCoupons =
+      restaurant?.coupons?.map((coupon) => ({
+        id: coupon.id,
+        code: coupon.code,
+        uses: coupon.uses ?? 0,
+        active: coupon.active,
+        discountType: coupon.discountType,
+        discountValue: coupon.discountValue,
+        minOrderValue: coupon.minOrderValue,
+        startDate: coupon.startDate ?? '',
+        endDate: coupon.endDate ?? '',
+        startTime: coupon.startTime ?? '',
+        endTime: coupon.endTime ?? ''
+      })) ?? [];
+    setCoupons(nextCoupons);
+  }, [restaurant?.coupons]);
+
+  useEffect(() => {
     if (!restaurant) return;
     setBioLinkSettings({
       ...createDefaultBioLinkSettings(),
@@ -1119,21 +1155,7 @@ export default function MasterPage() {
             stripFeaturedTag(product.description).toLowerCase().includes(highlightSearch))
       )
     : [];
-  const pageTitle = {
-    dashboard: 'Visao Geral',
-    menu: 'Gestao de Cardapio',
-    highlights: 'Destaques',
-    clients: 'Clientes',
-    orders: 'Pedidos',
-    billing: 'Financeiro',
-    promotions: 'Promocoes',
-    banners: 'Banners',
-    marketing: 'Marketing',
-    settings: 'Configuracoes',
-    plans: 'Meu Plano',
-    support: 'Central de Ajuda'
-  }[activeTab];
-  const navItems = [
+  const allNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'orders', label: 'Pedidos', icon: ShoppingBag },
     { id: 'menu', label: 'Cardapio', icon: UtensilsCrossed },
@@ -1155,6 +1177,28 @@ export default function MasterPage() {
     () => availablePlans.find((item) => item.id === subscriptionSummary?.subscribedPlanId) ?? null,
     [availablePlans, subscriptionSummary?.subscribedPlanId]
   );
+  const allowedTabsByPlan = useMemo<TabKey[]>(
+    () =>
+      currentSubscribedPlan?.allowedTabs?.length
+        ? currentSubscribedPlan.allowedTabs
+        : DEFAULT_PLAN_TABS,
+    [currentSubscribedPlan]
+  );
+  const navItems = allNavItems.filter((item) => allowedTabsByPlan.includes(item.id));
+  const pageTitle = {
+    dashboard: 'Visao Geral',
+    menu: 'Gestao de Cardapio',
+    highlights: 'Destaques',
+    clients: 'Clientes',
+    orders: 'Pedidos',
+    billing: 'Financeiro',
+    promotions: 'Promocoes',
+    banners: 'Banners',
+    marketing: 'Marketing',
+    settings: 'Configuracoes',
+    plans: 'Meu Plano',
+    support: 'Central de Ajuda'
+  }[activeTab];
   const subscriptionStatusLabel = {
     trial: 'Periodo Gratis',
     active: 'Ativo',
@@ -1169,8 +1213,21 @@ export default function MasterPage() {
     expired: 'bg-red-100 text-red-700',
     canceled: 'bg-slate-200 text-slate-700'
   }[subscriptionSummary?.status ?? 'expired'];
+  useEffect(() => {
+    if (!allowedTabsByPlan.includes(activeTab)) {
+      setActiveTab(allowedTabsByPlan[0] ?? 'dashboard');
+    }
+  }, [activeTab, allowedTabsByPlan]);
+
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   const ordersThisMonth = orders.filter((order) => new Date(order.createdAt) >= monthStart);
+  const manualOrdersThisMonth = ordersThisMonth.filter((order) => order.source === 'panel');
+  const manualOrderMonthlyLimit =
+    currentSubscribedPlan?.manualOrderLimitEnabled && currentSubscribedPlan.manualOrderLimitPerMonth
+      ? currentSubscribedPlan.manualOrderLimitPerMonth
+      : null;
+  const hasReachedManualOrderLimit =
+    manualOrderMonthlyLimit !== null && manualOrdersThisMonth.length >= manualOrderMonthlyLimit;
   const totalSalesThisMonth = ordersThisMonth.reduce((sum, order) => sum + order.total, 0);
   const totalViews = restaurant?.viewCount ?? 0;
   const conversionRate = totalViews
@@ -2193,6 +2250,10 @@ export default function MasterPage() {
 
   const createManualOrder = async () => {
     if (!session || !restaurant) return;
+    if (hasReachedManualOrderLimit) {
+      alert('Limite mensal de pedidos manuais atingido para o seu plano.');
+      return;
+    }
     if (!manualOrderForm.customerName.trim() || !manualOrderForm.customerWhatsapp.trim() || !manualOrderForm.customerAddress.trim()) {
       alert('Preencha os dados do cliente.');
       return;
@@ -2230,6 +2291,7 @@ export default function MasterPage() {
         customerWhatsapp: manualOrderForm.customerWhatsapp.trim(),
         customerAddress: manualOrderForm.customerAddress.trim(),
         paymentMethod: manualOrderForm.paymentMethod,
+        source: 'panel',
         items: itemsPayload
       })
     });
@@ -2523,7 +2585,30 @@ export default function MasterPage() {
     setShowCouponForm(false);
   };
 
-  const saveCoupon = () => {
+  const persistCoupons = async (nextCoupons: Coupon[]) => {
+    if (!session) return;
+    const response = await fetch(`/api/master/restaurant/${session.restaurantSlug}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'saveCoupons', data: nextCoupons })
+    });
+    const payload = await response.json().catch(() => null);
+    if (payload?.coupons) {
+      const persistedCoupons = (payload.coupons as Coupon[]).map((coupon) => ({
+        ...coupon,
+        startDate: coupon.startDate ?? '',
+        endDate: coupon.endDate ?? '',
+        startTime: coupon.startTime ?? '',
+        endTime: coupon.endTime ?? ''
+      }));
+      setCoupons(persistedCoupons);
+      if (restaurant) {
+        setRestaurant({ ...restaurant, coupons: persistedCoupons });
+      }
+    }
+  };
+
+  const saveCoupon = async () => {
     const code = couponForm.code.trim().toUpperCase();
     if (!code) return;
 
@@ -2541,23 +2626,28 @@ export default function MasterPage() {
       endTime: couponForm.endTime
     };
 
-    if (editingCouponId) {
-      setCoupons((prev) => prev.map((coupon) => (coupon.id === editingCouponId ? nextCoupon : coupon)));
-    } else {
-      setCoupons((prev) => [nextCoupon, ...prev]);
-    }
+    const nextCoupons = editingCouponId
+      ? coupons.map((coupon) => (coupon.id === editingCouponId ? nextCoupon : coupon))
+      : [nextCoupon, ...coupons];
+
+    setCoupons(nextCoupons);
+    await persistCoupons(nextCoupons);
 
     closeCouponModal();
   };
 
-  const toggleCouponStatus = (couponId: string) => {
-    setCoupons((prev) =>
-      prev.map((coupon) => (coupon.id === couponId ? { ...coupon, active: !coupon.active } : coupon))
+  const toggleCouponStatus = async (couponId: string) => {
+    const nextCoupons = coupons.map((coupon) =>
+      coupon.id === couponId ? { ...coupon, active: !coupon.active } : coupon
     );
+    setCoupons(nextCoupons);
+    await persistCoupons(nextCoupons);
   };
 
-  const removeCoupon = (couponId: string) => {
-    setCoupons((prev) => prev.filter((coupon) => coupon.id !== couponId));
+  const removeCoupon = async (couponId: string) => {
+    const nextCoupons = coupons.filter((coupon) => coupon.id !== couponId);
+    setCoupons(nextCoupons);
+    await persistCoupons(nextCoupons);
   };
 
   const buildOpeningHoursSummary = (hours: WeeklyHours[]) => {
@@ -3337,6 +3427,20 @@ export default function MasterPage() {
             </button>
           ))}
         </nav>
+        <div className="p-4 border-t border-gray-100">
+          <button
+            onClick={async () => {
+              await fetch('/api/master/logout', { method: 'POST' }).catch(() => null);
+              localStorage.removeItem('pedezap_master_session');
+              setMobileMenuOpen(false);
+              router.push('/master/login');
+            }}
+            className="flex items-center gap-3 w-full px-3 py-2.5 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+          >
+            <LogOut size={18} />
+            Sair
+          </button>
+        </div>
       </aside>
 
       <aside className="w-64 h-screen bg-white border-r border-gray-200 hidden lg:flex flex-col">
@@ -4218,7 +4322,8 @@ export default function MasterPage() {
 	                  <div className="flex items-center gap-2">
 	                    <button
 	                      onClick={() => setShowManualOrderModal(true)}
-	                      className="inline-flex items-center gap-2 rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-slate-900"
+	                      disabled={hasReachedManualOrderLimit}
+	                      className="inline-flex items-center gap-2 rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-300"
 	                    >
 	                      <Plus size={16} />
 	                      Novo Pedido
@@ -4252,6 +4357,12 @@ export default function MasterPage() {
                     </div>
                   </div>
                 </div>
+                {manualOrderMonthlyLimit !== null && (
+                  <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                    Pedidos manuais no mes: {manualOrdersThisMonth.length}/{manualOrderMonthlyLimit}
+                    {hasReachedManualOrderLimit ? ' (limite atingido)' : ''}
+                  </div>
+                )}
 
                 {ordersView === 'board' ? (
                   <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4">

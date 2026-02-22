@@ -8,7 +8,7 @@ import { FeaturedProductCard } from '../components/FeaturedProductCard';
 import { BottomNav } from '../components/BottomNav';
 import { ProductModal } from '../components/ProductModal';
 import { StoreInfoModal } from '../components/StoreInfoModal';
-import { CATEGORIES, PRODUCTS } from '../constants';
+import { CATEGORIES, OFFERS, PRODUCTS } from '../constants';
 import { useCart } from '../context/CartContext';
 import { Offer, PizzaCrust, PizzaFlavor, Product, ProductComplement, SelectedAcaiOption } from '../types';
 
@@ -70,15 +70,17 @@ export const MenuPage: React.FC<MenuPageProps> = ({ onCheckout, onProfile }) => 
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
       <Header onOpenStoreInfo={() => setIsStoreInfoOpen(true)} />
-      <div className="border-b border-slate-100 bg-white">
-        <OffersCarousel
-          onSelectOffer={(offer) => {
-            setActiveOffer(offer);
-            setActiveCategory('all');
-            window.scrollTo({ top: 320, behavior: 'smooth' });
-          }}
-        />
-      </div>
+      {OFFERS.length > 0 && (
+        <div className="border-b border-slate-100 bg-white">
+          <OffersCarousel
+            onSelectOffer={(offer) => {
+              setActiveOffer(offer);
+              setActiveCategory('all');
+              window.scrollTo({ top: 320, behavior: 'smooth' });
+            }}
+          />
+        </div>
+      )}
       <CategoryNav
         activeCategory={activeCategory}
         onSelectCategory={setActiveCategory}

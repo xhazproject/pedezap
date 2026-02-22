@@ -42,6 +42,21 @@ export interface Restaurant {
   taxId?: string | null;
   minOrderValue: number;
   deliveryFee: number;
+  coupons?: RestaurantCoupon[];
+}
+
+export interface RestaurantCoupon {
+  id: string;
+  code: string;
+  uses: number;
+  active: boolean;
+  discountType: 'percent' | 'fixed';
+  discountValue: number;
+  minOrderValue: number;
+  startDate?: string;
+  endDate?: string;
+  startTime?: string;
+  endTime?: string;
 }
 
 // Auxiliar types for Pizza
@@ -99,6 +114,7 @@ export interface CartItem extends Product {
 export interface CustomerData {
   name: string;
   phone: string;
+  email?: string;
   address: string;
   reference?: string;
   paymentMethod: 'credit' | 'debit' | 'money' | 'pix';

@@ -179,9 +179,26 @@ type AdminPlan = {
   color: string;
   description: string;
   features: string[];
+  allowedTabs?: PlanMasterTab[];
+  manualOrderLimitEnabled?: boolean;
+  manualOrderLimitPerMonth?: number | null;
   active: boolean;
   subscribers: number;
 };
+
+type PlanMasterTab =
+  | 'dashboard'
+  | 'orders'
+  | 'menu'
+  | 'highlights'
+  | 'clients'
+  | 'billing'
+  | 'promotions'
+  | 'banners'
+  | 'marketing'
+  | 'settings'
+  | 'plans'
+  | 'support';
 
 type PlanForm = {
   name: string;
@@ -189,6 +206,9 @@ type PlanForm = {
   color: string;
   description: string;
   features: string[];
+  allowedTabs: PlanMasterTab[];
+  manualOrderLimitEnabled: boolean;
+  manualOrderLimitPerMonth: string;
 };
 
 type Payout = {
@@ -285,6 +305,23 @@ const financeTabs = [
   { id: 'plans', label: 'Planos' }
 ];
 
+const masterTabOptions: Array<{ value: PlanMasterTab; label: string }> = [
+  { value: 'dashboard', label: 'Dashboard' },
+  { value: 'orders', label: 'Pedidos' },
+  { value: 'menu', label: 'Cardapio' },
+  { value: 'highlights', label: 'Destaques' },
+  { value: 'clients', label: 'Clientes' },
+  { value: 'billing', label: 'Faturamento' },
+  { value: 'promotions', label: 'Promocoes' },
+  { value: 'banners', label: 'Banners' },
+  { value: 'marketing', label: 'Marketing' },
+  { value: 'settings', label: 'Configuracoes' },
+  { value: 'plans', label: 'Plano' },
+  { value: 'support', label: 'Suporte' }
+];
+
+const defaultPlanTabs = masterTabOptions.map((item) => item.value);
+
 const moneyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const initialPlans: AdminPlan[] = [
   {
@@ -294,6 +331,9 @@ const initialPlans: AdminPlan[] = [
     color: '#6366f1',
     description: 'Ideal para pequenos comercios que vendem apenas no bairro.',
     features: ['Cardapio Digital', 'Recebimento via WhatsApp', 'Ate 500 pedidos/mes', 'Suporte por Email'],
+    allowedTabs: ['dashboard', 'orders', 'menu', 'clients', 'settings', 'plans', 'support'],
+    manualOrderLimitEnabled: true,
+    manualOrderLimitPerMonth: 500,
     active: true,
     subscribers: 740
   },
@@ -310,6 +350,9 @@ const initialPlans: AdminPlan[] = [
       'Gestor de Entregas',
       'Ferramenta de Cupons'
     ],
+    allowedTabs: [...defaultPlanTabs],
+    manualOrderLimitEnabled: false,
+    manualOrderLimitPerMonth: null,
     active: true,
     subscribers: 500
   }
@@ -386,7 +429,10 @@ export default function AdminPage() {
     price: '0',
     color: '#000000',
     description: '',
-    features: ['']
+    features: [''],
+    allowedTabs: [...defaultPlanTabs],
+    manualOrderLimitEnabled: false,
+    manualOrderLimitPerMonth: ''
   });
   const [delinquencyInvoices, setDelinquencyInvoices] = useState<FinanceInvoice[]>([]);
   const [teamUsers, setTeamUsers] = useState<TeamUser[]>([]);
@@ -1083,7 +1129,10 @@ export default function AdminPage() {
       price: '0',
       color: '#000000',
       description: '',
-      features: ['']
+      features: [''],
+      allowedTabs: [...defaultPlanTabs],
+      manualOrderLimitEnabled: false,
+      manualOrderLimitPerMonth: ''
     });
   };
 
@@ -1100,7 +1149,13 @@ export default function AdminPage() {
       price: String(plan.price).replace('.', ','),
       color: plan.color,
       description: plan.description,
-      features: plan.features.length ? [...plan.features] : ['']
+      features: plan.features.length ? [...plan.features] : [''],
+      allowedTabs: plan.allowedTabs?.length ? [...plan.allowedTabs] : [...defaultPlanTabs],
+      manualOrderLimitEnabled: plan.manualOrderLimitEnabled ?? false,
+      manualOrderLimitPerMonth:
+        plan.manualOrderLimitPerMonth && Number.isFinite(plan.manualOrderLimitPerMonth)
+          ? String(plan.manualOrderLimitPerMonth)
+          : ''
     });
     setShowPlanModal(true);
   };
@@ -1122,6 +1177,17 @@ export default function AdminPage() {
         return { ...prev, features: [''] };
       }
       return { ...prev, features: prev.features.filter((_, featureIndex) => featureIndex !== index) };
+    });
+  };
+
+  const handleTogglePlanTab = (tab: PlanMasterTab) => {
+    setPlanForm((prev) => {
+      const exists = prev.allowedTabs.includes(tab);
+      if (exists) {
+        if (prev.allowedTabs.length <= 1) return prev;
+        return { ...prev, allowedTabs: prev.allowedTabs.filter((item) => item !== tab) };
+      }
+      return { ...prev, allowedTabs: [...prev.allowedTabs, tab] };
     });
   };
 
@@ -1153,6 +1219,18 @@ export default function AdminPage() {
       alert('Adicione ao menos um beneficio.');
       return;
     }
+    if (!planForm.allowedTabs.length) {
+      alert('Selecione pelo menos uma aba permitida para este plano.');
+      return;
+    }
+    const normalizedLimit = Number(planForm.manualOrderLimitPerMonth.replace(',', '.'));
+    if (
+      planForm.manualOrderLimitEnabled &&
+      (!Number.isFinite(normalizedLimit) || normalizedLimit <= 0 || !Number.isInteger(normalizedLimit))
+    ) {
+      alert('Informe um limite mensal inteiro e maior que zero.');
+      return;
+    }
 
     const endpoint = editingPlanId ? `/api/admin/plans/${editingPlanId}` : "/api/admin/plans";
     const method = editingPlanId ? "PUT" : "POST";
@@ -1165,6 +1243,9 @@ export default function AdminPage() {
         color: planForm.color,
         description: normalizedDescription,
         features: normalizedFeatures,
+        allowedTabs: planForm.allowedTabs,
+        manualOrderLimitEnabled: planForm.manualOrderLimitEnabled,
+        manualOrderLimitPerMonth: planForm.manualOrderLimitEnabled ? normalizedLimit : null,
         active: true
       })
     });
@@ -4233,6 +4314,53 @@ export default function AdminPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">Abas permitidas no Painel Master</label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  {masterTabOptions.map((tab) => (
+                    <label key={tab.value} className="inline-flex items-center gap-2 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={planForm.allowedTabs.includes(tab.value)}
+                        onChange={() => handleTogglePlanTab(tab.value)}
+                        className="h-4 w-4 rounded border-slate-300"
+                      />
+                      {tab.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={planForm.manualOrderLimitEnabled}
+                    onChange={(event) =>
+                      setPlanForm((prev) => ({
+                        ...prev,
+                        manualOrderLimitEnabled: event.target.checked,
+                        manualOrderLimitPerMonth: event.target.checked ? prev.manualOrderLimitPerMonth : ''
+                      }))
+                    }
+                    className="h-4 w-4 rounded border-slate-300"
+                  />
+                  Limitar pedidos manuais por mes (aba Pedidos)
+                </label>
+                <input
+                  value={planForm.manualOrderLimitPerMonth}
+                  onChange={(event) =>
+                    setPlanForm((prev) => ({
+                      ...prev,
+                      manualOrderLimitPerMonth: event.target.value.replace(/[^\d]/g, '')
+                    }))
+                  }
+                  disabled={!planForm.manualOrderLimitEnabled}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-slate-100 disabled:text-slate-400"
+                  placeholder="Ex: 500"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3 pt-2">

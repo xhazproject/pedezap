@@ -24,9 +24,11 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onBackToMenu, initia
   const [submitting, setSubmitting] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [generalNotes, setGeneralNotes] = useState('');
+  const [couponCode, setCouponCode] = useState('');
   const [customer, setCustomer] = useState<CustomerData>({
     name: initialCustomerData?.name || '',
     phone: initialCustomerData?.phone || '',
+    email: initialCustomerData?.email || '',
     address: initialCustomerData?.address || '',
     paymentMethod: 'credit',
     changeFor: '',
@@ -59,7 +61,9 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onBackToMenu, initia
         restaurantSlug: slug,
         customerName: customer.name,
         customerWhatsapp: customer.phone,
+        customerEmail: customer.email || undefined,
         customerAddress: customer.address,
+        couponCode: couponCode.trim().toUpperCase() || undefined,
         paymentMethod: paymentMethodMap[customer.paymentMethod],
         generalNotes: [generalNotes, customer.reference ? `Ref: ${customer.reference}` : '', customer.changeFor ? `Troco: ${customer.changeFor}` : '']
           .filter(Boolean)
@@ -242,6 +246,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onBackToMenu, initia
           <div className="p-4 space-y-4">
             <input type="text" value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg" placeholder="Seu nome" />
             <input type="tel" value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg" placeholder="WhatsApp" />
+            <input type="email" value={customer.email || ''} onChange={(e) => setCustomer({ ...customer, email: e.target.value })} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg" placeholder="E-mail (opcional)" />
           </div>
         </div>
 
@@ -273,6 +278,24 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onBackToMenu, initia
             {customer.paymentMethod === 'money' && (
               <input type="text" value={customer.changeFor || ''} onChange={(e) => setCustomer({ ...customer, changeFor: e.target.value })} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg" placeholder="Troco para quanto?" />
             )}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-gray-100 bg-gray-50">
+            <h2 className="font-semibold text-gray-700">Cupom</h2>
+          </div>
+          <div className="p-4">
+            <input
+              type="text"
+              value={couponCode}
+              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg"
+              placeholder="Digite seu cupom"
+            />
+            <p className="mt-2 text-xs text-gray-500">
+              Cada cupom pode ser usado 1 vez por cliente nesta loja.
+            </p>
           </div>
         </div>
 

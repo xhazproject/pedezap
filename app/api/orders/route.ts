@@ -5,9 +5,12 @@ import { Order, OrderPaymentMethod } from "@/lib/store-data";
 
 const orderSchema = z.object({
   restaurantSlug: z.string().min(1),
+  source: z.enum(["catalog", "panel"]).optional(),
   customerName: z.string().min(2),
   customerWhatsapp: z.string().min(10),
+  customerEmail: z.string().email().optional(),
   customerAddress: z.string().min(5),
+  couponCode: z.string().optional(),
   paymentMethod: z.enum(["money", "card", "pix"]),
   generalNotes: z.string().optional(),
   items: z.array(
@@ -20,6 +23,36 @@ const orderSchema = z.object({
     })
   )
 });
+
+function normalizeCouponCode(value: string) {
+  return value.trim().toUpperCase();
+}
+
+function isCouponWithinDateTime(coupon: {
+  startDate?: string;
+  endDate?: string;
+  startTime?: string;
+  endTime?: string;
+}) {
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const parseTime = (time: string) => {
+    const [hh, mm] = time.split(":").map(Number);
+    if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null;
+    return hh * 60 + mm;
+  };
+
+  if (coupon.startDate && coupon.startDate > today) return false;
+  if (coupon.endDate && coupon.endDate < today) return false;
+
+  const startMinutes = coupon.startTime ? parseTime(coupon.startTime) : null;
+  const endMinutes = coupon.endTime ? parseTime(coupon.endTime) : null;
+  if (startMinutes !== null && currentMinutes < startMinutes) return false;
+  if (endMinutes !== null && currentMinutes > endMinutes) return false;
+
+  return true;
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -72,8 +105,64 @@ export async function POST(request: Request) {
     (sum, item) => sum + item.price * item.quantity,
     0
   );
+  const normalizedCoupon = parsed.data.couponCode
+    ? normalizeCouponCode(parsed.data.couponCode)
+    : "";
+  let discountValue = 0;
+  let appliedCouponCode = "";
+
+  if (normalizedCoupon) {
+    const couponIndex = (restaurant.coupons ?? []).findIndex(
+      (coupon) => normalizeCouponCode(coupon.code) === normalizedCoupon
+    );
+    if (couponIndex === -1) {
+      return NextResponse.json(
+        { success: false, message: "Cupom invalido para esta loja." },
+        { status: 400 }
+      );
+    }
+
+    const coupon = restaurant.coupons![couponIndex];
+    if (!coupon.active || !isCouponWithinDateTime(coupon)) {
+      return NextResponse.json(
+        { success: false, message: "Cupom inativo ou fora da validade." },
+        { status: 400 }
+      );
+    }
+    if (subtotal < (coupon.minOrderValue ?? 0)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Cupom disponivel apenas para pedidos acima de R$ ${Number(coupon.minOrderValue ?? 0).toFixed(2)}.`
+        },
+        { status: 400 }
+      );
+    }
+
+    const normalizedWhatsapp = parsed.data.customerWhatsapp.replace(/\D/g, "");
+    const customer = store.customers.find(
+      (item) =>
+        item.restaurantSlug === restaurant.slug &&
+        item.whatsapp.replace(/\D/g, "") === normalizedWhatsapp
+    );
+
+    if (customer?.usedCouponCodes?.includes(normalizedCoupon)) {
+      return NextResponse.json(
+        { success: false, message: "Este cupom ja foi utilizado por este cliente nesta loja." },
+        { status: 409 }
+      );
+    }
+
+    discountValue =
+      coupon.discountType === "percent"
+        ? (subtotal * coupon.discountValue) / 100
+        : coupon.discountValue;
+    discountValue = Math.max(0, Math.min(subtotal, Number(discountValue.toFixed(2))));
+    appliedCouponCode = normalizedCoupon;
+  }
+
   const deliveryFee = restaurant.deliveryFee;
-  const total = subtotal + deliveryFee;
+  const total = subtotal - discountValue + deliveryFee;
 
   const paymentLabels: Record<OrderPaymentMethod, string> = {
     money: "Dinheiro",
@@ -84,12 +173,15 @@ export async function POST(request: Request) {
   const createdOrder: Order = {
     id: makeId("order"),
     restaurantSlug: restaurant.slug,
+    source: parsed.data.source ?? "catalog",
     customerName: parsed.data.customerName,
     customerWhatsapp: parsed.data.customerWhatsapp,
     customerAddress: parsed.data.customerAddress,
     paymentMethod: parsed.data.paymentMethod,
     items: parsed.data.items,
     subtotal,
+    discountValue,
+    couponCode: appliedCouponCode || undefined,
     deliveryFee,
     total,
     generalNotes: parsed.data.generalNotes,
@@ -114,6 +206,10 @@ export async function POST(request: Request) {
       whatsapp: parsed.data.customerWhatsapp,
       totalOrders: current.totalOrders + 1,
       totalSpent: current.totalSpent + total,
+      usedCouponCodes:
+        appliedCouponCode && !current.usedCouponCodes?.includes(appliedCouponCode)
+          ? [...(current.usedCouponCodes ?? []), appliedCouponCode]
+          : current.usedCouponCodes ?? [],
       lastOrderAt: new Date().toISOString()
     };
   } else {
@@ -124,9 +220,21 @@ export async function POST(request: Request) {
       whatsapp: parsed.data.customerWhatsapp,
       totalOrders: 1,
       totalSpent: total,
+      usedCouponCodes: appliedCouponCode ? [appliedCouponCode] : [],
       lastOrderAt: new Date().toISOString(),
       createdAt: new Date().toISOString()
     });
+  }
+
+  if (appliedCouponCode) {
+    const targetRestaurant = store.restaurants.find((item) => item.slug === restaurant.slug);
+    if (targetRestaurant?.coupons?.length) {
+      targetRestaurant.coupons = targetRestaurant.coupons.map((coupon) =>
+        normalizeCouponCode(coupon.code) === appliedCouponCode
+          ? { ...coupon, uses: (coupon.uses ?? 0) + 1 }
+          : coupon
+      );
+    }
   }
 
   await writeStore(store);
@@ -139,6 +247,9 @@ export async function POST(request: Request) {
   });
   message += "------------------------------\n";
   message += `Subtotal: R$ ${subtotal.toFixed(2)}\n`;
+  if (discountValue > 0) {
+    message += `Desconto (${appliedCouponCode}): -R$ ${discountValue.toFixed(2)}\n`;
+  }
   message += `Taxa entrega: R$ ${deliveryFee.toFixed(2)}\n`;
   message += `*TOTAL: R$ ${total.toFixed(2)}*\n\n`;
   message += "*DADOS DO CLIENTE*\n";

@@ -10,6 +10,20 @@ const requireDatabase =
   process.env.REQUIRE_DATABASE === "true" || process.env.NODE_ENV === "production";
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 const shouldStrictRequireDatabase = requireDatabase && !isBuildPhase;
+const DEFAULT_MASTER_PLAN_TABS = [
+  "dashboard",
+  "orders",
+  "menu",
+  "highlights",
+  "clients",
+  "billing",
+  "promotions",
+  "banners",
+  "marketing",
+  "settings",
+  "plans",
+  "support"
+] as const;
 
 function toDbJsonPayload(store: AppStore): object {
   // Prisma JSON does not accept undefined values in nested objects.
@@ -146,6 +160,7 @@ function normalizeStore(parsed: Partial<AppStore>): AppStore {
     passwordResetExpiresAt: item.passwordResetExpiresAt ?? null,
     banners: item.banners ?? [],
     marketingCampaigns: item.marketingCampaigns ?? [],
+    coupons: item.coupons ?? [],
     bioLink: {
       appearance: item.bioLink?.appearance ?? "dark",
       headline: item.bioLink?.headline ?? "Nossos links oficiais",
@@ -171,14 +186,22 @@ function normalizeStore(parsed: Partial<AppStore>): AppStore {
   }));
   const orders = (parsed.orders ?? []).map((order) => ({
     ...order,
-    status: order.status ?? "Recebido"
+    status: order.status ?? "Recebido",
+    discountValue: order.discountValue ?? 0,
+    couponCode: order.couponCode ?? undefined,
+    source: order.source ?? "catalog"
+  }));
+
+  const customers = (parsed.customers ?? []).map((customer) => ({
+    ...customer,
+    usedCouponCodes: customer.usedCouponCodes ?? []
   }));
 
   return {
     leads: parsed.leads ?? [],
     restaurants,
     orders,
-    customers: parsed.customers ?? [],
+    customers,
     auditLogs: parsed.auditLogs ?? [],
     invoices: parsed.invoices ?? defaultStore.invoices,
     adminUsers,
@@ -188,6 +211,15 @@ function normalizeStore(parsed: Partial<AppStore>): AppStore {
     supportQuickReplies: parsed.supportQuickReplies ?? defaultStore.supportQuickReplies,
     plans: (parsed.plans ?? defaultStore.plans).map((plan) => ({
       ...plan,
+      allowedTabs:
+        plan.allowedTabs?.length
+          ? [...plan.allowedTabs]
+          : [...DEFAULT_MASTER_PLAN_TABS],
+      manualOrderLimitEnabled: plan.manualOrderLimitEnabled ?? false,
+      manualOrderLimitPerMonth:
+        plan.manualOrderLimitEnabled === false
+          ? null
+          : plan.manualOrderLimitPerMonth ?? null,
       updatedAt: plan.updatedAt ?? now,
       createdAt: plan.createdAt ?? now
     })),

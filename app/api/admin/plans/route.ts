@@ -3,12 +3,30 @@ import { z } from "zod";
 import { makeId, readStore, writeStore } from "@/lib/store";
 import { appendAuditLog } from "@/lib/audit";
 
+const planTabEnum = z.enum([
+  "dashboard",
+  "orders",
+  "menu",
+  "highlights",
+  "clients",
+  "billing",
+  "promotions",
+  "banners",
+  "marketing",
+  "settings",
+  "plans",
+  "support"
+]);
+
 const planSchema = z.object({
   name: z.string().min(2),
   price: z.number().positive(),
   color: z.string().min(4),
   description: z.string().min(4),
   features: z.array(z.string().min(1)).min(1),
+  allowedTabs: z.array(planTabEnum).min(1).optional(),
+  manualOrderLimitEnabled: z.boolean().optional(),
+  manualOrderLimitPerMonth: z.number().int().positive().nullable().optional(),
   active: z.boolean().optional()
 });
 
@@ -44,6 +62,12 @@ export async function POST(request: Request) {
     color: parsed.data.color,
     description: parsed.data.description,
     features: parsed.data.features,
+    allowedTabs: parsed.data.allowedTabs,
+    manualOrderLimitEnabled: parsed.data.manualOrderLimitEnabled ?? false,
+    manualOrderLimitPerMonth:
+      parsed.data.manualOrderLimitEnabled === false
+        ? null
+        : parsed.data.manualOrderLimitPerMonth ?? null,
     active: parsed.data.active ?? true,
     createdAt: now,
     updatedAt: now

@@ -109,6 +109,20 @@ const marketingCampaignSchema = z.object({
   createdAt: z.string().min(1)
 });
 
+const couponSchema = z.object({
+  id: z.string().min(1),
+  code: z.string().min(2),
+  uses: z.number().int().nonnegative().default(0),
+  active: z.boolean().default(true),
+  discountType: z.enum(["percent", "fixed"]),
+  discountValue: z.number().nonnegative(),
+  minOrderValue: z.number().nonnegative(),
+  startDate: z.string().optional().default(""),
+  endDate: z.string().optional().default(""),
+  startTime: z.string().optional().default(""),
+  endTime: z.string().optional().default("")
+});
+
 const bioLinkSchema = z.object({
   appearance: z.enum(["dark", "light", "brand"]).default("dark"),
   headline: z.string().max(80).default("Nossos Links Oficiais"),
@@ -356,6 +370,25 @@ export async function POST(
     return NextResponse.json({
       success: true,
       marketingCampaigns: store.restaurants[index].marketingCampaigns
+    });
+  }
+
+  if (action === "saveCoupons") {
+    const parsed = z.array(couponSchema).safeParse(payload?.data);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, message: "Cupons invalidos." },
+        { status: 400 }
+      );
+    }
+    store.restaurants[index].coupons = parsed.data.map((coupon) => ({
+      ...coupon,
+      code: coupon.code.trim().toUpperCase()
+    }));
+    await writeStore(store);
+    return NextResponse.json({
+      success: true,
+      coupons: store.restaurants[index].coupons
     });
   }
 

@@ -72,6 +72,20 @@ export type RestaurantMarketingCampaign = {
   createdAt: string;
 };
 
+export type RestaurantCoupon = {
+  id: string;
+  code: string;
+  uses: number;
+  active: boolean;
+  discountType: "percent" | "fixed";
+  discountValue: number;
+  minOrderValue: number;
+  startDate?: string;
+  endDate?: string;
+  startTime?: string;
+  endTime?: string;
+};
+
 export type RestaurantBioLink = {
   appearance: "dark" | "light" | "brand";
   headline: string;
@@ -120,10 +134,12 @@ export type Restaurant = {
   pendingPlanId?: string | null;
   pendingCheckoutExternalId?: string | null;
   lastCheckoutUrl?: string | null;
+  bannerFeatureEnabled?: boolean;
   viewCount?: number;
   lastViewAt?: string | null;
   banners?: RestaurantBanner[];
   marketingCampaigns?: RestaurantMarketingCampaign[];
+  coupons?: RestaurantCoupon[];
   bioLink?: RestaurantBioLink;
   categories: RestaurantCategory[];
   products: RestaurantProduct[];
@@ -136,10 +152,27 @@ export type BillingPlan = {
   color: string;
   description: string;
   features: string[];
+  allowedTabs?: PlanMasterTab[];
+  manualOrderLimitEnabled?: boolean;
+  manualOrderLimitPerMonth?: number | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
 };
+
+export type PlanMasterTab =
+  | "dashboard"
+  | "orders"
+  | "menu"
+  | "highlights"
+  | "clients"
+  | "billing"
+  | "promotions"
+  | "banners"
+  | "marketing"
+  | "settings"
+  | "plans"
+  | "support";
 
 export type OrderPaymentMethod = "money" | "card" | "pix";
 export type OrderStatus = "Recebido" | "Em preparo" | "Concluido";
@@ -155,6 +188,7 @@ export type OrderItem = {
 export type Order = {
   id: string;
   restaurantSlug: string;
+  source?: "catalog" | "panel";
   customerName: string;
   customerWhatsapp: string;
   customerAddress: string;
@@ -162,6 +196,8 @@ export type Order = {
   items: OrderItem[];
   subtotal: number;
   deliveryFee: number;
+  discountValue?: number;
+  couponCode?: string;
   total: number;
   generalNotes?: string;
   status: OrderStatus;
@@ -175,6 +211,7 @@ export type Customer = {
   whatsapp: string;
   totalOrders: number;
   totalSpent: number;
+  usedCouponCodes?: string[];
   lastOrderAt?: string | null;
   createdAt: string;
 };
@@ -754,6 +791,9 @@ export const defaultStore: AppStore = {
       color: "#6366f1",
       description: "Ideal para pequenos comercios que vendem apenas no bairro.",
       features: ["Cardapio Digital", "Recebimento via WhatsApp", "Ate 500 pedidos/mes", "Suporte por Email"],
+      allowedTabs: ["dashboard", "orders", "menu", "clients", "settings", "plans", "support"],
+      manualOrderLimitEnabled: true,
+      manualOrderLimitPerMonth: 500,
       active: true,
       createdAt: "2026-02-01T00:00:00.000Z",
       updatedAt: "2026-02-01T00:00:00.000Z"
@@ -771,6 +811,22 @@ export const defaultStore: AppStore = {
         "Gestor de Entregas",
         "Ferramenta de Cupons"
       ],
+      allowedTabs: [
+        "dashboard",
+        "orders",
+        "menu",
+        "highlights",
+        "clients",
+        "billing",
+        "promotions",
+        "banners",
+        "marketing",
+        "settings",
+        "plans",
+        "support"
+      ],
+      manualOrderLimitEnabled: false,
+      manualOrderLimitPerMonth: null,
       active: true,
       createdAt: "2026-02-01T00:00:00.000Z",
       updatedAt: "2026-02-01T00:00:00.000Z"

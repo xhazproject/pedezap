@@ -104,7 +104,8 @@
         "customUrl": ""
       },
       "latitude": null,
-      "longitude": null
+      "longitude": null,
+      "coupons": []
     },
     {
       "id": "r_burguercentral",
@@ -224,7 +225,8 @@
         "customUrl": ""
       },
       "latitude": null,
-      "longitude": null
+      "longitude": null,
+      "coupons": []
     },
     {
       "id": "r_jfkpe7d6",
@@ -292,12 +294,27 @@
         "customEnabled": false,
         "customLabel": "Meu Site",
         "customUrl": ""
-      }
+      },
+      "coupons": []
     }
   ],
   "orders": [],
   "customers": [],
   "auditLogs": [
+    {
+      "id": "audit_c2j3k3hb",
+      "createdAt": "2026-02-21T14:58:36.177Z",
+      "action": "auth.admin.login.success",
+      "ip": "::1",
+      "actorType": "admin",
+      "actorId": "renan@gmail.com",
+      "actorName": "Renan",
+      "targetType": "admin_user",
+      "targetId": "renan@gmail.com",
+      "metadata": {
+        "role": "Admin Master"
+      }
+    },
     {
       "id": "audit_83j42uo5",
       "createdAt": "2026-02-21T11:27:51.602Z",
@@ -837,7 +854,7 @@
         "security"
       ],
       "createdAt": "2026-02-16T17:54:36.158Z",
-      "lastAccessAt": "2026-02-21T00:12:50.556Z"
+      "lastAccessAt": "2026-02-21T14:58:36.177Z"
     }
   ],
   "adminRoles": [
@@ -1014,7 +1031,23 @@
       ],
       "active": true,
       "createdAt": "2026-02-01T00:00:00.000Z",
-      "updatedAt": "2026-02-16T17:54:53.256Z"
+      "updatedAt": "2026-02-16T17:54:53.256Z",
+      "allowedTabs": [
+        "dashboard",
+        "orders",
+        "menu",
+        "highlights",
+        "clients",
+        "billing",
+        "promotions",
+        "banners",
+        "marketing",
+        "settings",
+        "plans",
+        "support"
+      ],
+      "manualOrderLimitEnabled": false,
+      "manualOrderLimitPerMonth": null
     },
     {
       "id": "plan_local_online",
@@ -1031,7 +1064,23 @@
       ],
       "active": true,
       "createdAt": "2026-02-01T00:00:00.000Z",
-      "updatedAt": "2026-02-01T00:00:00.000Z"
+      "updatedAt": "2026-02-01T00:00:00.000Z",
+      "allowedTabs": [
+        "dashboard",
+        "orders",
+        "menu",
+        "highlights",
+        "clients",
+        "billing",
+        "promotions",
+        "banners",
+        "marketing",
+        "settings",
+        "plans",
+        "support"
+      ],
+      "manualOrderLimitEnabled": false,
+      "manualOrderLimitPerMonth": null
     }
   ],
   "paymentsConfig": {

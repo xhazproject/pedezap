@@ -127,6 +127,7 @@ export function RestaurantClient({ slug }: { slug: string }) {
             initialCustomerData={{
               name: customerSession?.name,
               phone: customerSession?.whatsapp,
+              email: customerSession?.email,
               address: customerSession?.address
             }}
           />
