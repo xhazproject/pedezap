@@ -65,6 +65,10 @@ export default async function LandingPage() {
             features: ['Tudo do plano Starter', 'Relatorios de Vendas', 'Impressao automatica', 'Gestor de pedidos']
           }
         ];
+  const leadPlanOptions = (preferredPlans.length ? preferredPlans : allPlans).map((plan) => ({
+    id: plan.id,
+    name: plan.name
+  }));
 
   return (
     <>
@@ -332,7 +336,7 @@ export default async function LandingPage() {
             </div>
           </div>
 
-          <LeadForm />
+          <LeadForm plans={leadPlanOptions} />
         </div>
       </section>
     </>

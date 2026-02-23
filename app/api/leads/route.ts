@@ -80,19 +80,6 @@ export async function POST(request: Request) {
     );
   }
 
-  try {
-    await sendLeadNotificationEmail(parsed.data);
-  } catch (error) {
-    console.error("[leads] erro ao enviar notificacao por e-mail:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: "Nao foi possivel enviar sua solicitacao agora. Tente novamente em alguns instantes."
-      },
-      { status: 500 }
-    );
-  }
-
   const store = await readStore();
   store.leads.unshift({
     id: makeId("lead"),
@@ -101,8 +88,18 @@ export async function POST(request: Request) {
   });
   await writeStore(store);
 
+  let emailSent = true;
+  try {
+    await sendLeadNotificationEmail(parsed.data);
+  } catch (error) {
+    emailSent = false;
+    console.error("[leads] erro ao enviar notificacao por e-mail:", error);
+  }
+
   return NextResponse.json({
     success: true,
-    message: "Solicitacao enviada com sucesso! Em breve entraremos em contato."
+    message: emailSent
+      ? "Solicitacao enviada com sucesso! Em breve entraremos em contato."
+      : "Solicitacao registrada com sucesso! Nossa equipe vera seu contato em breve."
   });
 }

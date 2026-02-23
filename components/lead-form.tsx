@@ -15,7 +15,12 @@ const initialState: FormState = {
   message: ''
 };
 
-export function LeadForm() {
+type LeadPlanOption = {
+  id: string;
+  name: string;
+};
+
+export function LeadForm({ plans = [] }: { plans?: LeadPlanOption[] }) {
   const [state, setState] = useState<FormState>(initialState);
   const [submitting, setSubmitting] = useState(false);
 
@@ -32,7 +37,7 @@ export function LeadForm() {
       restaurantName: String(formData.get('restaurantName') ?? ''),
       whatsapp: String(formData.get('whatsapp') ?? ''),
       cityState: String(formData.get('cityState') ?? ''),
-      plan: String(formData.get('plan') ?? 'Local'),
+      plan: String(formData.get('plan') ?? (plans[0]?.name || 'Plano Starter')),
       message: String(formData.get('message') ?? '')
     };
 
@@ -188,10 +193,13 @@ export function LeadForm() {
             name="plan"
             id="plan"
             className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 outline-none bg-white"
-            defaultValue="Local"
+            defaultValue={plans[0]?.name || 'Plano Starter'}
           >
-            <option value="Local">Plano Local</option>
-            <option value="Local + Online">Plano Local + Online</option>
+            {(plans.length ? plans : [{ id: 'fallback_starter', name: 'Plano Starter' }, { id: 'fallback_pro', name: 'Plano Pro' }]).map((plan) => (
+              <option key={plan.id} value={plan.name}>
+                {plan.name}
+              </option>
+            ))}
           </select>
         </div>
 
