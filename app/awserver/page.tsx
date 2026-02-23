@@ -47,6 +47,10 @@ import {
   Activity,
   Upload
 } from 'lucide-react';
+const ADMIN_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+const ADMIN_IDLE_CHECK_MS = 15 * 1000;
+const ADMIN_LAST_ACTIVITY_KEY = 'pedezap_admin_last_activity_at';
+
 import {
   CartesianGrid,
   Cell,
@@ -403,6 +407,8 @@ function slugify(value: string) {
 
 export default function AdminPage() {
   const router = useRouter();
+  const idleLogoutInProgressRef = useRef(false);
+  const lastActivityWriteRef = useRef(0);
   const [session, setSession] = useState<AdminSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [activePage, setActivePage] = useState<PageId>('dashboard');
@@ -577,6 +583,27 @@ export default function AdminPage() {
   const [editingRestaurant, setEditingRestaurant] = useState<AdminRestaurant | null>(null);
   const [passwordResetPayload, setPasswordResetPayload] = useState<PasswordResetPayload | null>(null);
   const [generatingResetSlug, setGeneratingResetSlug] = useState<string | null>(null);
+
+  const performAdminLogout = async (reason: 'manual' | 'idle' = 'manual') => {
+    if (idleLogoutInProgressRef.current) return;
+    idleLogoutInProgressRef.current = true;
+    await fetch('/api/admin/logout', { method: 'POST' }).catch(() => null);
+    localStorage.removeItem('pedezap_admin_session');
+    localStorage.removeItem(ADMIN_LAST_ACTIVITY_KEY);
+    if (reason === 'idle') {
+      router.replace('/awserver/login?expired=1');
+    } else {
+      router.push('/awserver/login');
+    }
+  };
+
+  const markAdminActivity = () => {
+    if (typeof window === 'undefined' || !session) return;
+    const now = Date.now();
+    if (now - lastActivityWriteRef.current < 4000) return;
+    lastActivityWriteRef.current = now;
+    localStorage.setItem(ADMIN_LAST_ACTIVITY_KEY, String(now));
+  };
 
   async function loadData() {
     const [restaurantsRes, statsRes] = await Promise.all([
@@ -1285,6 +1312,55 @@ export default function AdminPage() {
     bootstrap().finally(() => setLoading(false));
   }, [router]);
 
+  useEffect(() => {
+    if (!session) return;
+
+    const ensureActivityTimestamp = () => {
+      const raw = localStorage.getItem(ADMIN_LAST_ACTIVITY_KEY);
+      if (!raw || !Number.isFinite(Number(raw))) {
+        localStorage.setItem(ADMIN_LAST_ACTIVITY_KEY, String(Date.now()));
+      }
+    };
+
+    const onVisibilityChange = () => {
+      if (!document.hidden) {
+        markAdminActivity();
+      }
+    };
+
+    const onUserActivity = () => {
+      markAdminActivity();
+    };
+
+    ensureActivityTimestamp();
+    markAdminActivity();
+
+    const events: Array<keyof WindowEventMap> = ['click', 'keydown', 'focus', 'touchstart'];
+    events.forEach((eventName) => window.addEventListener(eventName, onUserActivity, { passive: true }));
+    window.addEventListener('scroll', onUserActivity, { passive: true });
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    const interval = window.setInterval(() => {
+      const raw = localStorage.getItem(ADMIN_LAST_ACTIVITY_KEY);
+      const lastActivityAt = Number(raw ?? 0);
+      if (!Number.isFinite(lastActivityAt) || lastActivityAt <= 0) {
+        localStorage.setItem(ADMIN_LAST_ACTIVITY_KEY, String(Date.now()));
+        return;
+      }
+      const idleMs = Date.now() - lastActivityAt;
+      if (idleMs >= ADMIN_IDLE_TIMEOUT_MS) {
+        void performAdminLogout('idle');
+      }
+    }, ADMIN_IDLE_CHECK_MS);
+
+    return () => {
+      window.clearInterval(interval);
+      events.forEach((eventName) => window.removeEventListener(eventName, onUserActivity));
+      window.removeEventListener('scroll', onUserActivity);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [session]);
+
   const allowedPageIds =
     session?.role === 'Admin Master'
       ? menuItems.map((item) => item.id)
@@ -1782,10 +1858,8 @@ export default function AdminPage() {
             </div>
           </div>
           <button
-            onClick={async () => {
-              await fetch('/api/admin/logout', { method: 'POST' }).catch(() => null);
-              localStorage.removeItem('pedezap_admin_session');
-              router.push('/awserver/login');
+            onClick={() => {
+              void performAdminLogout('manual');
             }}
             className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-red-500/10 hover:text-red-400 text-slate-400 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all"
           >

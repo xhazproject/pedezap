@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Lock, Mail, ShieldCheck, Sparkles } from 'lucide-react';
 import { BrandLogo } from '@/components/brand-logo';
@@ -11,6 +11,13 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [expiredByInactivity, setExpiredByInactivity] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    setExpiredByInactivity(params.get('expired') === '1');
+  }, []);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -86,6 +93,11 @@ export default function AdminLoginPage() {
               <p className="mt-2 text-center text-sm text-slate-500 lg:text-left">Acesse o painel de controle administrativo.</p>
 
               <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+                {expiredByInactivity && !error && (
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                    Sua sessao expirou por inatividade (30 minutos). Entre novamente para continuar.
+                  </p>
+                )}
                 <div>
                   <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">Email Corporativo</label>
                   <div className="flex h-12 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 transition focus-within:border-slate-900">
