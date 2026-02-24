@@ -67,6 +67,8 @@ import {
   SupportTicket
 } from '@/lib/store-data';
 import { BrandLogo } from '@/components/brand-logo';
+import { MasterOrdersTab } from '@/components/master/orders/orders-tab';
+import { ManualOrderModal } from '@/components/master/orders/manual-order-modal';
 
 type MasterSession = {
   restaurantSlug: string;
@@ -4402,240 +4404,27 @@ export default function MasterPage() {
             )}
 
             {activeTab === 'orders' && (
-              <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900">Gestao de Pedidos</h2>
-                    <p className="text-sm text-gray-500">Acompanhe o fluxo da cozinha em tempo real</p>
-                  </div>
-	                  <div className="flex items-center gap-2">
-	                    <button
-	                      onClick={() => setShowManualOrderModal(true)}
-	                      disabled={hasReachedManualOrderLimit}
-	                      className="inline-flex items-center gap-2 rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-300"
-	                    >
-	                      <Plus size={16} />
-	                      Novo Pedido
-	                    </button>
-	                    <div className="relative">
-	                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-	                      <input
-                        value={ordersQuery}
-                        onChange={(event) => setOrdersQuery(event.target.value)}
-                        className="w-48 rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 py-2 text-sm"
-                        placeholder="Buscar cliente ou ID..."
-                      />
-                    </div>
-                    <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-1">
-                      <button
-                        onClick={() => setOrdersView('board')}
-                        className={`h-8 w-8 rounded-md flex items-center justify-center ${
-                          ordersView === 'board' ? 'bg-slate-100 text-slate-900' : 'text-gray-400'
-                        }`}
-                      >
-                        <LayoutDashboard size={16} />
-                      </button>
-                      <button
-                        onClick={() => setOrdersView('table')}
-                        className={`h-8 w-8 rounded-md flex items-center justify-center ${
-                          ordersView === 'table' ? 'bg-slate-100 text-slate-900' : 'text-gray-400'
-                        }`}
-                      >
-                        <List size={16} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="text-xs text-gray-500">
-                    Atualizacao automatica a cada 5s
-                    {lastOrdersRefreshAt
-                      ? ` • Ultimo refresh: ${new Date(lastOrdersRefreshAt).toLocaleTimeString('pt-BR')}`
-                      : ''}
-                  </div>
-                  {newOrdersAlertCount > 0 && (
-                    <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
-                      <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                      {newOrdersAlertCount} novo(s) pedido(s) recebido(s)
-                      <button
-                        type="button"
-                        onClick={() => setNewOrdersAlertCount(0)}
-                        className="ml-1 rounded-md border border-emerald-300 bg-white px-2 py-0.5 text-[11px] hover:bg-emerald-100"
-                      >
-                        Limpar
-                      </button>
-                    </div>
-                  )}
-                </div>
-                {manualOrderMonthlyLimit !== null && (
-                  <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                    Pedidos manuais no mes: {manualOrdersThisMonth.length}/{manualOrderMonthlyLimit}
-                    {hasReachedManualOrderLimit ? ' (limite atingido)' : ''}
-                  </div>
-                )}
-
-                {ordersView === 'board' ? (
-                  <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    {[
-                      { key: 'Recebido', label: 'Recebidos', color: 'bg-slate-100 border-slate-200' },
-                      { key: 'Em preparo', label: 'Na Cozinha', color: 'bg-slate-100 border-slate-200' },
-                      { key: 'Concluido', label: 'Prontos / Historico', color: 'bg-slate-100 border-slate-200' }
-                    ].map((column) => (
-                      <div key={column.key} className={`rounded-xl border ${column.color} p-4`}>
-                        <div className="flex items-center justify-between mb-3">
-                          <h3 className="text-sm font-semibold text-gray-800">{column.label}</h3>
-                          <span className="text-xs text-gray-500">{ordersByStatus[column.key as keyof typeof ordersByStatus].length}</span>
-                        </div>
-                        <div className="space-y-3">
-                          {ordersByStatus[column.key as keyof typeof ordersByStatus].map((order) => (
-                            <div key={order.id} className="bg-white rounded-xl border border-gray-100 p-3 shadow-sm">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="text-sm font-semibold text-gray-900">#{order.id}</p>
-                                  <p className="text-xs text-gray-500">{order.customerName}</p>
-                                </div>
-                                <span className="text-[10px] text-gray-400">{getOrderAgeMinutes(order.createdAt)} min</span>
-                              </div>
-                              <div className="mt-2 text-xs text-gray-600 space-y-1">
-                                {order.items.map((item) => (
-                                  <p key={item.productId}>
-                                    {item.quantity}x {item.name}
-                                  </p>
-                                ))}
-                              </div>
-                              <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
-                                <span>{paymentMethodLabel(order.paymentMethod)}</span>
-                                <span className="font-semibold text-slate-900">R$ {order.total.toFixed(2)}</span>
-                              </div>
-                              <div className="mt-3 flex items-center gap-2">
-                                {column.key === 'Recebido' && (
-                                  <button
-                                    onClick={() => updateOrderStatus(order.id, 'Em preparo')}
-                                    disabled={updatingOrderId === order.id}
-                                    className="flex-1 rounded-lg bg-black text-white py-1.5 text-xs font-medium hover:bg-slate-900 disabled:opacity-60"
-                                  >
-                                    {updatingOrderId === order.id ? 'Atualizando...' : 'Aceitar & Preparar'}
-                                  </button>
-                                )}
-                                {column.key === 'Em preparo' && (
-                                  <button
-                                    onClick={() => updateOrderStatus(order.id, 'Concluido')}
-                                    disabled={updatingOrderId === order.id}
-                                    className="flex-1 rounded-lg border border-slate-200 text-slate-900 py-1.5 text-xs font-medium hover:bg-slate-100 disabled:opacity-60"
-                                  >
-                                    {updatingOrderId === order.id ? 'Atualizando...' : 'Marcar Pronto'}
-                                  </button>
-                                )}
-                                {column.key === 'Concluido' && (
-                                  <button className="flex-1 rounded-lg border border-slate-200 text-slate-900 py-1.5 text-xs font-medium bg-slate-100">
-                                    Concluido
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => printOrderTicket(order)}
-                                  className="h-8 w-10 rounded-lg border border-gray-200 text-gray-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-100 flex items-center justify-center"
-                                  title={`Imprimir comanda #${order.id}`}
-                                  aria-label={`Imprimir comanda #${order.id}`}
-                                >
-                                  <Printer size={14} />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                          {!ordersByStatus[column.key as keyof typeof ordersByStatus].length && (
-                            <div className="text-xs text-gray-400">Nenhum pedido.</div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="mt-6 overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                      <thead className="text-xs uppercase text-gray-400 border-b border-gray-100">
-                        <tr>
-                          <th className="px-4 py-3">Pedido</th>
-                          <th className="px-4 py-3">Cliente</th>
-                          <th className="px-4 py-3">Itens</th>
-                          <th className="px-4 py-3">Total</th>
-                          <th className="px-4 py-3">Status</th>
-                          <th className="px-4 py-3 text-right">Acoes</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {filteredOrders.map((order) => {
-                          const status = getOrderStatus(order);
-                          return (
-                            <tr key={order.id} className="hover:bg-gray-50">
-                              <td className="px-4 py-3">
-                                <div className="font-semibold text-gray-900">#{order.id}</div>
-                                <div className="text-xs text-gray-400">{getOrderAgeMinutes(order.createdAt)} min</div>
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="text-gray-900 font-medium">{order.customerName}</div>
-                                <div className="text-xs text-gray-400">{order.customerWhatsapp}</div>
-                              </td>
-                              <td className="px-4 py-3 text-xs text-gray-500">
-                                {order.items.map((item) => `${item.quantity}x ${item.name}`).join(', ')}
-                              </td>
-                              <td className="px-4 py-3 font-semibold text-gray-900">R$ {order.total.toFixed(2)}</td>
-                              <td className="px-4 py-3">
-                                <span
-                                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold ${
-                                    status === 'Recebido'
-                                      ? 'bg-slate-100 text-slate-800'
-                                      : status === 'Em preparo'
-                                      ? 'bg-slate-100 text-slate-800'
-                                      : 'bg-slate-100 text-slate-900'
-                                  }`}
-                                >
-                                  {status === 'Recebido' ? 'RECEBIDO' : status === 'Em preparo' ? 'EM PREPARO' : 'CONCLUIDO'}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-right text-slate-900 font-medium">
-                                <div className="inline-flex items-center justify-end gap-3">
-                                  <button
-                                    onClick={() => printOrderTicket(order)}
-                                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 text-gray-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-100"
-                                    title={`Imprimir comanda #${order.id}`}
-                                    aria-label={`Imprimir comanda #${order.id}`}
-                                  >
-                                    <Printer size={14} />
-                                  </button>
-                                  {status === 'Recebido' && (
-                                    <button
-                                      onClick={() => updateOrderStatus(order.id, 'Em preparo')}
-                                      className="hover:underline"
-                                    >
-                                      Aceitar
-                                    </button>
-                                  )}
-                                  {status === 'Em preparo' && (
-                                    <button
-                                      onClick={() => updateOrderStatus(order.id, 'Concluido')}
-                                      className="hover:underline"
-                                    >
-                                      Finalizar
-                                    </button>
-                                  )}
-                                  {status === 'Concluido' && <button>Detalhes</button>}
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                        {!filteredOrders.length && (
-                          <tr>
-                            <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">
-                              Nenhum pedido encontrado.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </section>
+              <MasterOrdersTab
+                ordersView={ordersView}
+                setOrdersView={setOrdersView}
+                ordersQuery={ordersQuery}
+                setOrdersQuery={setOrdersQuery}
+                onOpenManualOrder={() => setShowManualOrderModal(true)}
+                hasReachedManualOrderLimit={hasReachedManualOrderLimit}
+                lastOrdersRefreshAt={lastOrdersRefreshAt}
+                newOrdersAlertCount={newOrdersAlertCount}
+                clearNewOrdersAlert={() => setNewOrdersAlertCount(0)}
+                manualOrderMonthlyLimit={manualOrderMonthlyLimit}
+                manualOrdersThisMonthCount={manualOrdersThisMonth.length}
+                filteredOrders={filteredOrders}
+                ordersByStatus={ordersByStatus}
+                updatingOrderId={updatingOrderId}
+                onUpdateOrderStatus={updateOrderStatus}
+                onPrintOrderTicket={printOrderTicket}
+                getOrderAgeMinutes={getOrderAgeMinutes}
+                paymentMethodLabel={paymentMethodLabel}
+                getOrderStatus={getOrderStatus}
+              />
             )}
 
             {activeTab === 'billing' && (
@@ -6850,172 +6639,27 @@ export default function MasterPage() {
         </main>
       </div>
 
-      {showManualOrderModal && (
-        <div className="fixed inset-0 z-50 bg-black/45 flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-4">
-          <div className="w-full max-w-4xl rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="text-2xl font-semibold text-gray-900">Novo Pedido Manual</h3>
-              <button
-                onClick={() => {
-                  setShowManualOrderModal(false);
-                  setManualOrderForm(createDefaultManualOrderForm());
-                  setManualSelectedProductId('');
-                  setManualSelectedQuantity(1);
-                }}
-                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 p-5 flex-1 overflow-y-auto">
-              <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-gray-900 border-b border-gray-200 pb-2">Dados do Cliente</h4>
-                <div>
-                  <label className="text-sm text-gray-700">Nome do Cliente</label>
-                  <input
-                    value={manualOrderForm.customerName}
-                    onChange={(event) =>
-                      setManualOrderForm((prev) => ({ ...prev, customerName: event.target.value }))
-                    }
-                    placeholder="Ex: Joao Silva"
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-gray-700">Telefone / WhatsApp</label>
-                  <input
-                    value={manualOrderForm.customerWhatsapp}
-                    onChange={(event) =>
-                      setManualOrderForm((prev) => ({ ...prev, customerWhatsapp: event.target.value }))
-                    }
-                    placeholder="Ex: 11999999999"
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-gray-700">Endereco de Entrega</label>
-                  <textarea
-                    value={manualOrderForm.customerAddress}
-                    onChange={(event) =>
-                      setManualOrderForm((prev) => ({ ...prev, customerAddress: event.target.value }))
-                    }
-                    placeholder="Rua, Numero, Bairro, Complemento..."
-                    rows={3}
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm resize-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-gray-700">Forma de Pagamento</label>
-                  <select
-                    value={manualOrderForm.paymentMethod}
-                    onChange={(event) =>
-                      setManualOrderForm((prev) => ({
-                        ...prev,
-                        paymentMethod: event.target.value as ManualOrderPaymentMethod
-                      }))
-                    }
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
-                  >
-                    <option value="money">Dinheiro</option>
-                    <option value="card">Cartao</option>
-                    <option value="pix">PIX</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-gray-900 border-b border-gray-200 pb-2">Itens do Pedido</h4>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_82px_auto]">
-                  <select
-                    value={manualSelectedProductId}
-                    onChange={(event) => setManualSelectedProductId(event.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
-                  >
-                    <option value="">Selecione um produto...</option>
-                    {manualOrderProducts.map((product) => (
-                      <option key={product.id} value={product.id}>
-                        {product.name} - R$ {product.price.toFixed(2)}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    min={1}
-                    value={manualSelectedQuantity}
-                    onChange={(event) => setManualSelectedQuantity(Number(event.target.value) || 1)}
-                    className="w-full rounded-lg border border-gray-300 px-2 py-2.5 text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={addItemToManualOrder}
-                    className="w-full rounded-lg bg-slate-100 px-3 py-2.5 text-slate-900 text-sm font-semibold hover:bg-slate-200"
-                  >
-                    Adicionar
-                  </button>
-                </div>
-
-                <div className="rounded-lg border border-gray-200 min-h-[180px] max-h-[220px] overflow-y-auto p-3">
-                  {manualOrderForm.items.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-sm text-gray-400">
-                      Nenhum item adicionado
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {manualOrderForm.items.map((item) => {
-                        const product = manualOrderProducts.find((entry) => entry.id === item.productId);
-                        if (!product) return null;
-                        return (
-                          <div key={item.productId} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 flex items-center justify-between">
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">
-                                {item.quantity}x {product.name}
-                              </p>
-                              <p className="text-xs text-gray-500">R$ {(product.price * item.quantity).toFixed(2)}</p>
-                            </div>
-                            <button
-                              onClick={() => removeItemFromManualOrder(item.productId)}
-                              className="rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
-                            >
-                              Remover
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="font-semibold text-gray-800">TOTAL DO PEDIDO</span>
-                  <span className="text-2xl font-bold text-slate-900 sm:text-3xl">R$ {manualOrderTotal.toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="px-5 py-4 border-t border-gray-100 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
-              <button
-                onClick={() => {
-                  setShowManualOrderModal(false);
-                  setManualOrderForm(createDefaultManualOrderForm());
-                  setManualSelectedProductId('');
-                  setManualSelectedQuantity(1);
-                }}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 sm:w-auto"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={createManualOrder}
-                disabled={creatingManualOrder}
-                className="w-full rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-60 sm:w-auto"
-              >
-                {creatingManualOrder ? 'Criando...' : 'Criar Pedido'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ManualOrderModal
+        open={showManualOrderModal}
+        form={manualOrderForm}
+        setForm={setManualOrderForm}
+        selectedProductId={manualSelectedProductId}
+        setSelectedProductId={setManualSelectedProductId}
+        selectedQuantity={manualSelectedQuantity}
+        setSelectedQuantity={setManualSelectedQuantity}
+        products={manualOrderProducts}
+        total={manualOrderTotal}
+        creating={creatingManualOrder}
+        onClose={() => {
+          setShowManualOrderModal(false);
+          setManualOrderForm(createDefaultManualOrderForm());
+          setManualSelectedProductId('');
+          setManualSelectedQuantity(1);
+        }}
+        onAddItem={addItemToManualOrder}
+        onRemoveItem={removeItemFromManualOrder}
+        onCreate={createManualOrder}
+      />
 
       {showSupportChat && (
         <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center p-4">
