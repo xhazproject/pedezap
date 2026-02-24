@@ -806,8 +806,9 @@ export default function AdminPage() {
     await loadTeamRoles();
   };
 
-  async function loadSupportTickets() {
-    setSupportLoading(true);
+  async function loadSupportTickets(options?: { silent?: boolean }) {
+    const silent = options?.silent ?? false;
+    if (!silent) setSupportLoading(true);
     const params = new URLSearchParams();
     if (supportQuery) params.set('q', supportQuery);
     if (supportType !== 'all') params.set('type', supportType);
@@ -820,7 +821,7 @@ export default function AdminPage() {
         setSelectedTicketId(payload.tickets[0].id);
       }
     }
-    setSupportLoading(false);
+    if (!silent) setSupportLoading(false);
   }
 
   async function loadSupportTicketDetails(ticketId: string) {
@@ -1405,6 +1406,14 @@ export default function AdminPage() {
   }, [activePage, supportQuery, supportType, supportStatus]);
 
   useEffect(() => {
+    if (activePage !== 'support') return;
+    const intervalId = window.setInterval(() => {
+      void loadSupportTickets({ silent: true });
+    }, 5000);
+    return () => window.clearInterval(intervalId);
+  }, [activePage, supportQuery, supportType, supportStatus, selectedTicketId]);
+
+  useEffect(() => {
     if (activePage !== 'payments') return;
     loadPaymentsConfig();
     loadGatewayBalance();
@@ -1425,6 +1434,14 @@ export default function AdminPage() {
     if (!selectedTicketId) return;
     loadSupportTicketDetails(selectedTicketId);
   }, [selectedTicketId]);
+
+  useEffect(() => {
+    if (activePage !== 'support' || !selectedTicketId) return;
+    const intervalId = window.setInterval(() => {
+      void loadSupportTicketDetails(selectedTicketId);
+    }, 3000);
+    return () => window.clearInterval(intervalId);
+  }, [activePage, selectedTicketId]);
 
   useEffect(() => {
     if (!supportMessagesRef.current) return;
