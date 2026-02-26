@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isSubscriptionBlocked, makeId, readStore, writeStore } from "@/lib/store";
 import { Order, OrderPaymentMethod } from "@/lib/store-data";
+import { geocodeQuery, haversineDistanceKm } from "@/lib/geo";
 
 const orderSchema = z.object({
   restaurantSlug: z.string().min(1),
@@ -11,6 +12,14 @@ const orderSchema = z.object({
   customerEmail: z.string().email().optional(),
   customerAddress: z.string().min(5),
   couponCode: z.string().optional(),
+  trafficSource: z.string().optional(),
+  utmSource: z.string().optional(),
+  utmMedium: z.string().optional(),
+  utmCampaign: z.string().optional(),
+  utmContent: z.string().optional(),
+  utmTerm: z.string().optional(),
+  attributionBannerId: z.string().optional(),
+  attributionCampaignId: z.string().optional(),
   paymentMethod: z.enum(["money", "card", "pix"]),
   generalNotes: z.string().optional(),
   items: z.array(
@@ -52,6 +61,46 @@ function isCouponWithinDateTime(coupon: {
   if (endMinutes !== null && currentMinutes > endMinutes) return false;
 
   return true;
+}
+
+function normalizeText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function resolveDeliveryFee(restaurant: any, customerAddress: string) {
+  const config = restaurant.deliveryConfig ?? {
+    radiusKm: 10,
+    feeMode: "flat",
+    distanceBands: [],
+    neighborhoodRates: [],
+    dispatchMode: "manual",
+    autoDispatchEnabled: false
+  };
+  const addressNorm = normalizeText(customerAddress);
+
+  const activeNeighborhood = (config.neighborhoodRates ?? []).find((zone: any) => {
+    if (!zone?.active || !zone?.name) return false;
+    return addressNorm.includes(normalizeText(zone.name));
+  });
+
+  const pickDistanceBandFee = (distanceKm: number | null) => {
+    if (distanceKm === null) return null;
+    const sortedBands = [...(config.distanceBands ?? [])]
+      .filter((band: any) => Number.isFinite(band?.upToKm) && Number.isFinite(band?.fee))
+      .sort((a: any, b: any) => a.upToKm - b.upToKm);
+    const matched = sortedBands.find((band: any) => distanceKm <= band.upToKm);
+    return matched ? { fee: Number(matched.fee) || 0, upToKm: Number(matched.upToKm) } : null;
+  };
+
+  return {
+    config,
+    activeNeighborhood,
+    pickDistanceBandFee
+  };
 }
 
 export async function GET(request: Request) {
@@ -161,7 +210,77 @@ export async function POST(request: Request) {
     appliedCouponCode = normalizedCoupon;
   }
 
-  const deliveryFee = restaurant.deliveryFee;
+  let customerGeo: { latitude: number; longitude: number } | null = null;
+  try {
+    customerGeo = await geocodeQuery(parsed.data.customerAddress);
+  } catch {
+    customerGeo = null;
+  }
+
+  const storeLat = typeof restaurant.latitude === "number" ? restaurant.latitude : null;
+  const storeLng = typeof restaurant.longitude === "number" ? restaurant.longitude : null;
+  const deliveryDistanceKm =
+    customerGeo && storeLat !== null && storeLng !== null
+      ? haversineDistanceKm(storeLat, storeLng, customerGeo.latitude, customerGeo.longitude)
+      : null;
+
+  const { config: deliveryConfig, activeNeighborhood, pickDistanceBandFee } = resolveDeliveryFee(
+    restaurant,
+    parsed.data.customerAddress
+  );
+
+  const radiusKm = Number(deliveryConfig.radiusKm ?? 10) || 10;
+  if (deliveryDistanceKm !== null && deliveryDistanceKm > radiusKm) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: `Endereco fora do raio de entrega da loja (maximo ${radiusKm.toFixed(1)} km).`
+      },
+      { status: 409 }
+    );
+  }
+
+  let deliveryFee = Number(restaurant.deliveryFee ?? 0);
+  let deliveryZoneName: string | null = null;
+  let deliveryFeeSource: Order["deliveryFeeSource"] = "fallback";
+
+  const distanceBand = pickDistanceBandFee(deliveryDistanceKm);
+  const neighborhoodFee =
+    activeNeighborhood && Number.isFinite(activeNeighborhood.fee)
+      ? Number(activeNeighborhood.fee) || 0
+      : null;
+
+  const feeMode = deliveryConfig.feeMode ?? "flat";
+  if (feeMode === "flat") {
+    deliveryFeeSource = "flat";
+  } else if (feeMode === "distance_bands") {
+    if (distanceBand) {
+      deliveryFee = distanceBand.fee;
+      deliveryFeeSource = "distance_band";
+    } else {
+      deliveryFeeSource = "fallback";
+    }
+  } else if (feeMode === "neighborhood_fixed") {
+    if (neighborhoodFee !== null) {
+      deliveryFee = neighborhoodFee;
+      deliveryZoneName = activeNeighborhood?.name ?? null;
+      deliveryFeeSource = "neighborhood_fixed";
+    } else {
+      deliveryFeeSource = "fallback";
+    }
+  } else if (feeMode === "hybrid") {
+    if (neighborhoodFee !== null) {
+      deliveryFee = neighborhoodFee;
+      deliveryZoneName = activeNeighborhood?.name ?? null;
+      deliveryFeeSource = "hybrid";
+    } else if (distanceBand) {
+      deliveryFee = distanceBand.fee;
+      deliveryFeeSource = "hybrid";
+    } else {
+      deliveryFeeSource = "fallback";
+    }
+  }
+
   const total = subtotal - discountValue + deliveryFee;
 
   const paymentLabels: Record<OrderPaymentMethod, string> = {
@@ -177,6 +296,21 @@ export async function POST(request: Request) {
     customerName: parsed.data.customerName,
     customerWhatsapp: parsed.data.customerWhatsapp,
     customerAddress: parsed.data.customerAddress,
+    customerLatitude: customerGeo?.latitude ?? null,
+    customerLongitude: customerGeo?.longitude ?? null,
+    deliveryDistanceKm: deliveryDistanceKm !== null ? Number(deliveryDistanceKm.toFixed(2)) : null,
+    deliveryZoneName,
+    deliveryFeeSource,
+    dispatchStatus: "pending",
+    dispatchMode: deliveryConfig.dispatchMode === "auto" && deliveryConfig.autoDispatchEnabled ? "auto" : "manual",
+    trafficSource: parsed.data.trafficSource?.trim() || undefined,
+    utmSource: parsed.data.utmSource?.trim() || undefined,
+    utmMedium: parsed.data.utmMedium?.trim() || undefined,
+    utmCampaign: parsed.data.utmCampaign?.trim() || undefined,
+    utmContent: parsed.data.utmContent?.trim() || undefined,
+    utmTerm: parsed.data.utmTerm?.trim() || undefined,
+    attributionBannerId: parsed.data.attributionBannerId?.trim() || undefined,
+    attributionCampaignId: parsed.data.attributionCampaignId?.trim() || undefined,
     paymentMethod: parsed.data.paymentMethod,
     items: parsed.data.items,
     subtotal,
@@ -237,6 +371,26 @@ export async function POST(request: Request) {
     }
   }
 
+  if (createdOrder.attributionBannerId || createdOrder.attributionCampaignId) {
+    const targetRestaurant = store.restaurants.find((item) => item.slug === restaurant.slug);
+    if (targetRestaurant) {
+      if (createdOrder.attributionBannerId && targetRestaurant.banners?.length) {
+        targetRestaurant.banners = targetRestaurant.banners.map((banner) =>
+          banner.id === createdOrder.attributionBannerId
+            ? { ...banner, attributedOrders: (banner.attributedOrders ?? 0) + 1 }
+            : banner
+        );
+      }
+      if (createdOrder.attributionCampaignId && targetRestaurant.marketingCampaigns?.length) {
+        targetRestaurant.marketingCampaigns = targetRestaurant.marketingCampaigns.map((campaign) =>
+          campaign.id === createdOrder.attributionCampaignId
+            ? { ...campaign, attributedOrders: (campaign.attributedOrders ?? 0) + 1 }
+            : campaign
+        );
+      }
+    }
+  }
+
   await writeStore(store);
 
   let message = `*NOVO PEDIDO - ${restaurant.name}*\n`;
@@ -251,6 +405,12 @@ export async function POST(request: Request) {
     message += `Desconto (${appliedCouponCode}): -R$ ${discountValue.toFixed(2)}\n`;
   }
   message += `Taxa entrega: R$ ${deliveryFee.toFixed(2)}\n`;
+  if (createdOrder.deliveryDistanceKm !== null && createdOrder.deliveryDistanceKm !== undefined) {
+    message += `Distancia: ${createdOrder.deliveryDistanceKm.toFixed(2)} km\n`;
+  }
+  if (deliveryZoneName) {
+    message += `Regiao: ${deliveryZoneName}\n`;
+  }
   message += `*TOTAL: R$ ${total.toFixed(2)}*\n\n`;
   message += "*DADOS DO CLIENTE*\n";
   message += `Nome: ${parsed.data.customerName}\n`;

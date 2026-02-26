@@ -65,6 +65,11 @@ export function configureRestaurantMenuData(restaurant: StoreRestaurant) {
   const campaignBannerIds = new Set(
     activeCampaigns.flatMap((campaign) => campaign.bannerIds ?? []).filter(Boolean)
   );
+  const campaignByBannerId = new Map(
+    activeCampaigns.flatMap((campaign) =>
+      (campaign.bannerIds ?? []).map((bannerId) => [bannerId, campaign] as const)
+    )
+  );
   const promotedProductIds = new Set(
     activeBanners
       .filter((banner) => campaignBannerIds.has(banner.id))
@@ -173,13 +178,30 @@ export function configureRestaurantMenuData(restaurant: StoreRestaurant) {
   OFFERS = !bannerFeatureEnabled
     ? []
     : prioritizedBanners.length
-    ? prioritizedBanners.map((banner) => ({
-        id: banner.id,
-        title: banner.title,
-        description: banner.description,
-        imageUrl: banner.imageUrl,
-        productIds: banner.productIds ?? []
-      }))
+    ? prioritizedBanners.map((banner) => {
+        const linkedCampaign = campaignByBannerId.get(banner.id);
+        const normalizedCoupon = (
+          linkedCampaign?.targetCouponCode ||
+          linkedCampaign?.couponCodes?.[0] ||
+          linkedCampaign?.couponCode ||
+          ""
+        )
+          .trim()
+          .toUpperCase();
+        return {
+          id: banner.id,
+          title: banner.title,
+          description: banner.description,
+          imageUrl: banner.imageUrl,
+          productIds: banner.productIds ?? [],
+          campaignId: linkedCampaign?.id,
+          couponCode: normalizedCoupon || undefined,
+          utmSource: linkedCampaign?.utmSource || undefined,
+          utmMedium: linkedCampaign?.utmMedium || undefined,
+          utmCampaign: linkedCampaign?.utmCampaign || undefined,
+          utmContent: linkedCampaign?.utmContent || undefined
+        };
+      })
     : [
         {
           id: "1",

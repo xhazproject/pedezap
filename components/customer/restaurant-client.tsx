@@ -17,8 +17,25 @@ type CustomerSession = {
   neighborhood: string;
 };
 
+type MarketingAttributionSession = {
+  trafficSource?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmContent?: string;
+  utmTerm?: string;
+  couponCode?: string;
+  attributionBannerId?: string;
+  attributionCampaignId?: string;
+  capturedAt: string;
+};
+
 function sessionStorageKey(slug: string) {
   return `pedezap_customer_session_${slug}`;
+}
+
+function attributionStorageKey(slug: string) {
+  return `pedezap_marketing_attribution_${slug}`;
 }
 
 export function RestaurantClient({ slug }: { slug: string }) {
@@ -26,6 +43,7 @@ export function RestaurantClient({ slug }: { slug: string }) {
   const [error, setError] = useState('');
   const [step, setStep] = useState<'menu' | 'auth' | 'checkout' | 'profile'>('menu');
   const [customerSession, setCustomerSession] = useState<CustomerSession | null>(null);
+  const [marketingAttribution, setMarketingAttribution] = useState<MarketingAttributionSession | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -53,6 +71,36 @@ export function RestaurantClient({ slug }: { slug: string }) {
         const parsed = JSON.parse(raw) as CustomerSession;
         if (parsed?.name && parsed?.whatsapp) {
           setCustomerSession(parsed);
+        }
+      }
+    } catch {}
+
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const incoming: MarketingAttributionSession = {
+        trafficSource: params.get('pz_src') || undefined,
+        utmSource: params.get('utm_source') || undefined,
+        utmMedium: params.get('utm_medium') || undefined,
+        utmCampaign: params.get('utm_campaign') || undefined,
+        utmContent: params.get('utm_content') || undefined,
+        utmTerm: params.get('utm_term') || undefined,
+        couponCode: (params.get('cupom') || params.get('coupon') || '').trim().toUpperCase() || undefined,
+        attributionBannerId: params.get('banner') || undefined,
+        attributionCampaignId: params.get('campaign') || undefined,
+        capturedAt: new Date().toISOString()
+      };
+      const hasIncoming = Object.entries(incoming).some(
+        ([key, value]) => key !== 'capturedAt' && !!value
+      );
+
+      if (hasIncoming) {
+        localStorage.setItem(attributionStorageKey(slug), JSON.stringify(incoming));
+        setMarketingAttribution(incoming);
+      } else {
+        const rawAttribution = localStorage.getItem(attributionStorageKey(slug));
+        if (rawAttribution) {
+          const parsed = JSON.parse(rawAttribution) as MarketingAttributionSession;
+          setMarketingAttribution(parsed);
         }
       }
     } catch {}
@@ -124,6 +172,8 @@ export function RestaurantClient({ slug }: { slug: string }) {
           <CheckoutPage
             onBackToMenu={() => setStep('menu')}
             onProfile={() => setStep(customerSession ? 'profile' : 'auth')}
+            initialCouponCode={marketingAttribution?.couponCode}
+            initialAttribution={marketingAttribution ?? undefined}
             initialCustomerData={{
               name: customerSession?.name,
               phone: customerSession?.whatsapp,

@@ -26,6 +26,12 @@ export interface Offer {
   description: string;
   imageUrl: string;
   productIds?: string[];
+  campaignId?: string;
+  couponCode?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmContent?: string;
 }
 
 export interface Restaurant {

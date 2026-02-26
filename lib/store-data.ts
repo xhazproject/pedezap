@@ -59,6 +59,11 @@ export type RestaurantBanner = {
   imageUrl: string;
   active: boolean;
   productIds: string[];
+  abGroup?: "A" | "B" | "";
+  clicks?: number;
+  impressions?: number;
+  attributedOrders?: number;
+  lastClickedAt?: string | null;
 };
 
 export type RestaurantMarketingCampaign = {
@@ -68,6 +73,17 @@ export type RestaurantMarketingCampaign = {
   couponCodes?: string[];
   bannerIds?: string[];
   period?: string;
+  startDate?: string;
+  endDate?: string;
+  autoActivateByCalendar?: boolean;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmContent?: string;
+  targetCouponCode?: string;
+  clicks?: number;
+  attributedOrders?: number;
+  lastClickedAt?: string | null;
   active: boolean;
   createdAt: string;
 };
@@ -86,6 +102,28 @@ export type RestaurantCoupon = {
   endTime?: string;
 };
 
+export type RestaurantDeliveryDistanceBand = {
+  id: string;
+  upToKm: number;
+  fee: number;
+};
+
+export type RestaurantDeliveryNeighborhoodRate = {
+  id: string;
+  name: string;
+  fee: number;
+  active: boolean;
+};
+
+export type RestaurantDeliveryConfig = {
+  radiusKm: number;
+  feeMode: "flat" | "distance_bands" | "neighborhood_fixed" | "hybrid";
+  distanceBands: RestaurantDeliveryDistanceBand[];
+  neighborhoodRates: RestaurantDeliveryNeighborhoodRate[];
+  dispatchMode: "manual" | "auto";
+  autoDispatchEnabled: boolean;
+};
+
 export type RestaurantBioLink = {
   appearance: "dark" | "light" | "brand";
   headline: string;
@@ -96,6 +134,43 @@ export type RestaurantBioLink = {
   customEnabled: boolean;
   customLabel: string;
   customUrl: string;
+};
+
+export type RestaurantAdsAiPlanHistoryItem = {
+  id: string;
+  createdAt: string;
+  campaignName: string;
+  campaignObjective: string;
+  suggestedPeriod: string;
+  targetAudience: string;
+  recommendedRadiusKm: number;
+  dailyBudgetSuggestion: string;
+  channels: string[];
+  couponSuggestion: string;
+  couponDiscountHint: string;
+  bannerHeadline: string;
+  bannerDescription: string;
+  adCopyPrimary: string;
+  adCopyVariants: string[];
+  headline: string;
+  cta: string;
+  implementationChecklist: string[];
+  trackingSuggestion: string;
+  reason: string;
+};
+
+export type RestaurantPanelRole = "owner" | "gerente" | "atendente" | "cozinha";
+
+export type RestaurantPanelUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: RestaurantPanelRole;
+  status: "Ativo" | "Inativo";
+  password: string;
+  permissions: PlanMasterTab[];
+  createdAt: string;
+  lastAccessAt?: string | null;
 };
 
 export type Restaurant = {
@@ -116,10 +191,12 @@ export type Restaurant = {
   longitude?: number | null;
   minOrderValue: number;
   deliveryFee: number;
+  deliveryConfig?: RestaurantDeliveryConfig;
   logoUrl: string;
   coverUrl: string;
   ownerEmail: string;
   ownerPassword: string;
+  panelUsers?: RestaurantPanelUser[];
   passwordResetToken?: string | null;
   passwordResetExpiresAt?: string | null;
   taxId?: string | null;
@@ -141,6 +218,7 @@ export type Restaurant = {
   marketingCampaigns?: RestaurantMarketingCampaign[];
   coupons?: RestaurantCoupon[];
   bioLink?: RestaurantBioLink;
+  adsAiPlansHistory?: RestaurantAdsAiPlanHistoryItem[];
   categories: RestaurantCategory[];
   products: RestaurantProduct[];
 };
@@ -192,6 +270,21 @@ export type Order = {
   customerName: string;
   customerWhatsapp: string;
   customerAddress: string;
+  customerLatitude?: number | null;
+  customerLongitude?: number | null;
+  deliveryDistanceKm?: number | null;
+  deliveryZoneName?: string | null;
+  deliveryFeeSource?: "flat" | "distance_band" | "neighborhood_fixed" | "hybrid" | "fallback";
+  dispatchStatus?: "pending" | "assigned" | "out_for_delivery" | "delivered";
+  dispatchMode?: "manual" | "auto";
+  trafficSource?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmContent?: string;
+  utmTerm?: string;
+  attributionBannerId?: string;
+  attributionCampaignId?: string;
   paymentMethod: OrderPaymentMethod;
   items: OrderItem[];
   subtotal: number;
@@ -229,12 +322,30 @@ export type AuditLog = {
   metadata?: Record<string, string | number | boolean | null>;
 };
 
+export type ActiveSession = {
+  id: string;
+  kind: "admin" | "master";
+  sessionId: string;
+  subjectId: string;
+  subjectName: string;
+  actorEmail?: string;
+  restaurantSlug?: string;
+  role?: string | null;
+  ip: string;
+  userAgent?: string | null;
+  createdAt: string;
+  lastSeenAt: string;
+  expiresAt: string;
+  revokedAt?: string | null;
+};
+
 export type AppStore = {
   leads: Lead[];
   restaurants: Restaurant[];
   orders: Order[];
   customers: Customer[];
   auditLogs: AuditLog[];
+  activeSessions: ActiveSession[];
   invoices: Invoice[];
   adminUsers: AdminUser[];
   adminRoles: AdminRole[];
@@ -281,6 +392,9 @@ export type AdminUser = {
   status: AdminStatus;
   password: string;
   permissions: string[];
+  twoFactorEnabled?: boolean;
+  twoFactorSecret?: string | null;
+  twoFactorPendingSecret?: string | null;
   createdAt: string;
   lastAccessAt?: string | null;
 };
@@ -407,6 +521,7 @@ export const defaultStore: AppStore = {
   orders: [],
   customers: [],
   auditLogs: [],
+  activeSessions: [],
   restaurants: [
     {
       id: "r_pizzadomario",

@@ -158,9 +158,49 @@ function normalizeStore(parsed: Partial<AppStore>): AppStore {
     lastViewAt: item.lastViewAt ?? null,
     passwordResetToken: item.passwordResetToken ?? null,
     passwordResetExpiresAt: item.passwordResetExpiresAt ?? null,
-    banners: item.banners ?? [],
-    marketingCampaigns: item.marketingCampaigns ?? [],
+    banners: (item.banners ?? []).map((banner) => ({
+      ...banner,
+      abGroup: banner.abGroup ?? "",
+      clicks: banner.clicks ?? 0,
+      impressions: banner.impressions ?? 0,
+      attributedOrders: banner.attributedOrders ?? 0,
+      lastClickedAt: banner.lastClickedAt ?? null
+    })),
+    marketingCampaigns: (item.marketingCampaigns ?? []).map((campaign) => ({
+      ...campaign,
+      couponCodes: campaign.couponCodes ?? (campaign.couponCode ? [campaign.couponCode] : []),
+      bannerIds: campaign.bannerIds ?? [],
+      startDate: campaign.startDate ?? "",
+      endDate: campaign.endDate ?? "",
+      autoActivateByCalendar: campaign.autoActivateByCalendar ?? false,
+      utmSource: campaign.utmSource ?? "",
+      utmMedium: campaign.utmMedium ?? "",
+      utmCampaign: campaign.utmCampaign ?? "",
+      utmContent: campaign.utmContent ?? "",
+      targetCouponCode: campaign.targetCouponCode ?? ""
+      ,
+      clicks: campaign.clicks ?? 0,
+      attributedOrders: campaign.attributedOrders ?? 0,
+      lastClickedAt: campaign.lastClickedAt ?? null
+    })),
     coupons: item.coupons ?? [],
+    deliveryConfig: {
+      radiusKm: item.deliveryConfig?.radiusKm ?? 10,
+      feeMode: item.deliveryConfig?.feeMode ?? "flat",
+      distanceBands: (item.deliveryConfig?.distanceBands ?? []).map((band, index) => ({
+        id: band.id ?? `band_${index + 1}`,
+        upToKm: Number.isFinite(band.upToKm) ? band.upToKm : 0,
+        fee: Number.isFinite(band.fee) ? band.fee : 0
+      })),
+      neighborhoodRates: (item.deliveryConfig?.neighborhoodRates ?? []).map((zone, index) => ({
+        id: zone.id ?? `zone_${index + 1}`,
+        name: zone.name ?? "",
+        fee: Number.isFinite(zone.fee) ? zone.fee : 0,
+        active: zone.active ?? true
+      })),
+      dispatchMode: item.deliveryConfig?.dispatchMode ?? "manual",
+      autoDispatchEnabled: item.deliveryConfig?.autoDispatchEnabled ?? false
+    },
     bioLink: {
       appearance: item.bioLink?.appearance ?? "dark",
       headline: item.bioLink?.headline ?? "Nossos links oficiais",
@@ -171,13 +211,23 @@ function normalizeStore(parsed: Partial<AppStore>): AppStore {
       customEnabled: item.bioLink?.customEnabled ?? false,
       customLabel: item.bioLink?.customLabel ?? "Meu Site",
       customUrl: item.bioLink?.customUrl ?? ""
-    }
+    },
+    panelUsers: (item.panelUsers ?? []).map((user) => ({
+      ...user,
+      status: user.status ?? "Ativo",
+      permissions: user.permissions ?? [],
+      createdAt: user.createdAt ?? now,
+      lastAccessAt: user.lastAccessAt ?? null
+    }))
   }));
   const adminUsers = (parsed.adminUsers ?? defaultStore.adminUsers).map((user) => ({
     ...user,
     createdAt: user.createdAt ?? now,
     lastAccessAt: user.lastAccessAt ?? null,
-    permissions: user.permissions ?? []
+    permissions: user.permissions ?? [],
+    twoFactorEnabled: user.twoFactorEnabled ?? false,
+    twoFactorSecret: user.twoFactorSecret ?? null,
+    twoFactorPendingSecret: user.twoFactorPendingSecret ?? null
   }));
   const adminRoles = (parsed.adminRoles ?? defaultStore.adminRoles).map((role) => ({
     ...role,
@@ -189,7 +239,22 @@ function normalizeStore(parsed: Partial<AppStore>): AppStore {
     status: order.status ?? "Recebido",
     discountValue: order.discountValue ?? 0,
     couponCode: order.couponCode ?? undefined,
-    source: order.source ?? "catalog"
+    source: order.source ?? "catalog",
+    customerLatitude: order.customerLatitude ?? null,
+    customerLongitude: order.customerLongitude ?? null,
+    deliveryDistanceKm: order.deliveryDistanceKm ?? null,
+    deliveryZoneName: order.deliveryZoneName ?? null,
+    deliveryFeeSource: order.deliveryFeeSource ?? (order.deliveryFee ? "fallback" : "flat"),
+    dispatchStatus: order.dispatchStatus ?? "pending",
+    dispatchMode: order.dispatchMode ?? "manual",
+    trafficSource: order.trafficSource ?? "",
+    utmSource: order.utmSource ?? "",
+    utmMedium: order.utmMedium ?? "",
+    utmCampaign: order.utmCampaign ?? "",
+    utmContent: order.utmContent ?? "",
+    utmTerm: order.utmTerm ?? "",
+    attributionBannerId: order.attributionBannerId ?? "",
+    attributionCampaignId: order.attributionCampaignId ?? ""
   }));
 
   const customers = (parsed.customers ?? []).map((customer) => ({
@@ -203,6 +268,11 @@ function normalizeStore(parsed: Partial<AppStore>): AppStore {
     orders,
     customers,
     auditLogs: parsed.auditLogs ?? [],
+    activeSessions: (parsed.activeSessions ?? []).map((session) => ({
+      ...session,
+      userAgent: session.userAgent ?? null,
+      revokedAt: session.revokedAt ?? null
+    })),
     invoices: parsed.invoices ?? defaultStore.invoices,
     adminUsers,
     adminRoles,
@@ -320,4 +390,85 @@ export function sanitizeSlug(value: string): string {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function todayIsoDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function withinCampaignCalendar(campaign: {
+  startDate?: string;
+  endDate?: string;
+  autoActivateByCalendar?: boolean;
+}) {
+  if (!campaign.autoActivateByCalendar) return null;
+  const today = todayIsoDate();
+  const hasStart = !!campaign.startDate;
+  const hasEnd = !!campaign.endDate;
+  if (!hasStart && !hasEnd) return null;
+  if (campaign.startDate && today < campaign.startDate) return false;
+  if (campaign.endDate && today > campaign.endDate) return false;
+  return true;
+}
+
+export function applyRestaurantCampaignCalendar(restaurant: Restaurant): {
+  changed: boolean;
+  restaurant: Restaurant;
+} {
+  const campaigns = restaurant.marketingCampaigns ?? [];
+  if (!campaigns.length) return { changed: false, restaurant };
+
+  let changed = false;
+  const toggledCouponCodes = new Set<string>();
+  const toggledBannerIds = new Set<string>();
+  const nextCampaigns = campaigns.map((campaign) => {
+    const shouldBeActive = withinCampaignCalendar(campaign);
+    if (shouldBeActive === null || campaign.active === shouldBeActive) return campaign;
+    changed = true;
+    (campaign.couponCodes?.length
+      ? campaign.couponCodes
+      : campaign.couponCode
+      ? [campaign.couponCode]
+      : []
+    )
+      .map((code) => code.trim().toUpperCase())
+      .filter(Boolean)
+      .forEach((code) => toggledCouponCodes.add(code));
+    (campaign.bannerIds ?? []).forEach((id) => toggledBannerIds.add(id));
+    return { ...campaign, active: shouldBeActive };
+  });
+
+  if (!changed) return { changed: false, restaurant };
+  const activeCampaignByCoupon = new Set<string>();
+  const activeCampaignByBanner = new Set<string>();
+  nextCampaigns.forEach((campaign) => {
+    if (!campaign.active) return;
+    (campaign.couponCodes?.length
+      ? campaign.couponCodes
+      : campaign.couponCode
+      ? [campaign.couponCode]
+      : []
+    )
+      .map((code) => code.trim().toUpperCase())
+      .filter(Boolean)
+      .forEach((code) => activeCampaignByCoupon.add(code));
+    (campaign.bannerIds ?? []).forEach((id) => activeCampaignByBanner.add(id));
+  });
+
+  return {
+    changed: true,
+    restaurant: {
+      ...restaurant,
+      marketingCampaigns: nextCampaigns,
+      coupons: (restaurant.coupons ?? []).map((coupon) => {
+        const normalized = coupon.code.trim().toUpperCase();
+        if (!toggledCouponCodes.has(normalized)) return coupon;
+        return { ...coupon, active: activeCampaignByCoupon.has(normalized) };
+      }),
+      banners: (restaurant.banners ?? []).map((banner) => {
+        if (!toggledBannerIds.has(banner.id)) return banner;
+        return { ...banner, active: activeCampaignByBanner.has(banner.id) };
+      })
+    }
+  };
 }

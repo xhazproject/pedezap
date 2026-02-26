@@ -8,7 +8,7 @@ import { FeaturedProductCard } from '../components/FeaturedProductCard';
 import { BottomNav } from '../components/BottomNav';
 import { ProductModal } from '../components/ProductModal';
 import { StoreInfoModal } from '../components/StoreInfoModal';
-import { CATEGORIES, OFFERS, PRODUCTS } from '../constants';
+import { CATEGORIES, OFFERS, PRODUCTS, RESTAURANT_DATA } from '../constants';
 import { useCart } from '../context/CartContext';
 import { Offer, PizzaCrust, PizzaFlavor, Product, ProductComplement, SelectedAcaiOption } from '../types';
 
@@ -24,6 +24,7 @@ export const MenuPage: React.FC<MenuPageProps> = ({ onCheckout, onProfile }) => 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isStoreInfoOpen, setIsStoreInfoOpen] = useState(false);
   const { addToCart, cartCount } = useCart();
+  const { slug } = RESTAURANT_DATA;
   const campaignProductsCount = useMemo(() => PRODUCTS.filter((item) => item.isInCampaign).length, []);
 
   const filteredProducts = useMemo(() => {
@@ -74,6 +75,32 @@ export const MenuPage: React.FC<MenuPageProps> = ({ onCheckout, onProfile }) => 
         <div className="border-b border-slate-100 bg-white">
           <OffersCarousel
             onSelectOffer={(offer) => {
+              try {
+                if (slug) {
+                  localStorage.setItem(
+                    `pedezap_marketing_attribution_${slug}`,
+                    JSON.stringify({
+                      trafficSource: 'banner',
+                      utmSource: offer.utmSource || 'catalogo',
+                      utmMedium: offer.utmMedium || 'banner',
+                      utmCampaign: offer.utmCampaign || offer.campaignId || undefined,
+                      utmContent: offer.utmContent || offer.id,
+                      couponCode: offer.couponCode,
+                      attributionBannerId: offer.id,
+                      attributionCampaignId: offer.campaignId,
+                      capturedAt: new Date().toISOString()
+                    })
+                  );
+                  void fetch(`/api/restaurants/${slug}/banner-click`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      bannerId: offer.id,
+                      campaignId: offer.campaignId
+                    })
+                  }).catch(() => undefined);
+                }
+              } catch {}
               setActiveOffer(offer);
               setActiveCategory('all');
               window.scrollTo({ top: 320, behavior: 'smooth' });

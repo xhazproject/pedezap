@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, DollarSign, FileText, MapPin, MessageCircle, Minus, Plus, Trash2, User } from 'lucide-react';
 import { BottomNav } from '../components/BottomNav';
 import { formatCurrency } from '../components/Formatters';
@@ -9,6 +9,17 @@ import { CustomerData } from '../types';
 interface CheckoutPageProps {
   onBackToMenu: () => void;
   initialCustomerData?: Partial<CustomerData>;
+  initialCouponCode?: string;
+  initialAttribution?: {
+    trafficSource?: string;
+    utmSource?: string;
+    utmMedium?: string;
+    utmCampaign?: string;
+    utmContent?: string;
+    utmTerm?: string;
+    attributionBannerId?: string;
+    attributionCampaignId?: string;
+  };
   onProfile?: () => void;
 }
 
@@ -18,13 +29,34 @@ type ApiOrderPayload = {
   message?: string;
 };
 
-export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onBackToMenu, initialCustomerData, onProfile }) => {
+type DeliveryEstimatePayload = {
+  success: boolean;
+  deliveryFee?: number;
+  deliveryDistanceKm?: number | null;
+  deliveryZoneName?: string | null;
+  deliveryFeeSource?: 'flat' | 'distance_band' | 'neighborhood_fixed' | 'hybrid' | 'fallback';
+  outOfRange?: boolean;
+  radiusKm?: number;
+  geocoded?: boolean;
+  message?: string;
+};
+
+export const CheckoutPage: React.FC<CheckoutPageProps> = ({
+  onBackToMenu,
+  initialCustomerData,
+  initialCouponCode,
+  initialAttribution,
+  onProfile
+}) => {
   const { cart, cartCount, removeFromCart, updateQuantity, updateItemNotes, clearCart, cartTotal } = useCart();
   const { deliveryFee, minOrderValue, slug, isOpen } = RESTAURANT_DATA;
   const [submitting, setSubmitting] = useState(false);
+  const [estimatingDelivery, setEstimatingDelivery] = useState(false);
+  const [deliveryEstimate, setDeliveryEstimate] = useState<DeliveryEstimatePayload | null>(null);
+  const [deliveryEstimateError, setDeliveryEstimateError] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [generalNotes, setGeneralNotes] = useState('');
-  const [couponCode, setCouponCode] = useState('');
+  const [couponCode, setCouponCode] = useState((initialCouponCode || '').toUpperCase());
   const [customer, setCustomer] = useState<CustomerData>({
     name: initialCustomerData?.name || '',
     phone: initialCustomerData?.phone || '',
@@ -35,13 +67,79 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onBackToMenu, initia
     reference: ''
   });
 
+  const effectiveDeliveryFee =
+    deliveryEstimate?.success && typeof deliveryEstimate.deliveryFee === 'number'
+      ? deliveryEstimate.deliveryFee
+      : deliveryFee;
+  const isAddressOutOfRange = !!deliveryEstimate?.outOfRange;
+  const totalWithDelivery = cartTotal + effectiveDeliveryFee;
+
   const isValid =
     customer.name.trim().length > 1 &&
     customer.phone.trim().length > 7 &&
     customer.address.trim().length > 5 &&
     cart.length > 0 &&
     cartTotal >= minOrderValue;
-  const canSubmitOrder = isValid && isOpen;
+  const canSubmitOrder = isValid && isOpen && !isAddressOutOfRange;
+
+  const normalizedAddressForEstimate = useMemo(
+    () => customer.address.trim(),
+    [customer.address]
+  );
+
+  useEffect(() => {
+    if (!slug || normalizedAddressForEstimate.length < 6 || cart.length === 0) {
+      setEstimatingDelivery(false);
+      setDeliveryEstimate(null);
+      setDeliveryEstimateError('');
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(async () => {
+      setEstimatingDelivery(true);
+      setDeliveryEstimateError('');
+
+      try {
+        const response = await fetch('/api/orders/estimate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            restaurantSlug: slug,
+            customerAddress: normalizedAddressForEstimate
+          }),
+          signal: controller.signal
+        });
+
+        const payload = (await response.json().catch(() => null)) as DeliveryEstimatePayload | null;
+        if (controller.signal.aborted) return;
+
+        if (!payload) {
+          setDeliveryEstimate(null);
+          setDeliveryEstimateError('Nao foi possivel estimar a entrega agora.');
+          return;
+        }
+
+        setDeliveryEstimate(payload);
+        if (!response.ok && !payload.outOfRange) {
+          setDeliveryEstimateError(payload.message || 'Nao foi possivel estimar a entrega agora.');
+        } else {
+          setDeliveryEstimateError('');
+        }
+      } catch (error) {
+        if ((error as Error)?.name === 'AbortError') return;
+        setDeliveryEstimate(null);
+        setDeliveryEstimateError('Nao foi possivel estimar a entrega agora.');
+      } finally {
+        if (!controller.signal.aborted) setEstimatingDelivery(false);
+      }
+    }, 650);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeoutId);
+    };
+  }, [slug, normalizedAddressForEstimate, cart.length, cartTotal]);
 
   async function handleSendOrder() {
     if (!canSubmitOrder || !slug) return;
@@ -64,6 +162,14 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onBackToMenu, initia
         customerEmail: customer.email || undefined,
         customerAddress: customer.address,
         couponCode: couponCode.trim().toUpperCase() || undefined,
+        trafficSource: initialAttribution?.trafficSource,
+        utmSource: initialAttribution?.utmSource,
+        utmMedium: initialAttribution?.utmMedium,
+        utmCampaign: initialAttribution?.utmCampaign,
+        utmContent: initialAttribution?.utmContent,
+        utmTerm: initialAttribution?.utmTerm,
+        attributionBannerId: initialAttribution?.attributionBannerId,
+        attributionCampaignId: initialAttribution?.attributionCampaignId,
         paymentMethod: paymentMethodMap[customer.paymentMethod],
         generalNotes: [generalNotes, customer.reference ? `Ref: ${customer.reference}` : '', customer.changeFor ? `Troco: ${customer.changeFor}` : '']
           .filter(Boolean)
@@ -107,7 +213,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onBackToMenu, initia
     }
 
     if (payload.whatsappUrl) {
-      window.open(payload.whatsappUrl, '_blank', 'noopener,noreferrer');
+      window.location.assign(payload.whatsappUrl);
     }
 
     clearCart();
@@ -259,6 +365,37 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onBackToMenu, initia
           <div className="p-4 space-y-4">
             <textarea value={customer.address} onChange={(e) => setCustomer({ ...customer, address: e.target.value })} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg h-24 resize-none" placeholder="Endereco completo" />
             <input type="text" value={customer.reference} onChange={(e) => setCustomer({ ...customer, reference: e.target.value })} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg" placeholder="Ponto de referencia (opcional)" />
+            {estimatingDelivery ? (
+              <p className="text-xs text-gray-500">Calculando taxa de entrega...</p>
+            ) : null}
+            {deliveryEstimate?.success ? (
+              <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                <div className="font-semibold">
+                  Taxa estimada: {formatCurrency(deliveryEstimate.deliveryFee ?? effectiveDeliveryFee)}
+                </div>
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-emerald-700">
+                  {typeof deliveryEstimate.deliveryDistanceKm === 'number' ? (
+                    <span>Distancia: {deliveryEstimate.deliveryDistanceKm.toFixed(2)} km</span>
+                  ) : null}
+                  {deliveryEstimate.deliveryZoneName ? (
+                    <span>Regiao: {deliveryEstimate.deliveryZoneName}</span>
+                  ) : null}
+                  {deliveryEstimate.deliveryFeeSource ? (
+                    <span>Regra: {deliveryEstimate.deliveryFeeSource}</span>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+            {deliveryEstimate?.outOfRange ? (
+              <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+                {deliveryEstimate.message || 'Endereco fora do raio de entrega da loja.'}
+              </p>
+            ) : null}
+            {!deliveryEstimate?.outOfRange && deliveryEstimateError ? (
+              <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                {deliveryEstimateError} Usando taxa padrao por enquanto.
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -313,11 +450,16 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onBackToMenu, initia
         <div className="container mx-auto max-w-2xl">
           <div className="space-y-1 mb-4 text-sm">
             <div className="flex justify-between text-gray-600"><span>Subtotal</span><span>{formatCurrency(cartTotal)}</span></div>
-            <div className="flex justify-between text-gray-600"><span>Taxa de Entrega</span><span>{formatCurrency(deliveryFee)}</span></div>
-            <div className="flex justify-between font-bold text-lg text-gray-800 pt-2 border-t border-dashed"><span>Total</span><span>{formatCurrency(cartTotal + deliveryFee)}</span></div>
+            <div className="flex justify-between text-gray-600"><span>Taxa de Entrega</span><span>{formatCurrency(effectiveDeliveryFee)}</span></div>
+            <div className="flex justify-between font-bold text-lg text-gray-800 pt-2 border-t border-dashed"><span>Total</span><span>{formatCurrency(totalWithDelivery)}</span></div>
           </div>
           {cartTotal < minOrderValue && (
             <p className="text-center text-red-500 text-xs bg-red-50 py-1 rounded mb-2">Pedido minimo: {formatCurrency(minOrderValue)}</p>
+          )}
+          {isAddressOutOfRange && (
+            <p className="text-center text-red-500 text-xs bg-red-50 py-1 rounded mb-2">
+              {deliveryEstimate?.message || 'Endereco fora do raio de entrega da loja.'}
+            </p>
           )}
           {!isOpen && (
             <p className="text-center text-red-500 text-xs bg-red-50 py-1 rounded mb-2">Loja fechada no momento para novos pedidos.</p>

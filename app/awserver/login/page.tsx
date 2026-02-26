@@ -9,9 +9,11 @@ export default function AdminLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otpCode, setOtpCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [expiredByInactivity, setExpiredByInactivity] = useState(false);
+  const [requires2FA, setRequires2FA] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -27,11 +29,18 @@ export default function AdminLoginPage() {
     const response = await fetch('/api/admin/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password, ...(requires2FA ? { otpCode } : {}) })
     });
     const payload = (await response.json().catch(() => null)) as
-      | { success: boolean; message?: string; user?: { email: string; name: string; role?: string; permissions?: string[] } }
+      | { success: boolean; message?: string; requires2FA?: boolean; user?: { email: string; name: string; role?: string; permissions?: string[] } }
       | null;
+
+    if (payload?.requires2FA) {
+      setRequires2FA(true);
+      setError(payload?.message ?? 'Digite o codigo 2FA.');
+      setLoading(false);
+      return;
+    }
 
     if (!response.ok || !payload?.success || !payload.user) {
       setError(payload?.message ?? 'Falha no login.');
@@ -132,6 +141,27 @@ export default function AdminLoginPage() {
                     />
                   </div>
                 </div>
+
+                {requires2FA && (
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Codigo 2FA
+                    </label>
+                    <div className="flex h-12 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 transition focus-within:border-slate-900">
+                      <ShieldCheck size={16} className="text-slate-400" />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={otpCode}
+                        onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                        className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400 tracking-[0.2em]"
+                        placeholder="000000"
+                        required={requires2FA}
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">Digite o codigo do app autenticador (Google Authenticator, Authy, etc).</p>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between text-sm">
                   <label className="inline-flex items-center gap-2 text-slate-600">

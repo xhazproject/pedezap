@@ -5,6 +5,8 @@ import { createSessionToken, MASTER_SESSION_COOKIE } from "@/lib/auth-session";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { appendAuditLog, writeAuditLog } from "@/lib/audit";
+import { registerActiveSession } from "@/lib/session-registry";
+import { PlanMasterTab } from "@/lib/store-data";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -51,8 +53,11 @@ export async function POST(request: Request) {
   }
 
   const store = await readStore();
+  const loginEmail = parsed.data.email.toLowerCase();
   const index = store.restaurants.findIndex(
-    (item) => item.ownerEmail.toLowerCase() === parsed.data.email.toLowerCase()
+    (item) =>
+      item.ownerEmail.toLowerCase() === loginEmail ||
+      (item.panelUsers ?? []).some((user) => user.email.toLowerCase() === loginEmail)
   );
   const restaurant = index >= 0 ? store.restaurants[index] : null;
 
@@ -89,7 +94,28 @@ export async function POST(request: Request) {
     );
   }
 
-  const passwordCheck = await verifyPassword(parsed.data.password, restaurant.ownerPassword);
+  const panelUserIndex = (restaurant.panelUsers ?? []).findIndex(
+    (item) => item.email.toLowerCase() === loginEmail
+  );
+  const panelUser = panelUserIndex >= 0 ? (restaurant.panelUsers ?? [])[panelUserIndex] : null;
+  const isOwnerLogin = restaurant.ownerEmail.toLowerCase() === loginEmail;
+
+  if (panelUser && panelUser.status !== "Ativo") {
+    await appendAuditLog(store, {
+      request,
+      action: "auth.master.login.blocked_user_inactive",
+      targetType: "restaurant_panel_user",
+      targetId: panelUser.id,
+      actor: { actorType: "anonymous", actorId: "anonymous", actorName: loginEmail }
+    });
+    await writeStore(store);
+    return NextResponse.json({ success: false, message: "Usuario do painel inativo." }, { status: 403 });
+  }
+
+  const passwordCheck = await verifyPassword(
+    parsed.data.password,
+    isOwnerLogin ? restaurant.ownerPassword : panelUser?.password ?? ""
+  );
   if (!passwordCheck.valid) {
     await appendAuditLog(store, {
       request,
@@ -125,9 +151,49 @@ export async function POST(request: Request) {
   }
 
   if (passwordCheck.needsUpgrade && index >= 0) {
+    if (isOwnerLogin) {
     store.restaurants[index] = {
       ...restaurant,
       ownerPassword: await hashPassword(parsed.data.password)
+    };
+    } else if (panelUser && panelUserIndex >= 0) {
+      const updatedPanelUsers = [...(restaurant.panelUsers ?? [])];
+      updatedPanelUsers[panelUserIndex] = {
+        ...panelUser,
+        password: await hashPassword(parsed.data.password)
+      };
+      store.restaurants[index] = {
+        ...restaurant,
+        panelUsers: updatedPanelUsers
+      };
+    }
+  }
+  const masterPermissions: PlanMasterTab[] = isOwnerLogin
+    ? [
+        "dashboard",
+        "orders",
+        "menu",
+        "highlights",
+        "clients",
+        "billing",
+        "promotions",
+        "banners",
+        "marketing",
+        "settings",
+        "plans",
+        "support"
+      ]
+    : ((panelUser?.permissions ?? []) as PlanMasterTab[]);
+
+  if (!isOwnerLogin && panelUser && panelUserIndex >= 0) {
+    const updatedPanelUsers = [...(store.restaurants[index].panelUsers ?? [])];
+    updatedPanelUsers[panelUserIndex] = {
+      ...updatedPanelUsers[panelUserIndex],
+      lastAccessAt: new Date().toISOString()
+    };
+    store.restaurants[index] = {
+      ...store.restaurants[index],
+      panelUsers: updatedPanelUsers
     };
   }
   await appendAuditLog(store, {
@@ -135,7 +201,14 @@ export async function POST(request: Request) {
     action: "auth.master.login.success",
     targetType: "restaurant",
     targetId: restaurant.slug,
-    actor: { actorType: "master", actorId: restaurant.slug, actorName: restaurant.ownerEmail }
+    actor: {
+      actorType: "master",
+      actorId: isOwnerLogin ? restaurant.slug : panelUser?.id ?? restaurant.slug,
+      actorName: isOwnerLogin ? restaurant.ownerEmail : panelUser?.email ?? restaurant.ownerEmail
+    },
+    metadata: {
+      role: isOwnerLogin ? "owner" : panelUser?.role ?? "unknown"
+    }
   });
   await writeStore(store);
 
@@ -143,17 +216,38 @@ export async function POST(request: Request) {
     {
       kind: "master",
       restaurantSlug: restaurant.slug,
-      email: restaurant.ownerEmail
+      email: isOwnerLogin ? restaurant.ownerEmail : panelUser?.email ?? restaurant.ownerEmail,
+      userId: isOwnerLogin ? `owner:${restaurant.slug}` : panelUser?.id,
+      userName: isOwnerLogin ? restaurant.name : panelUser?.name,
+      role: isOwnerLogin ? "owner" : panelUser?.role,
+      permissions: masterPermissions,
+      isOwner: isOwnerLogin
     },
     60 * 60 * 12
   );
+  registerActiveSession(store, request, token, {
+    kind: "master",
+    restaurantSlug: restaurant.slug,
+    email: isOwnerLogin ? restaurant.ownerEmail : panelUser?.email ?? restaurant.ownerEmail,
+    userId: isOwnerLogin ? `owner:${restaurant.slug}` : panelUser?.id,
+    userName: isOwnerLogin ? restaurant.name : panelUser?.name,
+    role: isOwnerLogin ? "owner" : panelUser?.role,
+    permissions: masterPermissions,
+    isOwner: isOwnerLogin,
+    exp: Math.floor(Date.now() / 1000) + 60 * 60 * 12
+  });
+  await writeStore(store);
 
   const response = NextResponse.json({
     success: true,
     user: {
       restaurantSlug: restaurant.slug,
       restaurantName: restaurant.name,
-      email: restaurant.ownerEmail
+      email: isOwnerLogin ? restaurant.ownerEmail : panelUser?.email ?? restaurant.ownerEmail,
+      userName: isOwnerLogin ? restaurant.name : panelUser?.name ?? restaurant.name,
+      role: isOwnerLogin ? "owner" : panelUser?.role ?? "owner",
+      permissions: masterPermissions,
+      isOwner: isOwnerLogin
     }
   });
   response.cookies.set(MASTER_SESSION_COOKIE, token, {

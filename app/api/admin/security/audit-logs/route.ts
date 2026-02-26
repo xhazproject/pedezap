@@ -5,6 +5,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = (searchParams.get("q") ?? "").toLowerCase();
   const action = searchParams.get("action") ?? "all";
+  const targetType = searchParams.get("targetType") ?? "all";
+  const targetIdQuery = (searchParams.get("targetId") ?? "").toLowerCase();
   const page = Number(searchParams.get("page") ?? "1");
   const pageSize = Number(searchParams.get("pageSize") ?? "20");
 
@@ -18,18 +20,22 @@ export async function GET(request: Request) {
         log.targetId.toLowerCase().includes(query) ||
         log.ip.toLowerCase().includes(query);
       const matchesAction = action === "all" || log.action === action;
-      return matchesQuery && matchesAction;
+      const matchesTargetType = targetType === "all" || log.targetType === targetType;
+      const matchesTargetId = !targetIdQuery || log.targetId.toLowerCase().includes(targetIdQuery);
+      return matchesQuery && matchesAction && matchesTargetType && matchesTargetId;
     })
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   const start = (Math.max(1, page) - 1) * Math.max(1, pageSize);
   const logs = filtered.slice(start, start + Math.max(1, pageSize));
   const actions = Array.from(new Set((store.auditLogs ?? []).map((item) => item.action))).sort();
+  const targetTypes = Array.from(new Set((store.auditLogs ?? []).map((item) => item.targetType))).sort();
 
   return NextResponse.json({
     success: true,
     total: filtered.length,
     logs,
-    actions
+    actions,
+    targetTypes
   });
 }

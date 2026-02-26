@@ -14,6 +14,7 @@ import {
   Download,
   ExternalLink,
   Eye,
+  Image as ImageIcon,
   LayoutDashboard,
   List,
   LogOut,
@@ -61,8 +62,10 @@ import {
   Restaurant,
   RestaurantBanner,
   RestaurantCategory,
+  RestaurantDeliveryConfig,
   RestaurantMarketingCampaign,
   RestaurantProduct,
+  RestaurantAdsAiPlanHistoryItem,
   SupportMessage,
   SupportTicket
 } from '@/lib/store-data';
@@ -74,11 +77,79 @@ type MasterSession = {
   restaurantSlug: string;
   restaurantName: string;
   email: string;
+  userId?: string;
+  userName?: string;
+  role?: 'owner' | 'gerente' | 'atendente' | 'cozinha';
+  permissions?: TabKey[];
+  isOwner?: boolean;
 };
+
+type MasterPanelUserRow = {
+  id: string;
+  name: string;
+  email: string;
+  role: 'gerente' | 'atendente' | 'cozinha';
+  status: 'Ativo' | 'Inativo';
+  permissions: TabKey[];
+  createdAt: string;
+  lastAccessAt?: string | null;
+};
+
+type MasterActiveSessionRow = {
+  id: string;
+  kind: 'master';
+  subjectName: string;
+  actorEmail?: string;
+  role?: string | null;
+  ip: string;
+  lastSeenAt: string;
+  expiresAt: string;
+  isCurrent?: boolean;
+};
+
+type AiCampaignSuggestion = {
+  campaignName: string;
+  period: string;
+  couponSuggestion: string;
+  bannerHeadline: string;
+  bannerDescription: string;
+  whatsappMessage: string;
+  strategyReason: string;
+};
+
+type AiSalesAnalysis = {
+  executiveSummary: string;
+  alerts: string[];
+  recommendations: string[];
+  implementationIdeas: string[];
+};
+
+type AiAdsAssistantPlan = {
+  campaignName: string;
+  campaignObjective: string;
+  suggestedPeriod: string;
+  targetAudience: string;
+  recommendedRadiusKm: number;
+  dailyBudgetSuggestion: string;
+  channels: string[];
+  couponSuggestion: string;
+  couponDiscountHint: string;
+  bannerHeadline: string;
+  bannerDescription: string;
+  adCopyPrimary: string;
+  adCopyVariants: string[];
+  headline: string;
+  cta: string;
+  implementationChecklist: string[];
+  trackingSuggestion: string;
+  reason: string;
+};
+
+type AdsAiHistoryItem = RestaurantAdsAiPlanHistoryItem;
 
 type RestaurantForm = Pick<
   Restaurant,
-  'name' | 'whatsapp' | 'openingHours' | 'address' | 'city' | 'state' | 'minOrderValue' | 'deliveryFee' | 'openForOrders' | 'logoUrl' | 'coverUrl'
+  'name' | 'whatsapp' | 'openingHours' | 'address' | 'city' | 'state' | 'minOrderValue' | 'deliveryFee' | 'deliveryConfig' | 'openForOrders' | 'logoUrl' | 'coverUrl'
 >;
 
 type TabKey =
@@ -109,6 +180,28 @@ const DEFAULT_PLAN_TABS: TabKey[] = [
   'plans',
   'support'
 ];
+
+const MASTER_ROLE_DEFAULT_PERMISSIONS: Record<'owner' | 'gerente' | 'atendente' | 'cozinha', TabKey[]> = {
+  owner: [...DEFAULT_PLAN_TABS],
+  gerente: ['dashboard', 'orders', 'menu', 'highlights', 'clients', 'billing', 'promotions', 'banners', 'marketing', 'settings', 'support'],
+  atendente: ['dashboard', 'orders', 'clients', 'promotions', 'support'],
+  cozinha: ['orders']
+};
+
+const TAB_LABELS: Record<TabKey, string> = {
+  dashboard: 'Dashboard',
+  orders: 'Pedidos',
+  menu: 'Cardapio',
+  highlights: 'Destaques',
+  clients: 'Clientes',
+  billing: 'Faturamento',
+  promotions: 'Promocoes',
+  banners: 'Banners',
+  marketing: 'Marketing',
+  settings: 'Configuracoes',
+  plans: 'Plano',
+  support: 'Suporte'
+};
 
 type ProductKind = 'padrao' | 'pizza' | 'bebida' | 'acai';
 
@@ -245,6 +338,7 @@ type BannerForm = {
   imageUrl: string;
   active: boolean;
   productIds: string[];
+  abGroup?: 'A' | 'B' | '';
 };
 
 type CampaignForm = {
@@ -253,6 +347,13 @@ type CampaignForm = {
   couponCodes: string[];
   bannerIds: string[];
   period: string;
+  startDate: string;
+  endDate: string;
+  autoActivateByCalendar: boolean;
+  utmSource: string;
+  utmMedium: string;
+  utmCampaign: string;
+  utmContent: string;
   active: boolean;
 };
 
@@ -292,7 +393,8 @@ function createDefaultBannerForm(): BannerForm {
     description: '',
     imageUrl: '',
     active: true,
-    productIds: []
+    productIds: [],
+    abGroup: ''
   };
 }
 
@@ -302,10 +404,17 @@ function createDefaultCampaignForm(campaign?: RestaurantMarketingCampaign): Camp
       name: '',
       couponCode: '',
       couponCodes: [],
-      bannerIds: [],
-      period: '',
-      active: true
-    };
+        bannerIds: [],
+        period: '',
+        startDate: '',
+        endDate: '',
+        autoActivateByCalendar: false,
+        utmSource: '',
+        utmMedium: '',
+        utmCampaign: '',
+        utmContent: '',
+        active: true
+      };
   }
   return {
     name: campaign.name,
@@ -313,6 +422,13 @@ function createDefaultCampaignForm(campaign?: RestaurantMarketingCampaign): Camp
     couponCodes: campaign.couponCodes ?? (campaign.couponCode ? [campaign.couponCode] : []),
     bannerIds: campaign.bannerIds ?? [],
     period: campaign.period ?? '',
+    startDate: campaign.startDate ?? '',
+    endDate: campaign.endDate ?? '',
+    autoActivateByCalendar: campaign.autoActivateByCalendar ?? false,
+    utmSource: campaign.utmSource ?? '',
+    utmMedium: campaign.utmMedium ?? '',
+    utmCampaign: campaign.utmCampaign ?? '',
+    utmContent: campaign.utmContent ?? '',
     active: campaign.active
   };
 }
@@ -500,6 +616,42 @@ function createDefaultBioLinkSettings(): BioLinkSettings {
   };
 }
 
+function createDefaultDeliveryConfig(): RestaurantDeliveryConfig {
+  return {
+    radiusKm: 10,
+    feeMode: 'flat',
+    distanceBands: [
+      { id: `band_${Date.now()}_1`, upToKm: 3, fee: 5 },
+      { id: `band_${Date.now()}_2`, upToKm: 6, fee: 8 }
+    ],
+    neighborhoodRates: [],
+    dispatchMode: 'manual',
+    autoDispatchEnabled: false
+  };
+}
+
+function normalizeDeliveryConfig(config?: RestaurantDeliveryConfig | null): RestaurantDeliveryConfig {
+  const fallback = createDefaultDeliveryConfig();
+  if (!config) return fallback;
+  return {
+    radiusKm: Number.isFinite(config.radiusKm) && config.radiusKm > 0 ? config.radiusKm : fallback.radiusKm,
+    feeMode: config.feeMode ?? fallback.feeMode,
+    distanceBands: (config.distanceBands ?? []).map((band, index) => ({
+      id: band.id || `band_${index + 1}`,
+      upToKm: Number(band.upToKm) || 1,
+      fee: Number(band.fee) || 0
+    })),
+    neighborhoodRates: (config.neighborhoodRates ?? []).map((zone, index) => ({
+      id: zone.id || `zone_${index + 1}`,
+      name: zone.name ?? '',
+      fee: Number(zone.fee) || 0,
+      active: zone.active ?? true
+    })),
+    dispatchMode: config.dispatchMode ?? fallback.dispatchMode,
+    autoDispatchEnabled: config.autoDispatchEnabled ?? fallback.autoDispatchEnabled
+  };
+}
+
 function getLocalDateKey(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -544,8 +696,9 @@ export default function MasterPage() {
   const [supportMessages, setSupportMessages] = useState<SupportMessage[]>([]);
   const [supportDraft, setSupportDraft] = useState('');
   const [supportAttachment, setSupportAttachment] = useState<SupportAttachmentDraft | null>(null);
-  const [settingsSection, setSettingsSection] = useState<'store' | 'hours' | 'address' | 'delivery' | 'messages' | 'orderMessages' | 'payments'>('store');
+  const [settingsSection, setSettingsSection] = useState<'store' | 'hours' | 'address' | 'delivery' | 'messages' | 'orderMessages' | 'payments' | 'access' | 'sessions'>('store');
   const [marketingSection, setMarketingSection] = useState<'overview' | 'performance' | 'tools' | 'campaigns'>('overview');
+  const [marketingReportRange, setMarketingReportRange] = useState<'7d' | '30d' | 'month'>('30d');
   const [marketingQrColor, setMarketingQrColor] = useState('000000');
   const [showFlyerModal, setShowFlyerModal] = useState(false);
   const [showBioLinkModal, setShowBioLinkModal] = useState(false);
@@ -561,12 +714,18 @@ export default function MasterPage() {
   const [settingsDraft, setSettingsDraft] = useState<RestaurantForm | null>(null);
   const [settingsDeliveryEta, setSettingsDeliveryEta] = useState('45-60 min');
   const [settingsMessageTemplate, setSettingsMessageTemplate] = useState('Ola, gostaria de fazer um pedido pelo catalogo!');
+  const [settingsMessageAiLoading, setSettingsMessageAiLoading] = useState<null | 'generate' | 'improve' | 'config'>(null);
+  const [settingsMessageAiTips, setSettingsMessageAiTips] = useState<string[]>([]);
+  const [settingsMessageAiTone, setSettingsMessageAiTone] = useState('');
   const [settingsOrderPreparingMessage, setSettingsOrderPreparingMessage] = useState(
-    'Ola, {nome}! Seu pedido #{id} ja esta em preparo na cozinha.'
+    'Ola, {nome} Seu pedido Nº {id}, esta sendo Preparado\n\nItems:\n {itens}\nObs. {obs}\n\nTotal: {total}\nForma Pag: {pagamento}\nEndereco: {endereco}'
   );
   const [settingsOrderOutForDeliveryMessage, setSettingsOrderOutForDeliveryMessage] = useState(
-    'Ola, {nome}! Seu pedido #{id} saiu para entrega.'
+    'Ola, {nome} Seu pedido Nº {id}, Saiu para a Entrega!\n\nItems:\n {itens}\nObs. {obs}\n\nTotal: {total}\nForma Pag: {pagamento}\nEndereco: {endereco}'
   );
+  const [orderMessagesAiLoading, setOrderMessagesAiLoading] = useState<null | 'preparing-generate' | 'preparing-improve' | 'delivery-generate' | 'delivery-improve' | 'config'>(null);
+  const [orderMessagesAiTips, setOrderMessagesAiTips] = useState<string[]>([]);
+  const [orderMessagesAiTone, setOrderMessagesAiTone] = useState('');
   const [settingsPaymentMethods, setSettingsPaymentMethods] = useState<SettingsPaymentMethods>({
     money: true,
     card: true,
@@ -576,6 +735,28 @@ export default function MasterPage() {
     'Chave PIX: 12.345.678/0001-90 (CNPJ). Envie o comprovante no WhatsApp.'
   );
   const [banners, setBanners] = useState<RestaurantBanner[]>([]);
+  const [masterPanelUsers, setMasterPanelUsers] = useState<MasterPanelUserRow[]>([]);
+  const [masterSessions, setMasterSessions] = useState<MasterActiveSessionRow[]>([]);
+  const [masterSecurityLoading, setMasterSecurityLoading] = useState(false);
+  const [masterSecurityError, setMasterSecurityError] = useState<string | null>(null);
+  const [masterUserForm, setMasterUserForm] = useState<{
+    id: string | null;
+    name: string;
+    email: string;
+    role: 'gerente' | 'atendente' | 'cozinha';
+    status: 'Ativo' | 'Inativo';
+    password: string;
+    permissions: TabKey[];
+  }>({
+    id: null,
+    name: '',
+    email: '',
+    role: 'atendente',
+    status: 'Ativo',
+    password: '',
+    permissions: ['dashboard', 'orders', 'clients', 'promotions', 'support']
+  });
+  const [masterUserSaving, setMasterUserSaving] = useState(false);
   const [showBannerModal, setShowBannerModal] = useState(false);
   const [editingBannerId, setEditingBannerId] = useState<string | null>(null);
   const [bannerForm, setBannerForm] = useState<BannerForm>(createDefaultBannerForm());
@@ -584,6 +765,13 @@ export default function MasterPage() {
   const [showCampaignModal, setShowCampaignModal] = useState(false);
   const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
   const [campaignForm, setCampaignForm] = useState<CampaignForm>(createDefaultCampaignForm());
+  const [campaignAiLoading, setCampaignAiLoading] = useState(false);
+  const [campaignAiSuggestion, setCampaignAiSuggestion] = useState<AiCampaignSuggestion | null>(null);
+  const [salesAiLoading, setSalesAiLoading] = useState(false);
+  const [salesAiAnalysis, setSalesAiAnalysis] = useState<AiSalesAnalysis | null>(null);
+  const [adsAiLoading, setAdsAiLoading] = useState(false);
+  const [adsAiPlan, setAdsAiPlan] = useState<AiAdsAssistantPlan | null>(null);
+  const [adsAiHistory, setAdsAiHistory] = useState<AdsAiHistoryItem[]>([]);
   const [settingsHours, setSettingsHours] = useState<WeeklyHours[]>([
     { id: 'mon', label: 'Segunda', enabled: true, open: '18:00', close: '23:00' },
     { id: 'tue', label: 'Terca', enabled: true, open: '18:00', close: '23:00' },
@@ -602,6 +790,7 @@ export default function MasterPage() {
 
   const [newCategory, setNewCategory] = useState('');
   const [productForm, setProductForm] = useState<MenuProductForm>(createDefaultProductForm());
+  const [productAiLoadingMode, setProductAiLoadingMode] = useState<null | 'generate' | 'improve'>(null);
   const [acaiDraftItemByGroup, setAcaiDraftItemByGroup] = useState<
     Record<string, { name: string; price: string; maxQty: string }>
   >({});
@@ -644,6 +833,7 @@ export default function MasterPage() {
       state: restaurant.state,
       minOrderValue: restaurant.minOrderValue,
       deliveryFee: restaurant.deliveryFee,
+      deliveryConfig: normalizeDeliveryConfig(restaurant.deliveryConfig),
       openForOrders: restaurant.openForOrders ?? true,
       logoUrl: restaurant.logoUrl,
       coverUrl: restaurant.coverUrl
@@ -654,6 +844,10 @@ export default function MasterPage() {
     if (!restaurantForm) return;
     setSettingsDraft(restaurantForm);
   }, [restaurantForm]);
+
+  useEffect(() => {
+    setAdsAiHistory((restaurant?.adsAiPlansHistory ?? []) as AdsAiHistoryItem[]);
+  }, [restaurant?.adsAiPlansHistory]);
 
   useEffect(() => {
     if (!session) return;
@@ -690,7 +884,12 @@ export default function MasterPage() {
       const restoredSession: MasterSession = {
         restaurantSlug: payload.user.restaurantSlug,
         restaurantName: payload.user.restaurantName ?? 'Painel',
-        email: payload.user.email
+        email: payload.user.email,
+        userId: payload.user.userId,
+        userName: payload.user.userName,
+        role: payload.user.role,
+        permissions: Array.isArray(payload.user.permissions) ? payload.user.permissions : undefined,
+        isOwner: payload.user.isOwner === true
       };
       localStorage.setItem('pedezap_master_session', JSON.stringify(restoredSession));
       setSession(restoredSession);
@@ -883,6 +1082,164 @@ export default function MasterPage() {
     });
   }, [restaurant]);
 
+  const canManageMasterAccess = useMemo(
+    () =>
+      session?.isOwner === true ||
+      session?.role === 'owner' ||
+      session?.role === 'gerente' ||
+      (!!session?.email && !!restaurant?.ownerEmail && session.email.toLowerCase() === restaurant.ownerEmail.toLowerCase()),
+    [session?.isOwner, session?.role, session?.email, restaurant?.ownerEmail]
+  );
+
+  const resetMasterUserForm = () => {
+    setMasterUserForm({
+      id: null,
+      name: '',
+      email: '',
+      role: 'atendente',
+      status: 'Ativo',
+      password: '',
+      permissions: [...MASTER_ROLE_DEFAULT_PERMISSIONS.atendente]
+    });
+  };
+
+  const loadMasterPanelUsers = async () => {
+    if (!session || !canManageMasterAccess) return;
+    setMasterSecurityLoading(true);
+    setMasterSecurityError(null);
+    const response = await fetch(`/api/master/security/${session.restaurantSlug}/users`, {
+      cache: 'no-store'
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.success) {
+      setMasterSecurityError(payload?.message ?? 'Nao foi possivel carregar acessos do painel.');
+      setMasterSecurityLoading(false);
+      return;
+    }
+    setMasterPanelUsers(Array.isArray(payload.users) ? payload.users : []);
+    setMasterSecurityLoading(false);
+  };
+
+  const loadMasterSessions = async () => {
+    if (!session || !canManageMasterAccess) return;
+    setMasterSecurityLoading(true);
+    setMasterSecurityError(null);
+    const response = await fetch(`/api/master/security/${session.restaurantSlug}/sessions`, {
+      cache: 'no-store'
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.success) {
+      setMasterSecurityError(payload?.message ?? 'Nao foi possivel carregar sessoes ativas.');
+      setMasterSecurityLoading(false);
+      return;
+    }
+    setMasterSessions(Array.isArray(payload.sessions) ? payload.sessions : []);
+    setMasterSecurityLoading(false);
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'settings' || !canManageMasterAccess) return;
+    if (settingsSection === 'access') void loadMasterPanelUsers();
+    if (settingsSection === 'sessions') void loadMasterSessions();
+  }, [activeTab, settingsSection, canManageMasterAccess, session?.restaurantSlug]);
+
+  const applyMasterRolePermissions = (role: 'gerente' | 'atendente' | 'cozinha') => {
+    setMasterUserForm((prev) => ({
+      ...prev,
+      role,
+      permissions: [...MASTER_ROLE_DEFAULT_PERMISSIONS[role]]
+    }));
+  };
+
+  const handleSaveMasterPanelUser = async () => {
+    if (!session || !canManageMasterAccess) return;
+    if (!masterUserForm.name.trim() || !masterUserForm.email.trim()) {
+      setMasterSecurityError('Informe nome e email do usuario.');
+      return;
+    }
+    if (!masterUserForm.id && masterUserForm.password.trim().length < 6) {
+      setMasterSecurityError('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+    setMasterUserSaving(true);
+    setMasterSecurityError(null);
+    const isEdit = Boolean(masterUserForm.id);
+    const url = isEdit
+      ? `/api/master/security/${session.restaurantSlug}/users/${masterUserForm.id}`
+      : `/api/master/security/${session.restaurantSlug}/users`;
+    const method = isEdit ? 'PUT' : 'POST';
+    const body = {
+      name: masterUserForm.name.trim(),
+      email: masterUserForm.email.trim(),
+      role: masterUserForm.role,
+      status: masterUserForm.status,
+      password: masterUserForm.password.trim(),
+      permissions: masterUserForm.permissions
+    };
+    const response = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const payload = await response.json().catch(() => null);
+    setMasterUserSaving(false);
+    if (!response.ok || !payload?.success) {
+      setMasterSecurityError(payload?.message ?? 'Nao foi possivel salvar usuario.');
+      return;
+    }
+    setMessage(isEdit ? 'Usuario do painel atualizado.' : 'Usuario do painel criado.');
+    resetMasterUserForm();
+    void loadMasterPanelUsers();
+  };
+
+  const handleEditMasterPanelUser = (user: MasterPanelUserRow) => {
+    setMasterSecurityError(null);
+    setMasterUserForm({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      password: '',
+      permissions: [...user.permissions]
+    });
+  };
+
+  const handleDeleteMasterPanelUser = async (user: MasterPanelUserRow) => {
+    if (!session || !canManageMasterAccess) return;
+    if (!confirm(`Remover acesso de ${user.name}?`)) return;
+    setMasterSecurityLoading(true);
+    setMasterSecurityError(null);
+    const response = await fetch(`/api/master/security/${session.restaurantSlug}/users/${user.id}`, {
+      method: 'DELETE'
+    });
+    const payload = await response.json().catch(() => null);
+    setMasterSecurityLoading(false);
+    if (!response.ok || !payload?.success) {
+      setMasterSecurityError(payload?.message ?? 'Nao foi possivel remover usuario.');
+      return;
+    }
+    if (masterUserForm.id === user.id) resetMasterUserForm();
+    setMessage('Usuario removido do painel.');
+    void loadMasterPanelUsers();
+  };
+
+  const handleRevokeMasterSession = async (sessionId: string) => {
+    if (!session || !canManageMasterAccess) return;
+    const response = await fetch(`/api/master/security/${session.restaurantSlug}/sessions`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId })
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.success) {
+      setMasterSecurityError(payload?.message ?? 'Nao foi possivel encerrar a sessao.');
+      return;
+    }
+    setMessage('Sessao encerrada com sucesso.');
+    void loadMasterSessions();
+  };
+
   async function saveRestaurant(data: RestaurantForm) {
     if (!session) return;
     setSaving(true);
@@ -1052,6 +1409,55 @@ export default function MasterPage() {
       setProductForm(createDefaultProductForm(selectedCategoryId ?? ''));
       setShowProductForm(false);
     }
+  }
+
+  async function handleProductDescriptionAi(mode: 'generate' | 'improve') {
+    if (!session) return;
+    if (!productForm.name?.trim()) {
+      alert('Informe o nome do produto antes de usar a IA.');
+      return;
+    }
+    setProductAiLoadingMode(mode);
+    const categoryName =
+      restaurant?.categories.find((category) => category.id === productForm.categoryId)?.name ?? '';
+    const ingredients =
+      productForm.kind === 'pizza'
+        ? []
+        : stripFeaturedTag(productForm.description || '')
+            .split(',')
+            .map((part) => part.trim())
+            .filter(Boolean);
+    const complements = (productForm.complements ?? [])
+      .map((item) => item.name?.trim())
+      .filter(Boolean) as string[];
+    const flavors = (productForm.pizzaFlavors ?? []).map((flavor) => ({
+      name: flavor.name,
+      ingredients: flavor.ingredients
+    }));
+    const response = await fetch('/api/master/ai/product-description', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        slug: session.restaurantSlug,
+        mode,
+        product: {
+          name: productForm.name,
+          kind: productForm.kind,
+          categoryName,
+          currentDescription: stripFeaturedTag(productForm.description || ''),
+          ingredients,
+          complements,
+          flavors
+        }
+      })
+    });
+    const payload = await response.json().catch(() => null);
+    setProductAiLoadingMode(null);
+    if (!response.ok || !payload?.success || !payload?.text) {
+      alert(payload?.message ?? 'Nao foi possivel gerar descricao com IA.');
+      return;
+    }
+    setProductForm((prev) => ({ ...prev, description: String(payload.text).trim() }));
   }
 
   async function deleteProduct(productId: string) {
@@ -1239,7 +1645,18 @@ export default function MasterPage() {
         : DEFAULT_PLAN_TABS,
     [currentSubscribedPlan]
   );
-  const navItems = allNavItems.filter((item) => allowedTabsByPlan.includes(item.id));
+  const allowedTabsByRole = useMemo<TabKey[]>(
+    () =>
+      session?.permissions?.length
+        ? session.permissions
+        : MASTER_ROLE_DEFAULT_PERMISSIONS[session?.role ?? 'owner'],
+    [session?.permissions, session?.role]
+  );
+  const effectiveAllowedTabs = useMemo<TabKey[]>(
+    () => allowedTabsByPlan.filter((tab) => allowedTabsByRole.includes(tab)),
+    [allowedTabsByPlan, allowedTabsByRole]
+  );
+  const navItems = allNavItems.filter((item) => effectiveAllowedTabs.includes(item.id));
   const pageTitle = {
     dashboard: 'Visao Geral',
     menu: 'Gestao de Cardapio',
@@ -1269,10 +1686,10 @@ export default function MasterPage() {
     canceled: 'bg-slate-200 text-slate-700'
   }[subscriptionSummary?.status ?? 'expired'];
   useEffect(() => {
-    if (!allowedTabsByPlan.includes(activeTab)) {
-      setActiveTab(allowedTabsByPlan[0] ?? 'dashboard');
+    if (!effectiveAllowedTabs.includes(activeTab)) {
+      setActiveTab(effectiveAllowedTabs[0] ?? 'dashboard');
     }
-  }, [activeTab, allowedTabsByPlan]);
+  }, [activeTab, effectiveAllowedTabs]);
 
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   const ordersThisMonth = orders.filter((order) => new Date(order.createdAt) >= monthStart);
@@ -1320,6 +1737,202 @@ export default function MasterPage() {
       return b.revenue - a.revenue;
     });
   const leastSoldProducts = [...topProducts].sort((a, b) => a.soldQuantity - b.soldQuantity).slice(0, 4);
+  const benchmarkOrdersBase = ordersThisMonth.length > 0 ? ordersThisMonth : orders;
+  const benchmarkInsights = useMemo(() => {
+    const hourly = Array.from({ length: 24 }, (_, hour) => ({
+      hour,
+      orders: 0,
+      sales: 0,
+      avgTicket: 0
+    }));
+    const weekdays = [
+      { key: 0, label: 'Dom', orders: 0, sales: 0 },
+      { key: 1, label: 'Seg', orders: 0, sales: 0 },
+      { key: 2, label: 'Ter', orders: 0, sales: 0 },
+      { key: 3, label: 'Qua', orders: 0, sales: 0 },
+      { key: 4, label: 'Qui', orders: 0, sales: 0 },
+      { key: 5, label: 'Sex', orders: 0, sales: 0 },
+      { key: 6, label: 'Sab', orders: 0, sales: 0 }
+    ];
+
+    for (const order of benchmarkOrdersBase) {
+      const date = new Date(order.createdAt);
+      if (Number.isNaN(date.getTime())) continue;
+      const hour = date.getHours();
+      hourly[hour].orders += 1;
+      hourly[hour].sales += Number(order.total) || 0;
+      const weekday = weekdays[date.getDay()];
+      weekday.orders += 1;
+      weekday.sales += Number(order.total) || 0;
+    }
+
+    const hourlyWithAvg = hourly.map((item) => ({
+      ...item,
+      avgTicket: item.orders > 0 ? item.sales / item.orders : 0
+    }));
+    const peakHour = [...hourlyWithAvg].sort((a, b) => {
+      if (b.orders !== a.orders) return b.orders - a.orders;
+      return b.sales - a.sales;
+    })[0];
+    const peakHours = [...hourlyWithAvg]
+      .filter((item) => item.orders > 0)
+      .sort((a, b) => {
+        if (b.orders !== a.orders) return b.orders - a.orders;
+        return b.sales - a.sales;
+      })
+      .slice(0, 3);
+    const bestWeekday = [...weekdays].sort((a, b) => {
+      if (b.orders !== a.orders) return b.orders - a.orders;
+      return b.sales - a.sales;
+    })[0];
+    const weakWindows = hourlyWithAvg
+      .filter((item) => item.hour >= 10 && item.hour <= 23)
+      .sort((a, b) => {
+        if (a.orders !== b.orders) return a.orders - b.orders;
+        return a.sales - b.sales;
+      })
+      .slice(0, 3);
+
+    const dayParts = [
+      { label: 'Almoco (11h-14h)', from: 11, to: 14 },
+      { label: 'Tarde (15h-17h)', from: 15, to: 17 },
+      { label: 'Jantar (18h-22h)', from: 18, to: 22 },
+      { label: 'Noite (23h+)', from: 23, to: 23 }
+    ].map((part) => {
+      const slice = hourlyWithAvg.filter((h) => h.hour >= part.from && h.hour <= part.to);
+      const ordersCount = slice.reduce((sum, item) => sum + item.orders, 0);
+      const sales = slice.reduce((sum, item) => sum + item.sales, 0);
+      return {
+        label: part.label,
+        orders: ordersCount,
+        sales,
+        avgTicket: ordersCount > 0 ? sales / ordersCount : 0
+      };
+    });
+
+    return {
+      peakHour,
+      peakHours,
+      bestWeekday,
+      weakWindows,
+      dayParts,
+      sourceLabel: ordersThisMonth.length > 0 ? 'mes atual' : 'historico'
+    };
+  }, [benchmarkOrdersBase, ordersThisMonth.length]);
+  const marketingReportOrders = useMemo(() => {
+    const now = new Date();
+    const threshold =
+      marketingReportRange === '7d'
+        ? new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        : marketingReportRange === '30d'
+          ? new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+          : new Date(now.getFullYear(), now.getMonth(), 1);
+    return orders.filter((order) => {
+      const createdAt = new Date(order.createdAt);
+      if (Number.isNaN(createdAt.getTime())) return false;
+      return createdAt >= threshold;
+    });
+  }, [orders, marketingReportRange]);
+  const marketingReportSummary = useMemo(() => {
+    const totalOrders = marketingReportOrders.length;
+    const totalSales = marketingReportOrders.reduce((sum, order) => sum + (Number(order.total) || 0), 0);
+    const totalDiscount = marketingReportOrders.reduce((sum, order) => sum + (Number(order.discountValue) || 0), 0);
+    const avgTicket = totalOrders > 0 ? totalSales / totalOrders : 0;
+    const ordersByPayment = marketingReportOrders.reduce(
+      (acc, order) => {
+        const key = order.paymentMethod;
+        acc[key] = (acc[key] ?? 0) + 1;
+        return acc;
+      },
+      { money: 0, card: 0, pix: 0 } as Record<'money' | 'card' | 'pix', number>
+    );
+    const productMap = new Map<string, { name: string; qty: number; revenue: number }>();
+    marketingReportOrders.forEach((order) => {
+      order.items.forEach((item) => {
+        const current = productMap.get(item.productId) ?? { name: item.name, qty: 0, revenue: 0 };
+        current.qty += item.quantity;
+        current.revenue += item.quantity * item.price;
+        productMap.set(item.productId, current);
+      });
+    });
+    const topProducts = Array.from(productMap.entries())
+      .map(([productId, item]) => ({ productId, ...item }))
+      .sort((a, b) => {
+        if (b.qty !== a.qty) return b.qty - a.qty;
+        return b.revenue - a.revenue;
+      })
+      .slice(0, 10);
+    const dailyMap = new Map<string, { orders: number; sales: number }>();
+    marketingReportOrders.forEach((order) => {
+      const key = getLocalDateKey(new Date(order.createdAt));
+      const current = dailyMap.get(key) ?? { orders: 0, sales: 0 };
+      current.orders += 1;
+      current.sales += Number(order.total) || 0;
+      dailyMap.set(key, current);
+    });
+    const dailyRows = Array.from(dailyMap.entries())
+      .map(([date, value]) => ({ date, ...value }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    return {
+      totalOrders,
+      totalSales,
+      totalDiscount,
+      avgTicket,
+      ordersByPayment,
+      topProducts,
+      dailyRows
+    };
+  }, [marketingReportOrders]);
+
+  const downloadCsvFile = (filename: string, rows: string[][]) => {
+    const csv = rows
+      .map((row) =>
+        row
+          .map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`)
+          .join(',')
+      )
+      .join('\n');
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportMarketingOrdersReportCsv = () => {
+    const rows: string[][] = [
+      ['Pedido', 'Data', 'Cliente', 'Pagamento', 'Status', 'Subtotal', 'Taxa', 'Desconto', 'Total', 'Cupom', 'Origem']
+    ];
+    marketingReportOrders.forEach((order) => {
+      rows.push([
+        order.id,
+        new Date(order.createdAt).toLocaleString('pt-BR'),
+        order.customerName,
+        order.paymentMethod,
+        order.status,
+        order.subtotal.toFixed(2),
+        order.deliveryFee.toFixed(2),
+        String(order.discountValue ?? 0),
+        order.total.toFixed(2),
+        order.couponCode ?? '',
+        order.source ?? 'catalog'
+      ]);
+    });
+    downloadCsvFile(`relatorio-pedidos-${marketingReportRange}.csv`, rows);
+  };
+
+  const exportMarketingProductsReportCsv = () => {
+    const rows: string[][] = [['Produto', 'Qtd Vendida', 'Receita']];
+    marketingReportSummary.topProducts.forEach((item) => {
+      rows.push([item.name, String(item.qty), item.revenue.toFixed(2)]);
+    });
+    downloadCsvFile(`relatorio-produtos-${marketingReportRange}.csv`, rows);
+  };
   const marketingLink = restaurant ? `https://pedezap.site/${restaurant.slug}` : '';
   const bioLinkPublicUrl = restaurant ? `https://pedezap.site/r/${restaurant.slug}/bio` : '';
   const flyerLogoUrl = settingsDraft?.logoUrl || restaurant?.logoUrl || '';
@@ -2620,6 +3233,7 @@ export default function MasterPage() {
     'Em preparo': filteredOrders.filter((order) => getOrderStatus(order) === 'Em preparo'),
     Concluido: filteredOrders.filter((order) => getOrderStatus(order) === 'Concluido')
   } as const;
+  const activeDeliveryOrders = filteredOrders.filter((order) => getOrderStatus(order) !== 'Concluido');
   const faqItems = [
     'Como altero o horario de funcionamento?',
     'Posso pausar a loja temporariamente?',
@@ -2781,6 +3395,102 @@ export default function MasterPage() {
     if (!session) return;
     localStorage.setItem(`pedezap_order_msg_preparing_${session.restaurantSlug}`, settingsOrderPreparingMessage);
     localStorage.setItem(`pedezap_order_msg_out_for_delivery_${session.restaurantSlug}`, settingsOrderOutForDeliveryMessage);
+  };
+
+  const requestMessageTemplateAi = async (payload: {
+    kind: 'catalog_opening' | 'order_preparing' | 'order_out_for_delivery' | 'catalog_config' | 'order_flow_config';
+    mode: 'generate' | 'improve' | 'config';
+    currentText?: string;
+  }) => {
+    if (!session || !restaurant) return null;
+    const response = await fetch('/api/master/ai/message-templates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        slug: session.restaurantSlug,
+        restaurantName: restaurant.name,
+        kind: payload.kind,
+        mode: payload.mode,
+        currentText: payload.currentText ?? '',
+        variables: availableMessageVars
+      })
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok || !data?.success) {
+      throw new Error(data?.message ?? 'Nao foi possivel gerar mensagem com IA.');
+    }
+    return data as {
+      success: true;
+      text?: string;
+      configTips?: string[];
+      recommendedTone?: string;
+      recommendedVariables?: string[];
+    };
+  };
+
+  const handleCatalogMessageAi = async (mode: 'generate' | 'improve' | 'config') => {
+    try {
+      setSettingsMessageAiLoading(mode);
+      const result = await requestMessageTemplateAi({
+        kind: mode === 'config' ? 'catalog_config' : 'catalog_opening',
+        mode,
+        currentText: settingsMessageTemplate
+      });
+      if (!result) return;
+      if (mode !== 'config' && result.text?.trim()) {
+        setSettingsMessageTemplate(result.text.trim());
+      }
+      setSettingsMessageAiTips(result.configTips ?? []);
+      setSettingsMessageAiTone(result.recommendedTone ?? '');
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Falha ao usar IA.');
+    } finally {
+      setSettingsMessageAiLoading(null);
+    }
+  };
+
+  const handleOrderMessageAi = async (
+    field: 'preparing' | 'outForDelivery',
+    mode: 'generate' | 'improve'
+  ) => {
+    try {
+      setOrderMessagesAiLoading(`${field === 'preparing' ? 'preparing' : 'delivery'}-${mode}` as typeof orderMessagesAiLoading);
+      const currentText = field === 'preparing' ? settingsOrderPreparingMessage : settingsOrderOutForDeliveryMessage;
+      const result = await requestMessageTemplateAi({
+        kind: field === 'preparing' ? 'order_preparing' : 'order_out_for_delivery',
+        mode,
+        currentText
+      });
+      if (!result) return;
+      if (result.text?.trim()) {
+        if (field === 'preparing') setSettingsOrderPreparingMessage(result.text.trim());
+        else setSettingsOrderOutForDeliveryMessage(result.text.trim());
+      }
+      setOrderMessagesAiTips(result.configTips ?? []);
+      setOrderMessagesAiTone(result.recommendedTone ?? '');
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Falha ao usar IA.');
+    } finally {
+      setOrderMessagesAiLoading(null);
+    }
+  };
+
+  const handleOrderMessagesConfigAi = async () => {
+    try {
+      setOrderMessagesAiLoading('config');
+      const result = await requestMessageTemplateAi({
+        kind: 'order_flow_config',
+        mode: 'config',
+        currentText: `${settingsOrderPreparingMessage}\n${settingsOrderOutForDeliveryMessage}`
+      });
+      if (!result) return;
+      setOrderMessagesAiTips(result.configTips ?? []);
+      setOrderMessagesAiTone(result.recommendedTone ?? '');
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Falha ao usar IA.');
+    } finally {
+      setOrderMessagesAiLoading(null);
+    }
   };
 
   const persistPaymentSettings = () => {
@@ -3235,6 +3945,99 @@ export default function MasterPage() {
     return true;
   };
 
+  const ensureSettingsDeliveryConfig = () => {
+    setSettingsDraft((prev) => (prev ? { ...prev, deliveryConfig: normalizeDeliveryConfig(prev.deliveryConfig) } : prev));
+  };
+
+  const updateDeliveryConfig = (updater: (current: RestaurantDeliveryConfig) => RestaurantDeliveryConfig) => {
+    setSettingsDraft((prev) => {
+      if (!prev) return prev;
+      const current = normalizeDeliveryConfig(prev.deliveryConfig);
+      return { ...prev, deliveryConfig: updater(current) };
+    });
+  };
+
+  const addDeliveryBand = () => {
+    updateDeliveryConfig((current) => ({
+      ...current,
+      distanceBands: [
+        ...current.distanceBands,
+        {
+          id: `band_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+          upToKm: (current.distanceBands.at(-1)?.upToKm ?? 0) + 3,
+          fee: current.distanceBands.at(-1)?.fee ?? 0
+        }
+      ]
+    }));
+  };
+
+  const updateDeliveryBand = (bandId: string, key: 'upToKm' | 'fee', value: number) => {
+    updateDeliveryConfig((current) => ({
+      ...current,
+      distanceBands: current.distanceBands.map((band) => (band.id === bandId ? { ...band, [key]: value } : band))
+    }));
+  };
+
+  const removeDeliveryBand = (bandId: string) => {
+    updateDeliveryConfig((current) => ({
+      ...current,
+      distanceBands: current.distanceBands.filter((band) => band.id !== bandId)
+    }));
+  };
+
+  const addNeighborhoodRate = () => {
+    updateDeliveryConfig((current) => ({
+      ...current,
+      neighborhoodRates: [
+        ...current.neighborhoodRates,
+        {
+          id: `zone_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+          name: '',
+          fee: current.feeMode === 'neighborhood_fixed' ? current.distanceBands[0]?.fee ?? 0 : 0,
+          active: true
+        }
+      ]
+    }));
+  };
+
+  const updateNeighborhoodRate = (
+    zoneId: string,
+    key: 'name' | 'fee' | 'active',
+    value: string | number | boolean
+  ) => {
+    updateDeliveryConfig((current) => ({
+      ...current,
+      neighborhoodRates: current.neighborhoodRates.map((zone) =>
+        zone.id === zoneId ? { ...zone, [key]: value } : zone
+      )
+    }));
+  };
+
+  const removeNeighborhoodRate = (zoneId: string) => {
+    updateDeliveryConfig((current) => ({
+      ...current,
+      neighborhoodRates: current.neighborhoodRates.filter((zone) => zone.id !== zoneId)
+    }));
+  };
+
+  const persistAdsAiHistory = async (nextHistory: AdsAiHistoryItem[]) => {
+    if (!session || !restaurant) return false;
+    const response = await fetch(`/api/master/restaurant/${session.restaurantSlug}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'saveAdsAiPlansHistory', data: nextHistory })
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.success) {
+      alert(payload?.message ?? 'Nao foi possivel salvar historico de ADS IA.');
+      return false;
+    }
+    const persisted = (payload.adsAiPlansHistory ?? nextHistory) as AdsAiHistoryItem[];
+    setAdsAiHistory(persisted);
+    setRestaurant((prev) => (prev ? { ...prev, adsAiPlansHistory: persisted } : prev));
+    return true;
+  };
+
   const applyCampaignAutomation = async (
     campaign: RestaurantMarketingCampaign,
     activate: boolean
@@ -3305,6 +4108,263 @@ export default function MasterPage() {
     setCampaignForm(createDefaultCampaignForm());
   };
 
+  const requestAiCampaignSuggestion = async () => {
+    if (!session || !restaurant) return;
+    setCampaignAiLoading(true);
+    const response = await fetch('/api/master/ai/campaign-suggestion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        slug: session.restaurantSlug,
+        restaurantName: restaurant.name,
+        lessSoldItems: leastSoldProducts.slice(0, 5).map((item) => ({
+          name: item.name,
+          soldQuantity: item.soldQuantity,
+          revenue: item.revenue
+        })),
+        benchmark: {
+          sourceLabel: benchmarkInsights.sourceLabel,
+          peakHour: benchmarkInsights.peakHour
+            ? { hour: benchmarkInsights.peakHour.hour, orders: benchmarkInsights.peakHour.orders }
+            : null,
+          bestWeekday: benchmarkInsights.bestWeekday
+            ? { label: benchmarkInsights.bestWeekday.label, orders: benchmarkInsights.bestWeekday.orders }
+            : null,
+          weakWindows: benchmarkInsights.weakWindows.map((w) => ({
+            hour: w.hour,
+            orders: w.orders,
+            sales: w.sales,
+            avgTicket: w.avgTicket
+          }))
+        },
+        availableCoupons: coupons.map((coupon) => coupon.code),
+        availableBanners: banners.map((banner) => banner.title)
+      })
+    });
+    const payload = await response.json().catch(() => null);
+    setCampaignAiLoading(false);
+    if (!response.ok || !payload?.success || !payload?.suggestion) {
+      alert(payload?.message ?? 'Nao foi possivel gerar sugestao de campanha com IA.');
+      return;
+    }
+    setCampaignAiSuggestion(payload.suggestion as AiCampaignSuggestion);
+  };
+
+  const applyAiSuggestionToCampaignForm = () => {
+    if (!campaignAiSuggestion) return;
+    const couponMatch = coupons.find(
+      (coupon) => coupon.code.toUpperCase() === campaignAiSuggestion.couponSuggestion.trim().toUpperCase()
+    );
+    setEditingCampaignId(null);
+    setCampaignForm({
+      ...createDefaultCampaignForm(),
+      name: campaignAiSuggestion.campaignName,
+      period: campaignAiSuggestion.period,
+      couponCode: couponMatch?.code ?? '',
+      couponCodes: couponMatch?.code ? [couponMatch.code] : []
+    });
+    setShowCampaignModal(true);
+  };
+
+  const requestAiSalesAnalysis = async () => {
+    if (!session || !restaurant) return;
+    setSalesAiLoading(true);
+    const totalOrdersForBenchmark = benchmarkOrdersBase.length;
+    const totalSalesForBenchmark = benchmarkOrdersBase.reduce((sum, order) => sum + (Number(order.total) || 0), 0);
+    const avgTicket = totalOrdersForBenchmark > 0 ? totalSalesForBenchmark / totalOrdersForBenchmark : 0;
+    const response = await fetch('/api/master/ai/sales-analysis', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        slug: session.restaurantSlug,
+        restaurantName: restaurant.name,
+        metrics: {
+          totalOrders: totalOrdersForBenchmark,
+          totalSales: totalSalesForBenchmark,
+          totalViews,
+          conversionRate,
+          avgTicket,
+          manualOrders: manualOrdersThisMonth.length
+        },
+        benchmark: {
+          sourceLabel: benchmarkInsights.sourceLabel,
+          peakHour: benchmarkInsights.peakHour
+            ? {
+                hour: benchmarkInsights.peakHour.hour,
+                orders: benchmarkInsights.peakHour.orders,
+                sales: benchmarkInsights.peakHour.sales
+              }
+            : null,
+          bestWeekday: benchmarkInsights.bestWeekday
+            ? {
+                label: benchmarkInsights.bestWeekday.label,
+                orders: benchmarkInsights.bestWeekday.orders,
+                sales: benchmarkInsights.bestWeekday.sales
+              }
+            : null,
+          weakWindows: benchmarkInsights.weakWindows
+        },
+        topProducts: topProducts.slice(0, 5).map((item) => ({
+          name: item.name,
+          soldQuantity: item.soldQuantity,
+          revenue: item.revenue
+        })),
+        leastSoldProducts: leastSoldProducts.slice(0, 5).map((item) => ({
+          name: item.name,
+          soldQuantity: item.soldQuantity,
+          revenue: item.revenue
+        })),
+        activeCoupons: coupons.filter((c) => c.active).map((c) => c.code),
+        activeCampaigns: marketingCampaigns.filter((c) => c.active).map((c) => c.name)
+      })
+    });
+    const payload = await response.json().catch(() => null);
+    setSalesAiLoading(false);
+    if (!response.ok || !payload?.success || !payload?.analysis) {
+      alert(payload?.message ?? 'Nao foi possivel gerar analise de vendas com IA.');
+      return;
+    }
+    setSalesAiAnalysis(payload.analysis as AiSalesAnalysis);
+  };
+
+  const requestAiAdsAssistantPlan = async () => {
+    if (!session || !restaurant) return;
+    setAdsAiLoading(true);
+    const totalOrdersForBenchmark = benchmarkOrdersBase.length;
+    const totalSalesForBenchmark = benchmarkOrdersBase.reduce((sum, order) => sum + (Number(order.total) || 0), 0);
+    const avgTicket = totalOrdersForBenchmark > 0 ? totalSalesForBenchmark / totalOrdersForBenchmark : 0;
+    const response = await fetch('/api/master/ai/ads-assistant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        slug: session.restaurantSlug,
+        restaurantName: restaurant.name,
+        city: restaurant.city ?? '',
+        state: restaurant.state ?? '',
+        marketingLink,
+        metrics: {
+          totalOrders: totalOrdersForBenchmark,
+          totalSales: totalSalesForBenchmark,
+          avgTicket,
+          conversionRate
+        },
+        benchmark: {
+          sourceLabel: benchmarkInsights.sourceLabel,
+          peakHour: benchmarkInsights.peakHour
+            ? { hour: benchmarkInsights.peakHour.hour, orders: benchmarkInsights.peakHour.orders }
+            : null,
+          bestWeekday: benchmarkInsights.bestWeekday
+            ? { label: benchmarkInsights.bestWeekday.label, orders: benchmarkInsights.bestWeekday.orders }
+            : null,
+          weakWindows: benchmarkInsights.weakWindows
+        },
+        topProducts: topProducts.slice(0, 5).map((item) => ({
+          name: item.name,
+          soldQuantity: item.soldQuantity,
+          revenue: item.revenue
+        })),
+        leastSoldProducts: leastSoldProducts.slice(0, 5).map((item) => ({
+          name: item.name,
+          soldQuantity: item.soldQuantity,
+          revenue: item.revenue
+        })),
+        activeCampaigns: marketingCampaigns.filter((c) => c.active).map((c) => c.name)
+      })
+    });
+    const payload = await response.json().catch(() => null);
+    setAdsAiLoading(false);
+    if (!response.ok || !payload?.success || !payload?.plan) {
+      alert(payload?.message ?? 'Nao foi possivel gerar plano de ADS com IA.');
+      return;
+    }
+    const nextPlan = payload.plan as AiAdsAssistantPlan;
+    setAdsAiPlan(nextPlan);
+    const historyItem: AdsAiHistoryItem = {
+      id: `ads_ai_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      createdAt: new Date().toISOString(),
+      ...nextPlan
+    };
+    const nextHistory = [historyItem, ...adsAiHistory].slice(0, 20);
+    setAdsAiHistory(nextHistory);
+    void persistAdsAiHistory(nextHistory);
+  };
+
+  const applyAdsAiPlanToCampaignForm = () => {
+    if (!adsAiPlan) return;
+    setEditingCampaignId(null);
+    setCampaignForm({
+      ...createDefaultCampaignForm(),
+      name: adsAiPlan.campaignName?.trim() || `ADS IA - ${adsAiPlan.campaignObjective}`.slice(0, 70),
+      period: adsAiPlan.suggestedPeriod?.trim() || '',
+      active: false
+    });
+    setMarketingSection('campaigns');
+    setShowCampaignModal(true);
+  };
+
+  const applyAdsAiPlanToBannerForm = () => {
+    if (!adsAiPlan) return;
+    setEditingBannerId(null);
+    setBannerForm({
+      ...createDefaultBannerForm(),
+      title: adsAiPlan.bannerHeadline || adsAiPlan.campaignName,
+      description: adsAiPlan.bannerDescription || adsAiPlan.campaignObjective,
+      active: false,
+      productIds: leastSoldProducts
+        .slice(0, 4)
+        .map((item) => item.id)
+        .filter((id): id is string => Boolean(id))
+    });
+    setActiveTab('banners');
+    setShowBannerModal(true);
+  };
+
+  const applyAdsAiPlanToCouponForm = () => {
+    if (!adsAiPlan) return;
+    const suggestedCode = adsAiPlan.couponSuggestion.trim().toUpperCase();
+    const existing = coupons.find((coupon) => coupon.code.toUpperCase() === suggestedCode);
+
+    if (existing) {
+      setEditingCouponId(existing.id);
+      setCouponForm(createDefaultCouponForm(existing));
+      setShowCouponForm(true);
+      return;
+    }
+
+    const hint = adsAiPlan.couponDiscountHint.toLowerCase();
+    const percentMatch = hint.match(/(\d+)\s*%/);
+    const moneyMatch = hint.match(/r\$\s*(\d+(?:[.,]\d+)?)/i);
+    const minOrderMatch = hint.match(/acima de\s*r\$\s*(\d+(?:[.,]\d+)?)/i);
+    const discountType: CouponDiscountType = percentMatch ? 'percent' : 'fixed';
+    const discountValue = percentMatch
+      ? percentMatch[1]
+      : moneyMatch?.[1]?.replace(',', '.') ?? '';
+    const minOrderValue = minOrderMatch?.[1]?.replace(',', '.') ?? '0';
+
+    setEditingCouponId(null);
+    setCouponForm({
+      ...createDefaultCouponForm(),
+      code: suggestedCode || `ADS${Math.floor(Math.random() * 90 + 10)}`,
+      discountType,
+      discountValue,
+      minOrderValue,
+      active: false
+    });
+    setShowCouponForm(true);
+  };
+
+  const restoreAdsAiPlanFromHistory = (item: AdsAiHistoryItem) => {
+    const { id: _id, createdAt: _createdAt, ...plan } = item;
+    setAdsAiPlan(plan);
+    setMarketingSection('tools');
+  };
+
+  const removeAdsAiHistoryItem = async (historyId: string) => {
+    const nextHistory = adsAiHistory.filter((item) => item.id !== historyId);
+    setAdsAiHistory(nextHistory);
+    await persistAdsAiHistory(nextHistory);
+  };
+
   const saveCampaign = async () => {
     if (!campaignForm.name.trim()) {
       alert('Informe o nome da campanha.');
@@ -3325,6 +4385,20 @@ export default function MasterPage() {
       couponCodes: normalizedCouponCodes,
       bannerIds: campaignForm.bannerIds,
       period: campaignForm.period.trim(),
+      startDate: campaignForm.startDate,
+      endDate: campaignForm.endDate,
+      autoActivateByCalendar: campaignForm.autoActivateByCalendar,
+      utmSource: campaignForm.utmSource.trim(),
+      utmMedium: campaignForm.utmMedium.trim(),
+      utmCampaign:
+        campaignForm.utmCampaign.trim() ||
+        campaignForm.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      utmContent: campaignForm.utmContent.trim(),
+      targetCouponCode: normalizedCouponCodes[0] ?? '',
+      clicks: marketingCampaigns.find((item) => item.id === editingCampaignId)?.clicks ?? 0,
+      attributedOrders:
+        marketingCampaigns.find((item) => item.id === editingCampaignId)?.attributedOrders ?? 0,
+      lastClickedAt: marketingCampaigns.find((item) => item.id === editingCampaignId)?.lastClickedAt ?? null,
       active: campaignForm.active,
       createdAt:
         marketingCampaigns.find((item) => item.id === editingCampaignId)?.createdAt ?? new Date().toISOString()
@@ -3376,7 +4450,8 @@ export default function MasterPage() {
       description: banner.description,
       imageUrl: banner.imageUrl,
       active: banner.active,
-      productIds: banner.productIds ?? []
+      productIds: banner.productIds ?? [],
+      abGroup: banner.abGroup ?? ''
     });
     setBannerProductQuery('');
     setShowBannerModal(true);
@@ -3411,7 +4486,12 @@ export default function MasterPage() {
       description: bannerForm.description.trim(),
       imageUrl: bannerForm.imageUrl.trim(),
       active: bannerForm.active,
-      productIds: bannerForm.productIds
+      productIds: bannerForm.productIds,
+      abGroup: bannerForm.abGroup ?? '',
+      clicks: banners.find((item) => item.id === editingBannerId)?.clicks ?? 0,
+      impressions: banners.find((item) => item.id === editingBannerId)?.impressions ?? 0,
+      attributedOrders: banners.find((item) => item.id === editingBannerId)?.attributedOrders ?? 0,
+      lastClickedAt: banners.find((item) => item.id === editingBannerId)?.lastClickedAt ?? null
     };
 
     const nextBanners = editingBannerId
@@ -3747,6 +4827,47 @@ export default function MasterPage() {
                     </button>
                   </div>
                 </div>
+
+                <div className="rounded-xl border border-gray-200 bg-white p-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">Benchmark Interno (Pedidos)</h3>
+                      <p className="text-sm text-gray-500">Baseado no {benchmarkInsights.sourceLabel} da sua loja.</p>
+                    </div>
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                      {benchmarkOrdersBase.length} pedidos analisados
+                    </span>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                      <p className="text-xs uppercase tracking-wide text-gray-500">Horario de pico</p>
+                      <p className="mt-1 text-xl font-bold text-gray-900">
+                        {benchmarkInsights.peakHour ? `${String(benchmarkInsights.peakHour.hour).padStart(2, '0')}:00` : '-'}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {benchmarkInsights.peakHour?.orders ?? 0} pedidos • {moneyFormatter.format(benchmarkInsights.peakHour?.sales ?? 0)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                      <p className="text-xs uppercase tracking-wide text-gray-500">Melhor dia</p>
+                      <p className="mt-1 text-xl font-bold text-gray-900">{benchmarkInsights.bestWeekday?.label ?? '-'}</p>
+                      <p className="text-sm text-gray-600">
+                        {benchmarkInsights.bestWeekday?.orders ?? 0} pedidos • {moneyFormatter.format(benchmarkInsights.bestWeekday?.sales ?? 0)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                      <p className="text-xs uppercase tracking-wide text-amber-700">Janela fraca (oportunidade)</p>
+                      <p className="mt-1 text-xl font-bold text-amber-900">
+                        {benchmarkInsights.weakWindows[0]
+                          ? `${String(benchmarkInsights.weakWindows[0].hour).padStart(2, '0')}:00`
+                          : '-'}
+                      </p>
+                      <p className="text-sm text-amber-800">
+                        {benchmarkInsights.weakWindows[0]?.orders ?? 0} pedidos • Considere cupom/banner
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -3785,7 +4906,13 @@ export default function MasterPage() {
                       { id: 'delivery' as const, label: 'Pedidos & Delivery', icon: Bike },
                       { id: 'messages' as const, label: 'Mensagens', icon: MessageSquare },
                       { id: 'orderMessages' as const, label: 'Mensagens de Pedido', icon: MessageSquare },
-                      { id: 'payments' as const, label: 'Pagamentos', icon: Wallet }
+                      { id: 'payments' as const, label: 'Pagamentos', icon: Wallet },
+                      ...(canManageMasterAccess
+                        ? [
+                            { id: 'access' as const, label: 'Acessos do Painel', icon: Users },
+                            { id: 'sessions' as const, label: 'Sessoes Ativas', icon: ShieldCheck }
+                          ]
+                        : [])
                     ].map((item) => (
                       <button
                         key={item.id}
@@ -3986,13 +5113,58 @@ export default function MasterPage() {
                             </div>
 
                             <div className="mt-4">
-                              <label className="text-sm text-gray-700">Template da Mensagem</label>
+                              <div className="flex items-center justify-between gap-2">
+                                <label className="text-sm text-gray-700">Template da Mensagem</label>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleCatalogMessageAi('generate')}
+                                    disabled={settingsMessageAiLoading !== null}
+                                    className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                                  >
+                                    {settingsMessageAiLoading === 'generate' ? 'Gerando...' : 'Gerar com IA'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleCatalogMessageAi('improve')}
+                                    disabled={settingsMessageAiLoading !== null || !settingsMessageTemplate.trim()}
+                                    className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                                  >
+                                    {settingsMessageAiLoading === 'improve' ? 'Melhorando...' : 'Melhorar texto'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleCatalogMessageAi('config')}
+                                    disabled={settingsMessageAiLoading !== null}
+                                    className="rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                                  >
+                                    {settingsMessageAiLoading === 'config' ? 'Analisando...' : 'Sugerir configuracao'}
+                                  </button>
+                                </div>
+                              </div>
                               <textarea
                                 value={settingsMessageTemplate}
                                 onChange={(event) => setSettingsMessageTemplate(event.target.value)}
                                 className="mt-1 h-44 w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm"
                               />
                               <p className="mt-1 text-right text-xs text-gray-400">{settingsMessageTemplate.length} caracteres</p>
+                              {(settingsMessageAiTips.length > 0 || settingsMessageAiTone) && (
+                                <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3">
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Sugestao de configuracao da IA</p>
+                                  {settingsMessageAiTone ? (
+                                    <p className="mt-1 text-xs text-blue-900">
+                                      <span className="font-semibold">Tom recomendado:</span> {settingsMessageAiTone}
+                                    </p>
+                                  ) : null}
+                                  {settingsMessageAiTips.length > 0 ? (
+                                    <ul className="mt-2 space-y-1 text-xs text-blue-900">
+                                      {settingsMessageAiTips.slice(0, 5).map((tip, index) => (
+                                        <li key={`${tip}-${index}`}>- {tip}</li>
+                                      ))}
+                                    </ul>
+                                  ) : null}
+                                </div>
+                              )}
                             </div>
 
                             <div className="mt-4">
@@ -4093,7 +5265,27 @@ export default function MasterPage() {
                           </div>
 
                           <div className="space-y-2">
-                            <label className="text-sm font-semibold text-gray-700">Quando iniciar preparo</label>
+                            <div className="flex items-center justify-between gap-2">
+                              <label className="text-sm font-semibold text-gray-700">Quando iniciar preparo</label>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => void handleOrderMessageAi('preparing', 'generate')}
+                                  disabled={orderMessagesAiLoading !== null}
+                                  className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                                >
+                                  {orderMessagesAiLoading === 'preparing-generate' ? 'Gerando...' : 'Gerar com IA'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleOrderMessageAi('preparing', 'improve')}
+                                  disabled={orderMessagesAiLoading !== null || !settingsOrderPreparingMessage.trim()}
+                                  className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                                >
+                                  {orderMessagesAiLoading === 'preparing-improve' ? 'Melhorando...' : 'Melhorar'}
+                                </button>
+                              </div>
+                            </div>
                             <textarea
                               value={settingsOrderPreparingMessage}
                               onChange={(event) => setSettingsOrderPreparingMessage(event.target.value)}
@@ -4103,7 +5295,27 @@ export default function MasterPage() {
                           </div>
 
                           <div className="space-y-2">
-                            <label className="text-sm font-semibold text-gray-700">Quando sair para entrega</label>
+                            <div className="flex items-center justify-between gap-2">
+                              <label className="text-sm font-semibold text-gray-700">Quando sair para entrega</label>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => void handleOrderMessageAi('outForDelivery', 'generate')}
+                                  disabled={orderMessagesAiLoading !== null}
+                                  className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                                >
+                                  {orderMessagesAiLoading === 'delivery-generate' ? 'Gerando...' : 'Gerar com IA'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleOrderMessageAi('outForDelivery', 'improve')}
+                                  disabled={orderMessagesAiLoading !== null || !settingsOrderOutForDeliveryMessage.trim()}
+                                  className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                                >
+                                  {orderMessagesAiLoading === 'delivery-improve' ? 'Melhorando...' : 'Melhorar'}
+                                </button>
+                              </div>
+                            </div>
                             <textarea
                               value={settingsOrderOutForDeliveryMessage}
                               onChange={(event) => setSettingsOrderOutForDeliveryMessage(event.target.value)}
@@ -4113,7 +5325,17 @@ export default function MasterPage() {
                           </div>
 
                           <div>
-                            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Variaveis disponiveis</p>
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Variaveis disponiveis</p>
+                              <button
+                                type="button"
+                                onClick={() => void handleOrderMessagesConfigAi()}
+                                disabled={orderMessagesAiLoading !== null}
+                                className="rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                              >
+                                {orderMessagesAiLoading === 'config' ? 'Analisando...' : 'Sugerir configuracao da IA'}
+                              </button>
+                            </div>
                             <div className="mt-2 flex flex-wrap gap-2">
                               {availableMessageVars.map((variable) => (
                                 <button
@@ -4143,7 +5365,473 @@ export default function MasterPage() {
                       </div>
                     )}
 
-                    {settingsSection !== 'hours' && settingsSection !== 'address' && settingsSection !== 'delivery' && settingsSection !== 'messages' && settingsSection !== 'orderMessages' && settingsSection !== 'payments' && (
+                    {settingsSection === 'access' && (
+                      <div className="space-y-4">
+                        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                          <div className="px-4 py-3 border-b border-gray-100">
+                            <h3 className="text-2xl font-semibold text-gray-900">Acessos do Painel</h3>
+                            <p className="text-sm text-gray-500 mt-1">Crie acessos com permissoes por perfil para gerente, atendente e cozinha.</p>
+                          </div>
+                          <div className="p-4 space-y-4">
+                            {masterSecurityError && (
+                              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                                {masterSecurityError}
+                              </div>
+                            )}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div>
+                                <label className="text-sm text-gray-700">Nome</label>
+                                <input
+                                  value={masterUserForm.name}
+                                  onChange={(event) => setMasterUserForm((prev) => ({ ...prev, name: event.target.value }))}
+                                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-sm text-gray-700">Email</label>
+                                <input
+                                  type="email"
+                                  value={masterUserForm.email}
+                                  disabled={Boolean(masterUserForm.id)}
+                                  onChange={(event) => setMasterUserForm((prev) => ({ ...prev, email: event.target.value }))}
+                                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100"
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              <div>
+                                <label className="text-sm text-gray-700">Perfil</label>
+                                <select
+                                  value={masterUserForm.role}
+                                  onChange={(event) =>
+                                    applyMasterRolePermissions(event.target.value as 'gerente' | 'atendente' | 'cozinha')
+                                  }
+                                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                >
+                                  <option value="gerente">Gerente</option>
+                                  <option value="atendente">Atendente</option>
+                                  <option value="cozinha">Cozinha</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="text-sm text-gray-700">Status</label>
+                                <select
+                                  value={masterUserForm.status}
+                                  onChange={(event) =>
+                                    setMasterUserForm((prev) => ({ ...prev, status: event.target.value as 'Ativo' | 'Inativo' }))
+                                  }
+                                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                >
+                                  <option value="Ativo">Ativo</option>
+                                  <option value="Inativo">Inativo</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="text-sm text-gray-700">
+                                  {masterUserForm.id ? 'Nova Senha (opcional)' : 'Senha'}
+                                </label>
+                                <input
+                                  type="password"
+                                  value={masterUserForm.password}
+                                  onChange={(event) => setMasterUserForm((prev) => ({ ...prev, password: event.target.value }))}
+                                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                  placeholder={masterUserForm.id ? 'Manter senha atual' : 'Minimo 6 caracteres'}
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-700">Permissoes (abas)</p>
+                              <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2">
+                                {DEFAULT_PLAN_TABS.filter((tab) => tab !== 'plans').map((tab) => {
+                                  const checked = masterUserForm.permissions.includes(tab);
+                                  return (
+                                    <label
+                                      key={tab}
+                                      className={`rounded-lg border px-3 py-2 text-sm flex items-center gap-2 cursor-pointer ${
+                                        checked ? 'border-slate-900 bg-slate-100' : 'border-gray-200 bg-white'
+                                      }`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={checked}
+                                        onChange={(event) =>
+                                          setMasterUserForm((prev) => ({
+                                            ...prev,
+                                            permissions: event.target.checked
+                                              ? Array.from(new Set([...prev.permissions, tab]))
+                                              : prev.permissions.filter((item) => item !== tab)
+                                          }))
+                                        }
+                                      />
+                                      {TAB_LABELS[tab]}
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                              {masterUserForm.id && (
+                                <button
+                                  type="button"
+                                  onClick={resetMasterUserForm}
+                                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                >
+                                  Cancelar edicao
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                disabled={masterUserSaving}
+                                onClick={handleSaveMasterPanelUser}
+                                className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-60"
+                              >
+                                {masterUserSaving ? 'Salvando...' : masterUserForm.id ? 'Salvar usuario' : 'Criar usuario'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">
+                            <h4 className="text-lg font-semibold text-gray-900">Usuarios cadastrados</h4>
+                            <button
+                              type="button"
+                              onClick={() => void loadMasterPanelUsers()}
+                              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                            >
+                              Atualizar
+                            </button>
+                          </div>
+                          <div className="p-4">
+                            {masterSecurityLoading && masterPanelUsers.length === 0 ? (
+                              <p className="text-sm text-gray-500">Carregando acessos...</p>
+                            ) : masterPanelUsers.length === 0 ? (
+                              <p className="text-sm text-gray-500">Nenhum usuario adicional criado.</p>
+                            ) : (
+                              <div className="space-y-3">
+                                {masterPanelUsers.map((user) => (
+                                  <div key={user.id} className="rounded-xl border border-gray-200 p-3">
+                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                      <div>
+                                        <p className="font-semibold text-gray-900">{user.name}</p>
+                                        <p className="text-sm text-gray-500">{user.email}</p>
+                                        <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                                          <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">{user.role}</span>
+                                          <span className={`rounded-full px-2 py-1 ${user.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                            {user.status}
+                                          </span>
+                                          {user.lastAccessAt && (
+                                            <span className="rounded-full bg-gray-100 px-2 py-1 text-gray-600">
+                                              Ultimo acesso: {new Date(user.lastAccessAt).toLocaleString('pt-BR')}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleEditMasterPanelUser(user)}
+                                          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 inline-flex items-center gap-1"
+                                        >
+                                          <Pencil size={14} />
+                                          Editar
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => void handleDeleteMasterPanelUser(user)}
+                                          className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50 inline-flex items-center gap-1"
+                                        >
+                                          <Trash2 size={14} />
+                                          Remover
+                                        </button>
+                                      </div>
+                                    </div>
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                      {user.permissions.map((permission) => (
+                                        <span key={`${user.id}_${permission}`} className="rounded-full border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600">
+                                          {TAB_LABELS[permission]}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="rounded-xl border border-gray-200 bg-white p-4">
+                            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                              <div>
+                                <p className="text-base font-semibold text-gray-900">Raio e Logistica de Entrega</p>
+                                <p className="text-sm text-gray-500">
+                                  Configure taxa por distancia/faixa, bairros com taxa fixa e despacho manual/automatico.
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={ensureSettingsDeliveryConfig}
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                              >
+                                Inicializar configuracao
+                              </button>
+                            </div>
+
+                            {settingsDraft?.deliveryConfig && (
+                              <div className="mt-4 space-y-4">
+                                {(() => {
+                                  const deliveryCfg = settingsDraft!.deliveryConfig!;
+                                  return (
+                                    <>
+                                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                                  <div>
+                                    <label className="text-sm text-gray-700">Raio maximo de entrega (km)</label>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      max={100}
+                                      step="0.5"
+                                      value={deliveryCfg.radiusKm}
+                                      onChange={(event) =>
+                                        updateDeliveryConfig((current) => ({
+                                          ...current,
+                                          radiusKm: Number(event.target.value || 1)
+                                        }))
+                                      }
+                                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-sm text-gray-700">Regra de taxa</label>
+                                    <select
+                                      value={deliveryCfg.feeMode}
+                                      onChange={(event) =>
+                                        updateDeliveryConfig((current) => ({
+                                          ...current,
+                                          feeMode: event.target.value as RestaurantDeliveryConfig['feeMode']
+                                        }))
+                                      }
+                                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                    >
+                                      <option value="flat">Taxa padrao</option>
+                                      <option value="distance_bands">Por faixa de distancia</option>
+                                      <option value="neighborhood_fixed">Por bairro (taxa fixa)</option>
+                                      <option value="hybrid">Hibrido (bairro &gt; faixa &gt; padrao)</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="text-sm text-gray-700">Despacho</label>
+                                    <select
+                                      value={deliveryCfg.dispatchMode}
+                                      onChange={(event) =>
+                                        updateDeliveryConfig((current) => ({
+                                          ...current,
+                                          dispatchMode: event.target.value as 'manual' | 'auto'
+                                        }))
+                                      }
+                                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                    >
+                                      <option value="manual">Manual</option>
+                                      <option value="auto">Automatico</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+                                  <input
+                                    type="checkbox"
+                                    checked={deliveryCfg.autoDispatchEnabled}
+                                    onChange={(event) =>
+                                      updateDeliveryConfig((current) => ({
+                                        ...current,
+                                        autoDispatchEnabled: event.target.checked
+                                      }))
+                                    }
+                                    className="h-4 w-4 rounded border-gray-300 text-slate-800"
+                                  />
+                                  Habilitar auto despacho (modo inicial - sem integracao de entregadores)
+                                </label>
+
+                                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                                  <div className="mb-2 flex items-center justify-between gap-3">
+                                    <p className="text-sm font-semibold text-gray-900">Taxa por distancia / faixa</p>
+                                    <button
+                                      type="button"
+                                      onClick={addDeliveryBand}
+                                      className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                                    >
+                                      <Plus size={12} /> Nova faixa
+                                    </button>
+                                  </div>
+                                  <div className="space-y-2">
+                                    {deliveryCfg.distanceBands.length ? (
+                                      deliveryCfg.distanceBands.map((band) => (
+                                        <div key={band.id} className="grid grid-cols-1 gap-2 rounded-lg border border-gray-200 bg-white p-2 md:grid-cols-[1fr_1fr_auto]">
+                                          <div>
+                                            <label className="text-xs text-gray-500">Ate (km)</label>
+                                            <input
+                                              type="number"
+                                              min={0.5}
+                                              step="0.5"
+                                              value={band.upToKm}
+                                              onChange={(event) => updateDeliveryBand(band.id, 'upToKm', Number(event.target.value || 1))}
+                                              className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="text-xs text-gray-500">Taxa (R$)</label>
+                                            <input
+                                              type="number"
+                                              min={0}
+                                              step="0.01"
+                                              value={band.fee}
+                                              onChange={(event) => updateDeliveryBand(band.id, 'fee', Number(event.target.value || 0))}
+                                              className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                                            />
+                                          </div>
+                                          <div className="flex items-end">
+                                            <button
+                                              type="button"
+                                              onClick={() => removeDeliveryBand(band.id)}
+                                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-white text-red-500 hover:bg-red-50"
+                                            >
+                                              <Trash2 size={14} />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <p className="text-xs text-gray-500">Nenhuma faixa cadastrada.</p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                                  <div className="mb-2 flex items-center justify-between gap-3">
+                                    <p className="text-sm font-semibold text-gray-900">Bairros atendidos com taxa fixa</p>
+                                    <button
+                                      type="button"
+                                      onClick={addNeighborhoodRate}
+                                      className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                                    >
+                                      <Plus size={12} /> Novo bairro
+                                    </button>
+                                  </div>
+                                  <div className="space-y-2">
+                                    {deliveryCfg.neighborhoodRates.length ? (
+                                      deliveryCfg.neighborhoodRates.map((zone) => (
+                                        <div
+                                          key={zone.id}
+                                          className="grid grid-cols-1 gap-2 rounded-lg border border-gray-200 bg-white p-2 md:grid-cols-[1.4fr_0.8fr_auto_auto]"
+                                        >
+                                          <div>
+                                            <label className="text-xs text-gray-500">Bairro / regiao</label>
+                                            <input
+                                              value={zone.name}
+                                              onChange={(event) => updateNeighborhoodRate(zone.id, 'name', event.target.value)}
+                                              placeholder="Ex: Centro, Cambui, Vila Nova"
+                                              className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="text-xs text-gray-500">Taxa (R$)</label>
+                                            <input
+                                              type="number"
+                                              min={0}
+                                              step="0.01"
+                                              value={zone.fee}
+                                              onChange={(event) => updateNeighborhoodRate(zone.id, 'fee', Number(event.target.value || 0))}
+                                              className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                                            />
+                                          </div>
+                                          <label className="flex items-end gap-2 text-xs text-gray-600">
+                                            <input
+                                              type="checkbox"
+                                              checked={zone.active}
+                                              onChange={(event) => updateNeighborhoodRate(zone.id, 'active', event.target.checked)}
+                                              className="mb-2 h-4 w-4 rounded border-gray-300 text-slate-800"
+                                            />
+                                            Ativo
+                                          </label>
+                                          <div className="flex items-end">
+                                            <button
+                                              type="button"
+                                              onClick={() => removeNeighborhoodRate(zone.id)}
+                                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-white text-red-500 hover:bg-red-50"
+                                            >
+                                              <Trash2 size={14} />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <p className="text-xs text-gray-500">Nenhum bairro com taxa fixa cadastrado.</p>
+                                    )}
+                                  </div>
+                                </div>
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {settingsSection === 'sessions' && (
+                      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                        <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">
+                          <div>
+                            <h3 className="text-2xl font-semibold text-gray-900">Sessoes Ativas</h3>
+                            <p className="text-sm text-gray-500">Encerre acessos remotos do painel da sua equipe.</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void loadMasterSessions()}
+                            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                          >
+                            Atualizar
+                          </button>
+                        </div>
+                        <div className="p-4 space-y-3">
+                          {masterSecurityError && (
+                            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                              {masterSecurityError}
+                            </div>
+                          )}
+                          {masterSecurityLoading && masterSessions.length === 0 ? (
+                            <p className="text-sm text-gray-500">Carregando sessoes...</p>
+                          ) : masterSessions.length === 0 ? (
+                            <p className="text-sm text-gray-500">Nenhuma sessao ativa encontrada.</p>
+                          ) : (
+                            masterSessions.map((item) => (
+                              <div key={item.id} className="rounded-xl border border-gray-200 p-3 flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                  <p className="font-semibold text-gray-900">
+                                    {item.subjectName}
+                                    {item.isCurrent && <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">Sessao atual</span>}
+                                  </p>
+                                  <p className="text-sm text-gray-500">{item.actorEmail || '-'}</p>
+                                  <p className="mt-1 text-xs text-gray-500">
+                                    Role: {item.role || '-'} • IP: {item.ip || '-'} • Ultima atividade: {new Date(item.lastSeenAt).toLocaleString('pt-BR')}
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  disabled={Boolean(item.isCurrent)}
+                                  onClick={() => void handleRevokeMasterSession(item.id)}
+                                  className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  Encerrar sessao
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {settingsSection !== 'hours' && settingsSection !== 'address' && settingsSection !== 'delivery' && settingsSection !== 'messages' && settingsSection !== 'orderMessages' && settingsSection !== 'payments' && settingsSection !== 'access' && settingsSection !== 'sessions' && (
                       <>
                         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
                           <div className="px-4 py-3 border-b border-gray-100">
@@ -4424,6 +6112,7 @@ export default function MasterPage() {
                 getOrderAgeMinutes={getOrderAgeMinutes}
                 paymentMethodLabel={paymentMethodLabel}
                 getOrderStatus={getOrderStatus}
+                activeDeliveryOrders={activeDeliveryOrders}
               />
             )}
 
@@ -4984,12 +6673,22 @@ export default function MasterPage() {
                           <span className="absolute bottom-3 left-3 rounded-full bg-black px-2.5 py-1 text-xs font-semibold text-white">
                             {banner.productIds.length} produto{banner.productIds.length === 1 ? '' : 's'}
                           </span>
+                          {banner.abGroup ? (
+                            <span className="absolute bottom-3 right-3 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-gray-900">
+                              Grupo {banner.abGroup}
+                            </span>
+                          ) : null}
                         </div>
                         <div className="p-4">
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <h3 className="text-xl font-bold text-gray-900">{banner.title}</h3>
                               <p className="mt-1 text-sm text-gray-500 line-clamp-1">{banner.description || 'Sem descricao'}</p>
+                              <p className="mt-2 text-xs text-gray-500">
+                                Cliques: <span className="font-semibold text-gray-800">{banner.clicks ?? 0}</span>
+                                {' • '}
+                                Pedidos atrib.: <span className="font-semibold text-gray-800">{banner.attributedOrders ?? 0}</span>
+                              </p>
                             </div>
                             <button
                               type="button"
@@ -5091,6 +6790,20 @@ export default function MasterPage() {
                           />
                           Banner ativo no cardapio
                         </label>
+                        <div>
+                          <label className="text-sm text-gray-700">Grupo A/B (Opcional)</label>
+                          <select
+                            value={bannerForm.abGroup ?? ''}
+                            onChange={(event) =>
+                              setBannerForm((prev) => ({ ...prev, abGroup: event.target.value as 'A' | 'B' | '' }))
+                            }
+                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                          >
+                            <option value="">Sem grupo</option>
+                            <option value="A">Grupo A</option>
+                            <option value="B">Grupo B</option>
+                          </select>
+                        </div>
                       </div>
                     </div>
 
@@ -5268,6 +6981,82 @@ export default function MasterPage() {
                         ) : (
                           <p className="text-xs text-gray-500">Sem banners cadastrados na aba Banners.</p>
                         )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                      <div>
+                        <label className="text-sm text-gray-700">Inicio (Calendario)</label>
+                        <input
+                          type="date"
+                          value={campaignForm.startDate}
+                          onChange={(event) => setCampaignForm((prev) => ({ ...prev, startDate: event.target.value }))}
+                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm text-gray-700">Fim (Calendario)</label>
+                        <input
+                          type="date"
+                          value={campaignForm.endDate}
+                          onChange={(event) => setCampaignForm((prev) => ({ ...prev, endDate: event.target.value }))}
+                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                        />
+                      </div>
+                      <label className="inline-flex items-center gap-2 pt-7 text-sm font-medium text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={campaignForm.autoActivateByCalendar}
+                          onChange={(event) =>
+                            setCampaignForm((prev) => ({
+                              ...prev,
+                              autoActivateByCalendar: event.target.checked
+                            }))
+                          }
+                          className="h-4 w-4 rounded border-gray-300 text-slate-800"
+                        />
+                        Ativar automatico por calendario
+                      </label>
+                    </div>
+
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                      <p className="text-sm font-medium text-gray-800">UTM / Origem de Trafego</p>
+                      <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <div>
+                          <label className="text-xs text-gray-600">utm_source</label>
+                          <input
+                            value={campaignForm.utmSource}
+                            onChange={(event) => setCampaignForm((prev) => ({ ...prev, utmSource: event.target.value }))}
+                            placeholder="instagram"
+                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600">utm_medium</label>
+                          <input
+                            value={campaignForm.utmMedium}
+                            onChange={(event) => setCampaignForm((prev) => ({ ...prev, utmMedium: event.target.value }))}
+                            placeholder="bio | story | qr_mesa"
+                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600">utm_campaign</label>
+                          <input
+                            value={campaignForm.utmCampaign}
+                            onChange={(event) => setCampaignForm((prev) => ({ ...prev, utmCampaign: event.target.value }))}
+                            placeholder="semana-do-burger"
+                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600">utm_content (A/B)</label>
+                          <input
+                            value={campaignForm.utmContent}
+                            onChange={(event) => setCampaignForm((prev) => ({ ...prev, utmContent: event.target.value }))}
+                            placeholder="banner_a"
+                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                          />
+                        </div>
                       </div>
                     </div>
                     <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
@@ -6089,6 +7878,316 @@ export default function MasterPage() {
                             </div>
                           </div>
                         </div>
+
+                        <div className="rounded-xl border border-gray-200 bg-white p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <h3 className="text-xl font-semibold text-gray-900">Benchmark Interno da Loja</h3>
+                              <p className="text-sm text-gray-500">
+                                Horarios e dias com maior/menor desempenho ({benchmarkInsights.sourceLabel}).
+                              </p>
+                            </div>
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                              {benchmarkOrdersBase.length} pedidos
+                            </span>
+                          </div>
+
+                          <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
+                            <div className="rounded-xl border border-gray-200 p-4">
+                              <p className="text-sm font-semibold text-gray-900">Top Horarios</p>
+                              <div className="mt-3 space-y-2">
+                                {benchmarkInsights.peakHours.length > 0 ? benchmarkInsights.peakHours.map((hour) => (
+                                  <div key={`peak_${hour.hour}`} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
+                                    <span className="text-sm text-gray-700">{String(hour.hour).padStart(2, '0')}:00</span>
+                                    <span className="text-sm font-semibold text-gray-900">
+                                      {hour.orders} pedidos
+                                    </span>
+                                  </div>
+                                )) : (
+                                  <p className="text-sm text-gray-500">Sem dados suficientes.</p>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="rounded-xl border border-gray-200 p-4">
+                              <p className="text-sm font-semibold text-gray-900">Dias da Semana</p>
+                              <div className="mt-3 space-y-2">
+                                {benchmarkInsights.bestWeekday ? (
+                                  <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2">
+                                    <p className="text-xs uppercase tracking-wide text-emerald-700">Melhor dia</p>
+                                    <p className="text-base font-semibold text-emerald-900">{benchmarkInsights.bestWeekday.label}</p>
+                                    <p className="text-sm text-emerald-800">
+                                      {benchmarkInsights.bestWeekday.orders} pedidos • {moneyFormatter.format(benchmarkInsights.bestWeekday.sales)}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <p className="text-sm text-gray-500">Sem dados suficientes.</p>
+                                )}
+                                <div className="space-y-1">
+                                  {benchmarkInsights.dayParts.map((part) => (
+                                    <div key={part.label} className="flex items-center justify-between text-sm">
+                                      <span className="text-gray-600">{part.label}</span>
+                                      <span className="font-medium text-gray-900">
+                                        {part.orders} • {moneyFormatter.format(part.sales)}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                              <p className="text-sm font-semibold text-amber-900">Janelas Fracas (Oportunidade)</p>
+                              <p className="mt-1 text-xs text-amber-800">
+                                Use cupom, banner ou campanha para ativar demanda nestes horarios.
+                              </p>
+                              <div className="mt-3 space-y-2">
+                                {benchmarkInsights.weakWindows.length > 0 ? benchmarkInsights.weakWindows.map((hour) => (
+                                  <div key={`weak_${hour.hour}`} className="rounded-lg border border-amber-200 bg-white/70 px-3 py-2">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-sm font-semibold text-amber-900">
+                                        {String(hour.hour).padStart(2, '0')}:00
+                                      </span>
+                                      <span className="text-xs text-amber-800">{hour.orders} pedidos</span>
+                                    </div>
+                                    <p className="text-xs text-amber-900">
+                                      Ticket medio: {moneyFormatter.format(hour.avgTicket)} • Receita: {moneyFormatter.format(hour.sales)}
+                                    </p>
+                                  </div>
+                                )) : (
+                                  <p className="text-sm text-amber-800">Sem dados suficientes.</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl border border-blue-200 bg-white p-4">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <h3 className="text-xl font-semibold text-gray-900">Analise de Vendas com IA</h3>
+                              <p className="text-sm text-gray-600">
+                                Diagnostico automatico com base em pedidos, conversao, produtos e benchmark da loja.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => void requestAiSalesAnalysis()}
+                              disabled={salesAiLoading}
+                              className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-60"
+                            >
+                              {salesAiLoading ? 'Analisando...' : 'Gerar analise com IA'}
+                            </button>
+                          </div>
+
+                          {salesAiAnalysis && (
+                            <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+                              <div className="space-y-4">
+                                <div className="rounded-xl border border-gray-200 p-4">
+                                  <p className="text-xs uppercase tracking-wide text-gray-500">Resumo Executivo</p>
+                                  <p className="mt-2 text-sm text-gray-700 whitespace-pre-wrap">
+                                    {salesAiAnalysis.executiveSummary}
+                                  </p>
+                                </div>
+                                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                                  <p className="text-xs uppercase tracking-wide text-amber-700">Alertas</p>
+                                  <ul className="mt-2 space-y-2">
+                                    {salesAiAnalysis.alerts.length ? (
+                                      salesAiAnalysis.alerts.map((item, index) => (
+                                        <li key={`sales_ai_alert_${index}`} className="text-sm text-amber-900">
+                                          • {item}
+                                        </li>
+                                      ))
+                                    ) : (
+                                      <li className="text-sm text-amber-900">Nenhum alerta relevante identificado.</li>
+                                    )}
+                                  </ul>
+                                </div>
+                              </div>
+
+                              <div className="space-y-4">
+                                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                                  <p className="text-xs uppercase tracking-wide text-emerald-700">Recomendacoes Prioritarias</p>
+                                  <ul className="mt-2 space-y-2">
+                                    {salesAiAnalysis.recommendations.length ? (
+                                      salesAiAnalysis.recommendations.map((item, index) => (
+                                        <li key={`sales_ai_rec_${index}`} className="text-sm text-emerald-900">
+                                          • {item}
+                                        </li>
+                                      ))
+                                    ) : (
+                                      <li className="text-sm text-emerald-900">Sem recomendacoes no momento.</li>
+                                    )}
+                                  </ul>
+                                </div>
+                                <div className="rounded-xl border border-violet-200 bg-violet-50 p-4">
+                                  <p className="text-xs uppercase tracking-wide text-violet-700">O que melhorar / implementar</p>
+                                  <ul className="mt-2 space-y-2">
+                                    {salesAiAnalysis.implementationIdeas.length ? (
+                                      salesAiAnalysis.implementationIdeas.map((item, index) => (
+                                        <li key={`sales_ai_impl_${index}`} className="text-sm text-violet-900">
+                                          • {item}
+                                        </li>
+                                      ))
+                                    ) : (
+                                      <li className="text-sm text-violet-900">Sem sugestoes de implementacao no momento.</li>
+                                    )}
+                                  </ul>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="rounded-xl border border-gray-200 bg-white p-4">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <h3 className="text-xl font-semibold text-gray-900">Relatorios Completos</h3>
+                              <p className="text-sm text-gray-600">
+                                Visao consolidada de vendas com exportacao CSV por periodo.
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              {[
+                                { key: '7d' as const, label: '7 dias' },
+                                { key: '30d' as const, label: '30 dias' },
+                                { key: 'month' as const, label: 'Mes atual' }
+                              ].map((option) => (
+                                <button
+                                  key={option.key}
+                                  type="button"
+                                  onClick={() => setMarketingReportRange(option.key)}
+                                  className={`rounded-lg border px-3 py-1.5 text-sm ${
+                                    marketingReportRange === option.key
+                                      ? 'border-slate-900 bg-slate-100 text-slate-900'
+                                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  {option.label}
+                                </button>
+                              ))}
+                            </div>
+                            {(orderMessagesAiTips.length > 0 || orderMessagesAiTone) && (
+                              <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Sugestao de configuracao da IA</p>
+                                {orderMessagesAiTone ? (
+                                  <p className="mt-1 text-xs text-emerald-900">
+                                    <span className="font-semibold">Tom recomendado:</span> {orderMessagesAiTone}
+                                  </p>
+                                ) : null}
+                                {orderMessagesAiTips.length > 0 ? (
+                                  <ul className="mt-2 space-y-1 text-xs text-emerald-900">
+                                    {orderMessagesAiTips.slice(0, 6).map((tip, index) => (
+                                      <li key={`${tip}-${index}`}>- {tip}</li>
+                                    ))}
+                                  </ul>
+                                ) : null}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-4">
+                            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                              <p className="text-xs uppercase tracking-wide text-gray-500">Pedidos</p>
+                              <p className="mt-1 text-xl font-bold text-gray-900">{marketingReportSummary.totalOrders}</p>
+                            </div>
+                            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                              <p className="text-xs uppercase tracking-wide text-gray-500">Vendas</p>
+                              <p className="mt-1 text-xl font-bold text-gray-900">{moneyFormatter.format(marketingReportSummary.totalSales)}</p>
+                            </div>
+                            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                              <p className="text-xs uppercase tracking-wide text-gray-500">Ticket Medio</p>
+                              <p className="mt-1 text-xl font-bold text-gray-900">{moneyFormatter.format(marketingReportSummary.avgTicket)}</p>
+                            </div>
+                            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                              <p className="text-xs uppercase tracking-wide text-gray-500">Descontos</p>
+                              <p className="mt-1 text-xl font-bold text-gray-900">{moneyFormatter.format(marketingReportSummary.totalDiscount)}</p>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+                            <div className="rounded-xl border border-gray-200 p-4">
+                              <div className="flex items-center justify-between gap-2">
+                                <h4 className="text-base font-semibold text-gray-900">Pagamentos e Resumo Diario</h4>
+                                <button
+                                  type="button"
+                                  onClick={exportMarketingOrdersReportCsv}
+                                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                                >
+                                  Exportar Pedidos CSV
+                                </button>
+                              </div>
+                              <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+                                <div className="rounded-lg bg-slate-100 px-3 py-2 text-center">
+                                  <p className="text-xs text-gray-500">PIX</p>
+                                  <p className="font-semibold text-gray-900">{marketingReportSummary.ordersByPayment.pix}</p>
+                                </div>
+                                <div className="rounded-lg bg-slate-100 px-3 py-2 text-center">
+                                  <p className="text-xs text-gray-500">Cartao</p>
+                                  <p className="font-semibold text-gray-900">{marketingReportSummary.ordersByPayment.card}</p>
+                                </div>
+                                <div className="rounded-lg bg-slate-100 px-3 py-2 text-center">
+                                  <p className="text-xs text-gray-500">Dinheiro</p>
+                                  <p className="font-semibold text-gray-900">{marketingReportSummary.ordersByPayment.money}</p>
+                                </div>
+                              </div>
+                              <div className="mt-4 max-h-56 overflow-auto rounded-lg border border-gray-200">
+                                <table className="w-full text-sm">
+                                  <thead className="sticky top-0 bg-gray-50">
+                                    <tr>
+                                      <th className="px-3 py-2 text-left text-xs text-gray-500">Data</th>
+                                      <th className="px-3 py-2 text-right text-xs text-gray-500">Pedidos</th>
+                                      <th className="px-3 py-2 text-right text-xs text-gray-500">Vendas</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {marketingReportSummary.dailyRows.length ? marketingReportSummary.dailyRows.map((row) => (
+                                      <tr key={row.date} className="border-t border-gray-100">
+                                        <td className="px-3 py-2 text-gray-700">{row.date}</td>
+                                        <td className="px-3 py-2 text-right font-medium text-gray-900">{row.orders}</td>
+                                        <td className="px-3 py-2 text-right font-medium text-gray-900">{moneyFormatter.format(row.sales)}</td>
+                                      </tr>
+                                    )) : (
+                                      <tr>
+                                        <td colSpan={3} className="px-3 py-6 text-center text-sm text-gray-500">
+                                          Sem pedidos no periodo selecionado.
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+
+                            <div className="rounded-xl border border-gray-200 p-4">
+                              <div className="flex items-center justify-between gap-2">
+                                <h4 className="text-base font-semibold text-gray-900">Produtos (Top Receita / Volume)</h4>
+                                <button
+                                  type="button"
+                                  onClick={exportMarketingProductsReportCsv}
+                                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                                >
+                                  Exportar Produtos CSV
+                                </button>
+                              </div>
+                              <div className="mt-4 space-y-2 max-h-72 overflow-auto">
+                                {marketingReportSummary.topProducts.length ? marketingReportSummary.topProducts.map((item, index) => (
+                                  <div key={`${item.productId}_${index}`} className="rounded-lg border border-gray-200 px-3 py-2">
+                                    <div className="flex items-center justify-between gap-3">
+                                      <p className="text-sm font-semibold text-gray-900">{item.name}</p>
+                                      <span className="text-xs text-gray-500">{item.qty} un</span>
+                                    </div>
+                                    <p className="mt-1 text-sm text-slate-900 font-medium">
+                                      Receita: {moneyFormatter.format(item.revenue)}
+                                    </p>
+                                  </div>
+                                )) : (
+                                  <p className="text-sm text-gray-500">Sem vendas no periodo selecionado.</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </>
                     )}
 
@@ -6144,6 +8243,78 @@ export default function MasterPage() {
                               </div>
                             ))}
                           </div>
+                        </div>
+
+                        <div className="rounded-xl border border-violet-200 bg-white p-4">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <h4 className="text-lg font-semibold text-gray-900">Sugestao de Campanha com IA</h4>
+                              <p className="text-sm text-gray-600">
+                                Usa itens menos vendidos + horarios fracos para sugerir campanha, banner e mensagem.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => void requestAiCampaignSuggestion()}
+                              disabled={campaignAiLoading}
+                              className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-60"
+                            >
+                              {campaignAiLoading ? 'Gerando...' : 'Sugerir campanha com IA'}
+                            </button>
+                          </div>
+
+                          {campaignAiSuggestion && (
+                            <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+                              <div className="rounded-xl border border-gray-200 p-4 space-y-3">
+                                <div>
+                                  <p className="text-xs uppercase tracking-wide text-gray-500">Nome da campanha</p>
+                                  <p className="text-base font-semibold text-gray-900">{campaignAiSuggestion.campaignName}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs uppercase tracking-wide text-gray-500">Periodo sugerido</p>
+                                  <p className="text-sm text-gray-800">{campaignAiSuggestion.period}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs uppercase tracking-wide text-gray-500">Cupom sugerido</p>
+                                  <p className="text-sm font-mono text-gray-900">{campaignAiSuggestion.couponSuggestion}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs uppercase tracking-wide text-gray-500">Motivo da estrategia</p>
+                                  <p className="text-sm text-gray-700">{campaignAiSuggestion.strategyReason}</p>
+                                </div>
+                                <div className="pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={applyAiSuggestionToCampaignForm}
+                                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                  >
+                                    Aplicar como nova campanha
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="space-y-3">
+                                <div className="rounded-xl border border-gray-200 p-4">
+                                  <p className="text-xs uppercase tracking-wide text-gray-500">Texto para banner</p>
+                                  <p className="mt-2 text-base font-semibold text-gray-900">{campaignAiSuggestion.bannerHeadline}</p>
+                                  <p className="mt-1 text-sm text-gray-600">{campaignAiSuggestion.bannerDescription}</p>
+                                </div>
+                                <div className="rounded-xl border border-gray-200 p-4">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <p className="text-xs uppercase tracking-wide text-gray-500">Mensagem para WhatsApp</p>
+                                    <button
+                                      type="button"
+                                      onClick={() => navigator.clipboard.writeText(campaignAiSuggestion.whatsappMessage)}
+                                      className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                                    >
+                                      Copiar
+                                    </button>
+                                  </div>
+                                  <p className="mt-2 text-sm text-gray-700 whitespace-pre-wrap">{campaignAiSuggestion.whatsappMessage}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </>
                     )}
@@ -6231,6 +8402,236 @@ export default function MasterPage() {
                                 </button>
                               </div>
                             </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl border border-gray-200 bg-white p-5">
+                          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                            <div>
+                              <h3 className="text-xl font-semibold text-gray-900">Impulsao de ADS com IA</h3>
+                              <p className="mt-1 text-sm text-gray-600">
+                                Gere um plano pratico de anuncios para Instagram/Meta com publico, copy e checklist de implementacao.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={requestAiAdsAssistantPlan}
+                              disabled={adsAiLoading}
+                              className="inline-flex items-center justify-center gap-2 rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <Megaphone size={14} />
+                              {adsAiLoading ? 'Gerando...' : 'Gerar plano de ADS'}
+                            </button>
+                          </div>
+
+                          {adsAiPlan && (
+                            <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+                              <div className="space-y-4">
+                                <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Estrategia sugerida</p>
+                                  <p className="mt-2 text-base font-semibold text-gray-900">{adsAiPlan.campaignName}</p>
+                                  <p className="mt-1 text-xs font-medium text-blue-700">Periodo sugerido: {adsAiPlan.suggestedPeriod}</p>
+                                  <p className="mt-2 text-lg font-semibold text-gray-900">{adsAiPlan.campaignObjective}</p>
+                                  <p className="mt-1 text-sm text-gray-700">{adsAiPlan.reason}</p>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Publico alvo</p>
+                                    <p className="mt-1 text-sm font-medium text-gray-900">{adsAiPlan.targetAudience}</p>
+                                  </div>
+                                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Raio sugerido</p>
+                                    <p className="mt-1 text-sm font-medium text-gray-900">{adsAiPlan.recommendedRadiusKm} km</p>
+                                  </div>
+                                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Orcamento diario</p>
+                                    <p className="mt-1 text-sm font-medium text-gray-900">{adsAiPlan.dailyBudgetSuggestion}</p>
+                                  </div>
+                                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Canais</p>
+                                    <p className="mt-1 text-sm font-medium text-gray-900">{adsAiPlan.channels.join(', ')}</p>
+                                  </div>
+                                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Cupom sugerido</p>
+                                    <p className="mt-1 text-sm font-medium text-gray-900">{adsAiPlan.couponSuggestion}</p>
+                                    <p className="mt-1 text-xs text-gray-600">{adsAiPlan.couponDiscountHint}</p>
+                                  </div>
+                                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Texto de banner</p>
+                                    <p className="mt-1 text-sm font-semibold text-gray-900">{adsAiPlan.bannerHeadline}</p>
+                                    <p className="mt-1 text-xs text-gray-600">{adsAiPlan.bannerDescription}</p>
+                                  </div>
+                                </div>
+
+                                <div className="rounded-xl border border-gray-200 bg-white p-4">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Copy principal</p>
+                                      <p className="mt-2 text-sm whitespace-pre-wrap text-gray-800">{adsAiPlan.adCopyPrimary}</p>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => navigator.clipboard.writeText(adsAiPlan.adCopyPrimary)}
+                                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 bg-white text-slate-700 hover:bg-gray-50"
+                                      title="Copiar copy"
+                                    >
+                                      <Copy size={15} />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div className="rounded-xl border border-gray-200 bg-white p-4">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Variacoes de anuncio</p>
+                                    <button
+                                      type="button"
+                                      onClick={() => navigator.clipboard.writeText(adsAiPlan.adCopyVariants.join('\n\n'))}
+                                      className="text-xs font-semibold text-slate-900 hover:underline"
+                                    >
+                                      Copiar variacoes
+                                    </button>
+                                  </div>
+                                  <div className="mt-3 space-y-2">
+                                    {adsAiPlan.adCopyVariants.map((variant, index) => (
+                                      <div key={`${index}-${variant}`} className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800">
+                                        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Variacao {index + 1}</p>
+                                        <p className="whitespace-pre-wrap">{variant}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="space-y-4">
+                                <div className="rounded-xl border border-gray-200 bg-white p-4">
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Criativo sugerido</p>
+                                  <p className="mt-2 text-sm text-gray-700">
+                                    <span className="font-semibold text-gray-900">Headline:</span> {adsAiPlan.headline}
+                                  </p>
+                                  <p className="mt-1 text-sm text-gray-700">
+                                    <span className="font-semibold text-gray-900">CTA:</span> {adsAiPlan.cta}
+                                  </p>
+                                </div>
+
+                                <div className="rounded-xl border border-gray-200 bg-white p-4">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Checklist de implementacao</p>
+                                    <button
+                                      type="button"
+                                      onClick={() => navigator.clipboard.writeText(adsAiPlan.implementationChecklist.map((item, i) => `${i + 1}. ${item}`).join('\n'))}
+                                      className="text-xs font-semibold text-slate-900 hover:underline"
+                                    >
+                                      Copiar checklist
+                                    </button>
+                                  </div>
+                                  <ol className="mt-3 space-y-2">
+                                    {adsAiPlan.implementationChecklist.map((item, index) => (
+                                      <li key={`${index}-${item}`} className="flex items-start gap-2 text-sm text-gray-800">
+                                        <span className="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-slate-900 text-[11px] font-semibold text-white">
+                                          {index + 1}
+                                        </span>
+                                        <span>{item}</span>
+                                      </li>
+                                    ))}
+                                  </ol>
+                                </div>
+
+                                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Rastreamento / Medicao</p>
+                                  <p className="mt-2 text-sm text-emerald-900 whitespace-pre-wrap">{adsAiPlan.trackingSuggestion}</p>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={applyAdsAiPlanToCampaignForm}
+                                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-gray-50"
+                                >
+                                  <Plus size={14} /> Aplicar como campanha
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={applyAdsAiPlanToBannerForm}
+                                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-gray-50"
+                                >
+                                  <ImageIcon size={14} /> Preencher novo banner
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={applyAdsAiPlanToCouponForm}
+                                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-gray-50"
+                                >
+                                  <TicketPercent size={14} /> Criar/editar cupom sugerido
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    navigateToExternalLink(
+                                      `https://wa.me/?text=${encodeURIComponent(
+                                        `Plano de ADS sugerido para ${restaurant?.name ?? 'minha loja'}:\n\nObjetivo: ${adsAiPlan.campaignObjective}\nPublico: ${adsAiPlan.targetAudience}\nOrcamento: ${adsAiPlan.dailyBudgetSuggestion}\nHeadline: ${adsAiPlan.headline}\nCTA: ${adsAiPlan.cta}\n\nLink: ${marketingLink}`
+                                      )}`
+                                    )
+                                  }
+                                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white hover:bg-green-600"
+                                >
+                                  <MessageCircle size={14} /> Compartilhar plano no WhatsApp
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-semibold text-gray-900">Historico de planos de ADS IA</p>
+                                <p className="text-xs text-gray-500">Ultimos planos gerados para reutilizar e comparar estrategias.</p>
+                              </div>
+                              <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-gray-600">
+                                {adsAiHistory.length} itens
+                              </span>
+                            </div>
+                            {adsAiHistory.length ? (
+                              <div className="mt-3 space-y-2">
+                                {adsAiHistory.slice(0, 6).map((item) => (
+                                  <div
+                                    key={item.id}
+                                    className="rounded-lg border border-gray-200 bg-white p-3"
+                                  >
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                      <div>
+                                        <p className="text-sm font-semibold text-gray-900">{item.campaignName}</p>
+                                        <p className="text-xs text-gray-500">
+                                          {new Date(item.createdAt).toLocaleString('pt-BR')} • {item.suggestedPeriod || 'Sem periodo'}
+                                        </p>
+                                        <p className="mt-1 text-xs text-gray-700">
+                                          {item.campaignObjective} • {item.dailyBudgetSuggestion}
+                                        </p>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => restoreAdsAiPlanFromHistory(item)}
+                                          className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-900 hover:bg-gray-50"
+                                        >
+                                          Reabrir plano
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => removeAdsAiHistoryItem(item.id)}
+                                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-white text-red-500 hover:bg-red-50"
+                                          title="Excluir historico"
+                                        >
+                                          <Trash2 size={14} />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="mt-3 text-xs text-gray-500">Nenhum plano de ADS gerado ainda.</p>
+                            )}
                           </div>
                         </div>
 
@@ -6365,6 +8766,75 @@ export default function MasterPage() {
                                   <p className="mt-1">
                                     <span className="font-semibold">Banners vinculados:</span> {campaign.bannerIds?.length ?? 0}
                                   </p>
+                                  <p className="mt-1">
+                                    <span className="font-semibold">Cliques:</span> {campaign.clicks ?? 0}
+                                    {' • '}
+                                    <span className="font-semibold">Pedidos atrib.:</span> {campaign.attributedOrders ?? 0}
+                                  </p>
+                                  {(campaign.startDate || campaign.endDate) && (
+                                    <p className="mt-1">
+                                      <span className="font-semibold">Calendario:</span>{' '}
+                                      {campaign.startDate || '--'} ate {campaign.endDate || '--'}
+                                      {campaign.autoActivateByCalendar ? ' (auto)' : ''}
+                                    </p>
+                                  )}
+                                  {restaurant?.slug ? (
+                                    <div className="mt-2 rounded-md border border-gray-200 bg-white p-2">
+                                      <p className="text-[11px] text-gray-500">Link de campanha</p>
+                                      <div className="mt-1 flex items-center gap-2">
+                                        <input
+                                          readOnly
+                                          value={`https://pedezap.site/r/${restaurant.slug}?${new URLSearchParams(
+                                            Object.fromEntries(
+                                              Object.entries({
+                                                cupom:
+                                                  campaign.targetCouponCode ||
+                                                  campaign.couponCodes?.[0] ||
+                                                  campaign.couponCode ||
+                                                  '',
+                                                campaign: campaign.id,
+                                                pz_src: 'campaign_link',
+                                                utm_source: campaign.utmSource || '',
+                                                utm_medium: campaign.utmMedium || '',
+                                                utm_campaign: campaign.utmCampaign || '',
+                                                utm_content: campaign.utmContent || ''
+                                              }).filter(([, v]) => !!String(v).trim())
+                                            )
+                                          ).toString()}`}
+                                          className="w-full rounded border border-gray-200 px-2 py-1 text-[11px] text-gray-700"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const qs = new URLSearchParams(
+                                              Object.fromEntries(
+                                                Object.entries({
+                                                  cupom:
+                                                    campaign.targetCouponCode ||
+                                                    campaign.couponCodes?.[0] ||
+                                                    campaign.couponCode ||
+                                                    '',
+                                                  campaign: campaign.id,
+                                                  pz_src: 'campaign_link',
+                                                  utm_source: campaign.utmSource || '',
+                                                  utm_medium: campaign.utmMedium || '',
+                                                  utm_campaign: campaign.utmCampaign || '',
+                                                  utm_content: campaign.utmContent || ''
+                                                }).filter(([, v]) => !!String(v).trim())
+                                              )
+                                            );
+                                            void navigator.clipboard.writeText(
+                                              `https://pedezap.site/r/${restaurant.slug}?${qs.toString()}`
+                                            );
+                                            setMessage('Link de campanha copiado.');
+                                          }}
+                                          className="rounded border border-gray-300 px-2 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-50"
+                                        >
+                                          Copiar
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : null}
                                 </div>
 
                                 <div className="mt-4 flex items-center gap-2">
@@ -6891,13 +9361,36 @@ export default function MasterPage() {
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs text-gray-500">Descricao / Ingredientes</label>
+                      <div className="flex items-center justify-between gap-2">
+                        <label className="text-xs text-gray-500">Descricao / Ingredientes</label>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={productAiLoadingMode !== null}
+                            onClick={() => void handleProductDescriptionAi('generate')}
+                            className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                          >
+                            {productAiLoadingMode === 'generate' ? 'Gerando...' : 'Gerar com IA'}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={productAiLoadingMode !== null || !productForm.description?.trim()}
+                            onClick={() => void handleProductDescriptionAi('improve')}
+                            className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                          >
+                            {productAiLoadingMode === 'improve' ? 'Melhorando...' : 'Melhorar texto'}
+                          </button>
+                        </div>
+                      </div>
                       <textarea
                         value={productForm.description ?? ''}
                         onChange={(event) => setProductForm((prev) => ({ ...prev, description: event.target.value }))}
                         className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm h-20 resize-none"
                         placeholder="Descreva os detalhes deste item..."
                       />
+                      <p className="mt-1 text-[11px] text-gray-400">
+                        A IA usa nome, categoria e dados do item para sugerir uma descricao otimizada.
+                      </p>
                     </div>
                     <div>
                       <label className="text-xs text-gray-500">

@@ -5,10 +5,13 @@ import { ADMIN_SESSION_COOKIE, createSessionToken } from "@/lib/auth-session";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { appendAuditLog, writeAuditLog } from "@/lib/audit";
+import { registerActiveSession } from "@/lib/session-registry";
+import { verifyTotpCode } from "@/lib/totp";
 
 const loginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(1)
+  password: z.string().min(1),
+  otpCode: z.string().optional()
 });
 
 export async function POST(request: Request) {
@@ -140,6 +143,33 @@ export async function POST(request: Request) {
   const role = store.adminRoles.find((item) => item.name === user.role);
   const permissions = role?.permissions ?? user.permissions ?? [];
 
+  if (user.twoFactorEnabled && user.twoFactorSecret) {
+    if (!parsed.data.otpCode) {
+      return NextResponse.json(
+        {
+          success: false,
+          requires2FA: true,
+          message: "Digite o codigo do autenticador para continuar."
+        },
+        { status: 200 }
+      );
+    }
+    if (!verifyTotpCode(user.twoFactorSecret, parsed.data.otpCode)) {
+      await appendAuditLog(store, {
+        request,
+        action: "auth.admin.login.failed_2fa",
+        targetType: "admin_user",
+        targetId: user.email,
+        actor: { actorType: "anonymous", actorId: "anonymous", actorName: user.email }
+      });
+      await writeStore(store);
+      return NextResponse.json(
+        { success: false, requires2FA: true, message: "Codigo 2FA invalido." },
+        { status: 401 }
+      );
+    }
+  }
+
   user.lastAccessAt = new Date().toISOString();
   user.permissions = permissions;
   if (passwordCheck.needsUpgrade) {
@@ -165,6 +195,15 @@ export async function POST(request: Request) {
     },
     60 * 60 * 12
   );
+  registerActiveSession(store, request, token, {
+    kind: "admin",
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    permissions,
+    exp: Math.floor(Date.now() / 1000) + 60 * 60 * 12
+  });
+  await writeStore(store);
 
   const response = NextResponse.json({
     success: true,
@@ -172,7 +211,8 @@ export async function POST(request: Request) {
       email: user.email,
       name: user.name,
       role: user.role,
-      permissions
+      permissions,
+      twoFactorEnabled: !!user.twoFactorEnabled
     }
   });
   response.cookies.set(ADMIN_SESSION_COOKIE, token, {

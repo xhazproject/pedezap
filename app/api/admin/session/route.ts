@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifySessionToken } from "@/lib/auth-session";
+import { readStore, writeStore } from "@/lib/store";
+import { isActiveSessionValid, touchActiveSession } from "@/lib/session-registry";
 
 export async function GET() {
   const token = cookies().get(ADMIN_SESSION_COOKIE)?.value;
@@ -11,6 +13,19 @@ export async function GET() {
       { status: 401 }
     );
   }
+  const store = await readStore();
+  const user = store.adminUsers.find((item) => item.email.toLowerCase() === payload.email.toLowerCase());
+  if (token) {
+    if (!isActiveSessionValid(store, token)) {
+      return NextResponse.json(
+        { success: false, message: "Sessao encerrada remotamente." },
+        { status: 401 }
+      );
+    }
+    if (touchActiveSession(store, token)) {
+      await writeStore(store);
+    }
+  }
 
   return NextResponse.json({
     success: true,
@@ -18,7 +33,8 @@ export async function GET() {
       email: payload.email,
       name: payload.name,
       role: payload.role,
-      permissions: payload.permissions ?? []
+      permissions: payload.permissions ?? [],
+      twoFactorEnabled: !!user?.twoFactorEnabled
     }
   });
 }

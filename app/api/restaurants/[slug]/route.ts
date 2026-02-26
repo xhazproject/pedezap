@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { isSubscriptionBlocked, readStore, writeStore } from "@/lib/store";
+import {
+  applyRestaurantCampaignCalendar,
+  isSubscriptionBlocked,
+  readStore,
+  writeStore
+} from "@/lib/store";
 
 export async function GET(
   _request: Request,
@@ -22,8 +27,10 @@ export async function GET(
     );
   }
 
+  const { restaurant: syncedRestaurant } = applyRestaurantCampaignCalendar(restaurant);
+
   store.restaurants[index] = {
-    ...restaurant,
+    ...syncedRestaurant,
     viewCount: (restaurant.viewCount ?? 0) + 1,
     lastViewAt: new Date().toISOString()
   };

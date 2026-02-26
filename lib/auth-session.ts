@@ -3,6 +3,7 @@ type SessionKind = "admin" | "master";
 type SessionPayloadBase = {
   kind: SessionKind;
   exp: number;
+  sid?: string;
 };
 
 export type AdminSessionPayload = SessionPayloadBase & {
@@ -17,6 +18,11 @@ export type MasterSessionPayload = SessionPayloadBase & {
   kind: "master";
   restaurantSlug: string;
   email: string;
+  userId?: string;
+  userName?: string;
+  role?: string;
+  permissions?: string[];
+  isOwner?: boolean;
 };
 
 export type SessionPayload = AdminSessionPayload | MasterSessionPayload;

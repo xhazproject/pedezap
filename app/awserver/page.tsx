@@ -168,6 +168,23 @@ type AuditLogRow = {
   metadata?: Record<string, string | number | boolean | null>;
 };
 
+type ActiveSessionRow = {
+  id: string;
+  kind: 'admin' | 'master';
+  subjectId: string;
+  subjectName: string;
+  actorEmail?: string;
+  restaurantSlug?: string;
+  role?: string | null;
+  ip: string;
+  userAgent?: string | null;
+  createdAt: string;
+  lastSeenAt: string;
+  expiresAt: string;
+  revokedAt?: string | null;
+  isCurrent?: boolean;
+};
+
 type InvoiceSharePayload = {
   invoiceId: string;
   restaurantName: string;
@@ -505,11 +522,25 @@ export default function AdminPage() {
   const [settingsTab, setSettingsTab] = useState<'general' | 'branding' | 'notifications' | 'integrations' | 'security'>('general');
   const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
   const [auditActions, setAuditActions] = useState<string[]>([]);
+  const [auditTargetTypes, setAuditTargetTypes] = useState<string[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditTotal, setAuditTotal] = useState(0);
   const [auditPage, setAuditPage] = useState(1);
   const [auditQuery, setAuditQuery] = useState('');
   const [auditActionFilter, setAuditActionFilter] = useState('all');
+  const [auditTargetTypeFilter, setAuditTargetTypeFilter] = useState('all');
+  const [auditTargetIdFilter, setAuditTargetIdFilter] = useState('');
+  const [activeSessionsRows, setActiveSessionsRows] = useState<ActiveSessionRow[]>([]);
+  const [activeSessionsLoading, setActiveSessionsLoading] = useState(false);
+  const [sessionsScopeFilter, setSessionsScopeFilter] = useState<'all' | 'admin' | 'master'>('all');
+  const [twoFactorState, setTwoFactorState] = useState<{ enabled: boolean; pending: boolean; secretPreview: string | null; otpauthUri: string | null }>({
+    enabled: false,
+    pending: false,
+    secretPreview: null,
+    otpauthUri: null
+  });
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [twoFactorLoading, setTwoFactorLoading] = useState(false);
   const [settingsForm, setSettingsForm] = useState({
     platformName: 'PedeZap',
     supportUrl: 'https://ajuda.pedezap.ai',
@@ -671,19 +702,136 @@ export default function AdminPage() {
     });
     if (auditQuery) params.set('q', auditQuery);
     if (auditActionFilter !== 'all') params.set('action', auditActionFilter);
+    if (auditTargetTypeFilter !== 'all') params.set('targetType', auditTargetTypeFilter);
+    if (auditTargetIdFilter) params.set('targetId', auditTargetIdFilter);
     const response = await fetch(`/api/admin/security/audit-logs?${params.toString()}`);
     const payload = await response.json().catch(() => null);
     if (response.ok && payload?.success) {
       setAuditLogs(payload.logs ?? []);
       setAuditActions(payload.actions ?? []);
+      setAuditTargetTypes(payload.targetTypes ?? []);
       setAuditTotal(payload.total ?? 0);
     } else {
       setAuditLogs([]);
       setAuditActions([]);
+      setAuditTargetTypes([]);
       setAuditTotal(0);
     }
     setAuditLoading(false);
   }
+
+  async function loadActiveSessions() {
+    setActiveSessionsLoading(true);
+    const params = new URLSearchParams();
+    if (sessionsScopeFilter !== 'all') params.set('scope', sessionsScopeFilter);
+    const response = await fetch(`/api/admin/security/sessions?${params.toString()}`);
+    const payload = await response.json().catch(() => null);
+    if (response.ok && payload?.success) {
+      setActiveSessionsRows(payload.sessions ?? []);
+    } else {
+      setActiveSessionsRows([]);
+    }
+    setActiveSessionsLoading(false);
+  }
+
+  async function loadAdminTwoFactorState() {
+    const response = await fetch('/api/admin/security/2fa');
+    const payload = await response.json().catch(() => null);
+    if (response.ok && payload?.success) {
+      setTwoFactorState({
+        enabled: !!payload.twoFactor?.enabled,
+        pending: !!payload.twoFactor?.pending,
+        secretPreview: payload.twoFactor?.secretPreview ?? null,
+        otpauthUri: payload.twoFactor?.otpauthUri ?? null
+      });
+    }
+  }
+
+  const startTwoFactorSetup = async () => {
+    setTwoFactorLoading(true);
+    const response = await fetch('/api/admin/security/2fa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'start' })
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.success) {
+      alert(payload?.message ?? 'Nao foi possivel iniciar configuracao do 2FA.');
+      setTwoFactorLoading(false);
+      return;
+    }
+    setTwoFactorState({
+      enabled: !!payload.twoFactor?.enabled,
+      pending: !!payload.twoFactor?.pending,
+      secretPreview: payload.twoFactor?.secretPreview ?? null,
+      otpauthUri: payload.twoFactor?.otpauthUri ?? null
+    });
+    setTwoFactorCode('');
+    setTwoFactorLoading(false);
+  };
+
+  const confirmTwoFactorSetup = async () => {
+    if (!twoFactorCode.trim()) {
+      alert('Digite o codigo 2FA.');
+      return;
+    }
+    setTwoFactorLoading(true);
+    const response = await fetch('/api/admin/security/2fa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'confirm', code: twoFactorCode })
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.success) {
+      alert(payload?.message ?? 'Nao foi possivel ativar o 2FA.');
+      setTwoFactorLoading(false);
+      return;
+    }
+    setTwoFactorCode('');
+    await loadAdminTwoFactorState();
+    await loadAuditLogs(1);
+    setTwoFactorLoading(false);
+  };
+
+  const disableTwoFactor = async () => {
+    if (!twoFactorCode.trim()) {
+      alert('Digite o codigo atual do autenticador para desativar.');
+      return;
+    }
+    setTwoFactorLoading(true);
+    const response = await fetch('/api/admin/security/2fa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'disable', code: twoFactorCode })
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.success) {
+      alert(payload?.message ?? 'Nao foi possivel desativar o 2FA.');
+      setTwoFactorLoading(false);
+      return;
+    }
+    setTwoFactorCode('');
+    await loadAdminTwoFactorState();
+    await loadAuditLogs(1);
+    setTwoFactorLoading(false);
+  };
+
+  const handleRevokeSession = async (sessionId: string) => {
+    const confirmRevoke = confirm('Encerrar esta sessao agora?');
+    if (!confirmRevoke) return;
+    const response = await fetch('/api/admin/security/sessions', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId })
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      alert(payload?.message ?? 'Nao foi possivel encerrar a sessao.');
+      return;
+    }
+    await loadActiveSessions();
+    await loadAuditLogs(1);
+  };
 
   async function loadTeamUsers() {
     setTeamLoading(true);
@@ -1458,13 +1606,20 @@ export default function AdminPage() {
     if (activePage !== 'security') return;
     setAuditPage(1);
     loadAuditLogs(1);
+    loadActiveSessions();
+    loadAdminTwoFactorState();
   }, [activePage]);
 
   useEffect(() => {
     if (activePage !== 'security') return;
     setAuditPage(1);
     loadAuditLogs(1);
-  }, [auditQuery, auditActionFilter]);
+  }, [auditQuery, auditActionFilter, auditTargetTypeFilter, auditTargetIdFilter]);
+
+  useEffect(() => {
+    if (activePage !== 'security') return;
+    loadActiveSessions();
+  }, [activePage, sessionsScopeFilter]);
 
   const filteredRestaurants = useMemo(() => {
     return restaurants.filter((item) => {
@@ -4001,6 +4156,177 @@ export default function AdminPage() {
           )}
 {activePage === 'security' && (
             <div className="space-y-4">
+              <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-200">
+                  <h3 className="text-sm font-semibold text-slate-900">Autenticacao em Dois Fatores (2FA)</h3>
+                  <p className="text-xs text-slate-500 mt-1">Proteja o acesso do painel admin com codigo do app autenticador.</p>
+                </div>
+                <div className="p-4 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-medium text-slate-900">
+                        Status: {twoFactorState.enabled ? 'Ativo' : twoFactorState.pending ? 'Pendente de confirmacao' : 'Desativado'}
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        Conta atual: {session?.email}
+                      </div>
+                    </div>
+                    {!twoFactorState.enabled && (
+                      <button
+                        onClick={startTwoFactorSetup}
+                        disabled={twoFactorLoading}
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900 text-white text-sm hover:bg-black disabled:opacity-60"
+                      >
+                        <ShieldAlert size={15} />
+                        {twoFactorState.pending ? 'Gerar nova chave' : 'Ativar 2FA'}
+                      </button>
+                    )}
+                  </div>
+
+                  {twoFactorState.pending && (
+                    <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
+                      <p className="text-sm text-slate-700">
+                        1. Adicione a conta no app autenticador usando a chave abaixo (ou URI). 2. Digite o codigo gerado para confirmar.
+                      </p>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div>
+                          <label className="text-xs font-semibold text-slate-500">Chave secreta</label>
+                          <div className="mt-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-mono break-all">
+                            {twoFactorState.secretPreview}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-slate-500">URI (manual / QR em outro app)</label>
+                          <div className="mt-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs break-all max-h-24 overflow-auto">
+                            {twoFactorState.otpauthUri}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-end gap-2">
+                        <div className="flex-1 min-w-[180px]">
+                          <label className="text-xs font-semibold text-slate-500">Codigo 2FA</label>
+                          <input
+                            value={twoFactorCode}
+                            onChange={(event) => setTwoFactorCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                            className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm tracking-[0.2em]"
+                            placeholder="000000"
+                          />
+                        </div>
+                        <button
+                          onClick={confirmTwoFactorSetup}
+                          disabled={twoFactorLoading}
+                          className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-700 disabled:opacity-60"
+                        >
+                          Confirmar e ativar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {twoFactorState.enabled && (
+                    <div className="rounded-xl border border-red-200 bg-red-50/40 p-4 space-y-3">
+                      <p className="text-sm text-slate-700">
+                        Para desativar o 2FA, confirme com um codigo valido do app autenticador.
+                      </p>
+                      <div className="flex flex-wrap items-end gap-2">
+                        <div className="flex-1 min-w-[180px]">
+                          <label className="text-xs font-semibold text-slate-500">Codigo atual</label>
+                          <input
+                            value={twoFactorCode}
+                            onChange={(event) => setTwoFactorCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                            className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm tracking-[0.2em]"
+                            placeholder="000000"
+                          />
+                        </div>
+                        <button
+                          onClick={disableTwoFactor}
+                          disabled={twoFactorLoading}
+                          className="px-3 py-2 rounded-lg border border-red-200 text-red-600 bg-white hover:bg-red-50 text-sm disabled:opacity-60"
+                        >
+                          Desativar 2FA
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900">Sessoes Ativas</h3>
+                    <p className="text-xs text-slate-500">Admin e painel master conectados. Voce pode encerrar acessos remotamente.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={sessionsScopeFilter}
+                      onChange={(event) => setSessionsScopeFilter(event.target.value as 'all' | 'admin' | 'master')}
+                      className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white text-slate-600"
+                    >
+                      <option value="all">Todas</option>
+                      <option value="admin">Apenas Admin</option>
+                      <option value="master">Apenas Master</option>
+                    </select>
+                    <button
+                      onClick={() => loadActiveSessions()}
+                      className="inline-flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      <RefreshCw size={15} />
+                      Atualizar
+                    </button>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50 text-slate-500 font-medium">
+                      <tr>
+                        <th className="px-4 py-3">TIPO</th>
+                        <th className="px-4 py-3">USUARIO / LOJA</th>
+                        <th className="px-4 py-3">ULTIMA ATIVIDADE</th>
+                        <th className="px-4 py-3">IP</th>
+                        <th className="px-4 py-3">ACAO</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {activeSessionsRows.map((row) => (
+                        <tr key={row.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${row.kind === 'admin' ? 'bg-indigo-50 text-indigo-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                              {row.kind === 'admin' ? 'Admin' : 'Master'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-slate-900">{row.subjectName}</div>
+                            <div className="text-xs text-slate-500">{row.actorEmail ?? row.subjectId}</div>
+                            {row.isCurrent && <div className="text-[11px] text-indigo-600 mt-1">Sessao atual</div>}
+                          </td>
+                          <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
+                            {new Date(row.lastSeenAt).toLocaleString('pt-BR')}
+                          </td>
+                          <td className="px-4 py-3 text-slate-600">{row.ip}</td>
+                          <td className="px-4 py-3">
+                            <button
+                              disabled={!!row.isCurrent}
+                              onClick={() => handleRevokeSession(row.id)}
+                              className="px-3 py-1.5 border border-red-200 text-red-600 rounded-md hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              Encerrar
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {!activeSessionsRows.length && !activeSessionsLoading && (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                            Nenhuma sessao ativa encontrada.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
               <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="relative w-full md:w-80">
                   <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -4012,6 +4338,24 @@ export default function AdminPage() {
                   />
                 </div>
                 <div className="flex items-center gap-2">
+                  <select
+                    value={auditTargetTypeFilter}
+                    onChange={(event) => setAuditTargetTypeFilter(event.target.value)}
+                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white text-slate-600"
+                  >
+                    <option value="all">Todas entidades</option>
+                    {auditTargetTypes.map((targetType) => (
+                      <option key={targetType} value={targetType}>
+                        {targetType}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    value={auditTargetIdFilter}
+                    onChange={(event) => setAuditTargetIdFilter(event.target.value)}
+                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm w-44"
+                    placeholder="ID da entidade"
+                  />
                   <select
                     value={auditActionFilter}
                     onChange={(event) => setAuditActionFilter(event.target.value)}

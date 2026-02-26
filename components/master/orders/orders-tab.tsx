@@ -29,6 +29,7 @@ type Props = {
   getOrderAgeMinutes: (createdAt: string) => number;
   paymentMethodLabel: (paymentMethod: Order['paymentMethod']) => string;
   getOrderStatus: (order: Order) => OrderStatus;
+  activeDeliveryOrders: Order[];
 };
 
 export function MasterOrdersTab(props: Props) {
@@ -51,7 +52,8 @@ export function MasterOrdersTab(props: Props) {
     onPrintOrderTicket,
     getOrderAgeMinutes,
     paymentMethodLabel,
-    getOrderStatus
+    getOrderStatus,
+    activeDeliveryOrders
   } = props;
 
   return (
@@ -128,6 +130,73 @@ export function MasterOrdersTab(props: Props) {
           {hasReachedManualOrderLimit ? ' (limite atingido)' : ''}
         </div>
       )}
+
+      <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">Mapa simples de pedidos ativos</h3>
+            <p className="text-xs text-gray-500">
+              Lista inicial com atalho para rota no mapa. Depois pode evoluir para mapa em tempo real.
+            </p>
+          </div>
+          <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-gray-600">
+            {activeDeliveryOrders.length} ativo(s)
+          </span>
+        </div>
+        {activeDeliveryOrders.length ? (
+          <div className="mt-3 grid grid-cols-1 gap-2 xl:grid-cols-2">
+            {activeDeliveryOrders.map((order) => {
+              const hasCoords =
+                typeof order.customerLatitude === 'number' && typeof order.customerLongitude === 'number';
+              const mapsUrl = hasCoords
+                ? `https://www.google.com/maps/search/?api=1&query=${order.customerLatitude},${order.customerLongitude}`
+                : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.customerAddress)}`;
+              return (
+                <div key={`map_${order.id}`} className="rounded-lg border border-gray-200 bg-white p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">#{order.id} • {order.customerName}</p>
+                      <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">{order.customerAddress}</p>
+                    </div>
+                    <a
+                      href={mapsUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-slate-900 hover:bg-gray-50"
+                    >
+                      Abrir mapa
+                    </a>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-gray-600">
+                    {typeof order.deliveryDistanceKm === 'number' && (
+                      <span className="rounded-full bg-gray-100 px-2 py-1">
+                        {order.deliveryDistanceKm.toFixed(2)} km
+                      </span>
+                    )}
+                    {order.deliveryZoneName && (
+                      <span className="rounded-full bg-gray-100 px-2 py-1">
+                        {order.deliveryZoneName}
+                      </span>
+                    )}
+                    {order.dispatchMode && (
+                      <span className="rounded-full bg-gray-100 px-2 py-1">
+                        Despacho {order.dispatchMode === 'auto' ? 'auto' : 'manual'}
+                      </span>
+                    )}
+                    {order.dispatchStatus && (
+                      <span className="rounded-full bg-gray-100 px-2 py-1">
+                        {order.dispatchStatus}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="mt-2 text-xs text-gray-500">Nenhum pedido ativo com rota no momento.</p>
+        )}
+      </div>
 
       {ordersView === 'board' ? (
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4">

@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { isRestaurantBlocked, isSubscriptionBlocked, makeId, readStore, writeStore } from "@/lib/store";
+import {
+  applyRestaurantCampaignCalendar,
+  isRestaurantBlocked,
+  isSubscriptionBlocked,
+  makeId,
+  readStore,
+  writeStore
+} from "@/lib/store";
 import { geocodeAddress } from "@/lib/geo";
 
 const imageStringSchema = z
@@ -23,6 +30,33 @@ const restaurantUpdateSchema = z.object({
   state: z.string().min(2),
   minOrderValue: z.number().nonnegative(),
   deliveryFee: z.number().nonnegative(),
+  deliveryConfig: z
+    .object({
+      radiusKm: z.number().positive().max(100),
+      feeMode: z.enum(["flat", "distance_bands", "neighborhood_fixed", "hybrid"]),
+      distanceBands: z
+        .array(
+          z.object({
+            id: z.string().min(1),
+            upToKm: z.number().positive(),
+            fee: z.number().nonnegative()
+          })
+        )
+        .default([]),
+      neighborhoodRates: z
+        .array(
+          z.object({
+            id: z.string().min(1),
+            name: z.string().min(1),
+            fee: z.number().nonnegative(),
+            active: z.boolean().default(true)
+          })
+        )
+        .default([]),
+      dispatchMode: z.enum(["manual", "auto"]).default("manual"),
+      autoDispatchEnabled: z.boolean().default(false)
+    })
+    .optional(),
   openForOrders: z.boolean(),
   logoUrl: z.string().optional(),
   coverUrl: z.string().optional()
@@ -95,7 +129,12 @@ const bannerSchema = z.object({
   description: z.string().default(""),
   imageUrl: imageStringSchema,
   active: z.boolean().default(true),
-  productIds: z.array(z.string()).default([])
+  productIds: z.array(z.string()).default([]),
+  abGroup: z.enum(["A", "B", ""]).optional().default(""),
+  clicks: z.number().int().nonnegative().optional().default(0),
+  impressions: z.number().int().nonnegative().optional().default(0),
+  attributedOrders: z.number().int().nonnegative().optional().default(0),
+  lastClickedAt: z.string().nullable().optional()
 });
 
 const marketingCampaignSchema = z.object({
@@ -105,6 +144,17 @@ const marketingCampaignSchema = z.object({
   couponCodes: z.array(z.string()).optional().default([]),
   bannerIds: z.array(z.string()).optional().default([]),
   period: z.string().optional().default(""),
+  startDate: z.string().optional().default(""),
+  endDate: z.string().optional().default(""),
+  autoActivateByCalendar: z.boolean().optional().default(false),
+  utmSource: z.string().optional().default(""),
+  utmMedium: z.string().optional().default(""),
+  utmCampaign: z.string().optional().default(""),
+  utmContent: z.string().optional().default(""),
+  targetCouponCode: z.string().optional().default(""),
+  clicks: z.number().int().nonnegative().optional().default(0),
+  attributedOrders: z.number().int().nonnegative().optional().default(0),
+  lastClickedAt: z.string().nullable().optional(),
   active: z.boolean().default(true),
   createdAt: z.string().min(1)
 });
@@ -135,12 +185,36 @@ const bioLinkSchema = z.object({
   customUrl: z.string().max(240).default("")
 });
 
+const adsAiPlanHistoryItemSchema = z.object({
+  id: z.string().min(1),
+  createdAt: z.string().min(1),
+  campaignName: z.string().min(1),
+  campaignObjective: z.string().min(1),
+  suggestedPeriod: z.string().default(""),
+  targetAudience: z.string().default(""),
+  recommendedRadiusKm: z.number().nonnegative(),
+  dailyBudgetSuggestion: z.string().default(""),
+  channels: z.array(z.string()).default([]),
+  couponSuggestion: z.string().default(""),
+  couponDiscountHint: z.string().default(""),
+  bannerHeadline: z.string().default(""),
+  bannerDescription: z.string().default(""),
+  adCopyPrimary: z.string().default(""),
+  adCopyVariants: z.array(z.string()).default([]),
+  headline: z.string().default(""),
+  cta: z.string().default(""),
+  implementationChecklist: z.array(z.string()).default([]),
+  trackingSuggestion: z.string().default(""),
+  reason: z.string().default("")
+});
+
 export async function GET(
   _request: Request,
   { params }: { params: { slug: string } }
 ) {
   const store = await readStore();
-  const restaurant = store.restaurants.find((item) => item.slug === params.slug);
+  const restaurantIndex = store.restaurants.findIndex((item) => item.slug === params.slug);
+  const restaurant = restaurantIndex >= 0 ? store.restaurants[restaurantIndex] : undefined;
 
   if (!restaurant) {
     return NextResponse.json(
@@ -163,7 +237,15 @@ export async function GET(
     );
   }
 
-  const { ownerPassword: _ownerPassword, ...safeRestaurant } = restaurant;
+  const { restaurant: syncedRestaurant, changed } = applyRestaurantCampaignCalendar(restaurant);
+  if (changed) {
+    store.restaurants[restaurantIndex] = syncedRestaurant;
+    await writeStore(store);
+  }
+
+  const { ownerPassword: _ownerPassword, ...safeRestaurant } = (changed
+    ? store.restaurants[restaurantIndex]
+    : syncedRestaurant);
   return NextResponse.json({ success: true, restaurant: safeRestaurant });
 }
 
@@ -405,6 +487,22 @@ export async function POST(
     return NextResponse.json({
       success: true,
       bioLink: store.restaurants[index].bioLink
+    });
+  }
+
+  if (action === "saveAdsAiPlansHistory") {
+    const parsed = z.array(adsAiPlanHistoryItemSchema).safeParse(payload?.data);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, message: "Historico de ADS IA invalido." },
+        { status: 400 }
+      );
+    }
+    store.restaurants[index].adsAiPlansHistory = parsed.data.slice(0, 30);
+    await writeStore(store);
+    return NextResponse.json({
+      success: true,
+      adsAiPlansHistory: store.restaurants[index].adsAiPlansHistory
     });
   }
 
