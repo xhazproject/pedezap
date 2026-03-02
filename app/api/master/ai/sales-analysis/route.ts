@@ -85,9 +85,41 @@ function buildPrompt(input: z.infer<typeof requestSchema>) {
 }
 
 function tryParseJson(raw: string) {
-  const cleaned = cleanJsonResponseText(raw);
+  const tryParse = (value: string) => {
+    try {
+      return responseSchema.parse(JSON.parse(value));
+    } catch {
+      return null;
+    }
+  };
+
+  const cleaned = cleanJsonResponseText(raw)
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'");
+
+  const direct = tryParse(cleaned);
+  if (direct) return direct;
+
+  const objectMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (objectMatch) {
+    const objectParsed = tryParse(objectMatch[0]);
+    if (objectParsed) return objectParsed;
+  }
+
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    const sliced = tryParse(cleaned.slice(start, end + 1));
+    if (sliced) return sliced;
+  }
+
   try {
-    return responseSchema.parse(JSON.parse(cleaned));
+    return responseSchema.parse({
+      executiveSummary: cleaned.slice(0, 260) || 'A IA retornou um resumo fora do formato esperado.',
+      alerts: [],
+      recommendations: ['Revisar produtos menos vendidos e horarios fracos com uma nova campanha.'],
+      implementationIdeas: ['Padronizar mensagens e acompanhar resultados das campanhas por periodo.']
+    });
   } catch {
     return null;
   }
@@ -128,3 +160,4 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ success: true, analysis: parsedResponse });
 }
+

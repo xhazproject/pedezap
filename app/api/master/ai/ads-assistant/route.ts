@@ -113,9 +113,64 @@ function buildPrompt(input: z.infer<typeof requestSchema>) {
 }
 
 function parseResponse(raw: string) {
-  const cleaned = cleanJsonResponseText(raw);
+  const tryParse = (value: string) => {
+    try {
+      return responseSchema.parse(JSON.parse(value));
+    } catch {
+      return null;
+    }
+  };
+
+  const cleaned = cleanJsonResponseText(raw)
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'");
+
+  const direct = tryParse(cleaned);
+  if (direct) return direct;
+
+  const objectMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (objectMatch) {
+    const objectParsed = tryParse(objectMatch[0]);
+    if (objectParsed) return objectParsed;
+  }
+
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    const sliced = tryParse(cleaned.slice(start, end + 1));
+    if (sliced) return sliced;
+  }
+
   try {
-    return responseSchema.parse(JSON.parse(cleaned));
+    return responseSchema.parse({
+      campaignName: 'Plano local de ADS',
+      campaignObjective: 'Gerar mais pedidos com publico local',
+      suggestedPeriod: 'Horario sugerido pela IA',
+      targetAudience: 'Clientes proximos da loja com interesse em delivery',
+      recommendedRadiusKm: 3,
+      dailyBudgetSuggestion: 'R$ 20 a R$ 35 por dia',
+      channels: ['Instagram Stories', 'WhatsApp'],
+      couponSuggestion: 'PROMO10',
+      couponDiscountHint: '10% acima de R$40',
+      bannerHeadline: 'Oferta do dia',
+      bannerDescription: cleaned.slice(0, 140) || 'Campanha sugerida automaticamente pela IA.',
+      adCopyPrimary: cleaned.slice(0, 220) || 'Confira nossa promocao especial e faca seu pedido agora.',
+      adCopyVariants: [
+        'Oferta local para gerar mais pedidos hoje.',
+        'Promocao rapida para divulgar no Instagram e WhatsApp.',
+        'Campanha com foco em conversao no seu raio de entrega.'
+      ],
+      headline: 'Peca agora',
+      cta: 'Ver cardapio',
+      implementationChecklist: [
+        'Criar campanha com segmentacao local.',
+        'Aplicar banner e cupom sugeridos.',
+        'Usar link rastreado com origem da campanha.',
+        'Acompanhar resultado por 3 a 7 dias.'
+      ],
+      trackingSuggestion: 'Use UTM e link do cardapio com origem da campanha.',
+      reason: 'A IA retornou texto fora do formato ideal e o sistema aplicou um fallback seguro.'
+    });
   } catch {
     return null;
   }
@@ -156,3 +211,4 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ success: true, plan });
 }
+

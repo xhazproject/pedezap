@@ -78,19 +78,54 @@ function buildPrompt(input: z.infer<typeof requestSchema>) {
 }
 
 function parseSuggestion(raw: string): CampaignSuggestion | null {
-  const cleaned = cleanJsonResponseText(raw);
+  const schema = z.object({
+    campaignName: z.string().min(1),
+    period: z.string().min(1),
+    couponSuggestion: z.string().min(1),
+    bannerHeadline: z.string().min(1),
+    bannerDescription: z.string().min(1),
+    whatsappMessage: z.string().min(1),
+    strategyReason: z.string().min(1)
+  });
+
+  const tryParse = (value: string) => {
+    try {
+      return schema.parse(JSON.parse(value));
+    } catch {
+      return null;
+    }
+  };
+
+  const cleaned = cleanJsonResponseText(raw)
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'");
+
+  const direct = tryParse(cleaned);
+  if (direct) return direct;
+
+  const objectMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (objectMatch) {
+    const objectParsed = tryParse(objectMatch[0]);
+    if (objectParsed) return objectParsed;
+  }
+
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    const sliced = tryParse(cleaned.slice(start, end + 1));
+    if (sliced) return sliced;
+  }
+
   try {
-    const parsed = JSON.parse(cleaned);
-    const schema = z.object({
-      campaignName: z.string().min(1),
-      period: z.string().min(1),
-      couponSuggestion: z.string().min(1),
-      bannerHeadline: z.string().min(1),
-      bannerDescription: z.string().min(1),
-      whatsappMessage: z.string().min(1),
-      strategyReason: z.string().min(1)
+    return schema.parse({
+      campaignName: 'Campanha sugerida',
+      period: 'Horario sugerido pela IA',
+      couponSuggestion: 'CUPOM10',
+      bannerHeadline: cleaned.slice(0, 80) || 'Oferta especial',
+      bannerDescription: cleaned.slice(0, 140) || 'Promocao sugerida automaticamente pela IA.',
+      whatsappMessage: cleaned.slice(0, 220) || 'Confira nossa promocao especial no cardapio.',
+      strategyReason: 'A IA retornou texto fora do formato ideal e o sistema aplicou um fallback seguro.'
     });
-    return schema.parse(parsed);
   } catch {
     return null;
   }
@@ -131,3 +166,4 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ success: true, suggestion });
 }
+
