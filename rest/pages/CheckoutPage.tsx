@@ -49,7 +49,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   onProfile
 }) => {
   const { cart, cartCount, removeFromCart, updateQuantity, updateItemNotes, clearCart, cartTotal } = useCart();
-  const { deliveryFee, minOrderValue, slug, isOpen } = RESTAURANT_DATA;
+  const { deliveryFee, minOrderValue, slug, isOpen, pickupEnabled, pickupInstructions, address: storeAddress } = RESTAURANT_DATA;
   const [submitting, setSubmitting] = useState(false);
   const [estimatingDelivery, setEstimatingDelivery] = useState(false);
   const [deliveryEstimate, setDeliveryEstimate] = useState<DeliveryEstimatePayload | null>(null);
@@ -62,22 +62,27 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
     phone: initialCustomerData?.phone || '',
     email: initialCustomerData?.email || '',
     address: initialCustomerData?.address || '',
+    fulfillmentType: initialCustomerData?.fulfillmentType || 'delivery',
     paymentMethod: 'credit',
     changeFor: '',
     reference: ''
   });
 
+  const isPickup = customer.fulfillmentType === 'pickup';
+
   const effectiveDeliveryFee =
-    deliveryEstimate?.success && typeof deliveryEstimate.deliveryFee === 'number'
+    isPickup
+      ? 0
+      : deliveryEstimate?.success && typeof deliveryEstimate.deliveryFee === 'number'
       ? deliveryEstimate.deliveryFee
       : deliveryFee;
-  const isAddressOutOfRange = !!deliveryEstimate?.outOfRange;
+  const isAddressOutOfRange = !isPickup && !!deliveryEstimate?.outOfRange;
   const totalWithDelivery = cartTotal + effectiveDeliveryFee;
 
   const isValid =
     customer.name.trim().length > 1 &&
     customer.phone.trim().length > 7 &&
-    customer.address.trim().length > 5 &&
+    (isPickup || customer.address.trim().length > 5) &&
     cart.length > 0 &&
     cartTotal >= minOrderValue;
   const canSubmitOrder = isValid && isOpen && !isAddressOutOfRange;
@@ -88,7 +93,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   );
 
   useEffect(() => {
-    if (!slug || normalizedAddressForEstimate.length < 6 || cart.length === 0) {
+    if (isPickup || !slug || normalizedAddressForEstimate.length < 6 || cart.length === 0) {
       setEstimatingDelivery(false);
       setDeliveryEstimate(null);
       setDeliveryEstimateError('');
@@ -139,7 +144,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
       controller.abort();
       window.clearTimeout(timeoutId);
     };
-  }, [slug, normalizedAddressForEstimate, cart.length, cartTotal]);
+  }, [slug, normalizedAddressForEstimate, cart.length, cartTotal, isPickup]);
 
   async function handleSendOrder() {
     if (!canSubmitOrder || !slug) return;
@@ -160,7 +165,8 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
         customerName: customer.name,
         customerWhatsapp: customer.phone,
         customerEmail: customer.email || undefined,
-        customerAddress: customer.address,
+        customerAddress: isPickup ? storeAddress : customer.address,
+        fulfillmentType: customer.fulfillmentType,
         couponCode: couponCode.trim().toUpperCase() || undefined,
         trafficSource: initialAttribution?.trafficSource,
         utmSource: initialAttribution?.utmSource,
@@ -359,16 +365,48 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <div className="p-4 border-b border-gray-100 bg-gray-50">
             <h2 className="font-semibold text-gray-700 flex items-center gap-2">
-              <MapPin size={18} /> Entrega
+              <MapPin size={18} /> Entrega / Retirada
             </h2>
           </div>
           <div className="p-4 space-y-4">
-            <textarea value={customer.address} onChange={(e) => setCustomer({ ...customer, address: e.target.value })} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg h-24 resize-none" placeholder="Endereco completo" />
-            <input type="text" value={customer.reference} onChange={(e) => setCustomer({ ...customer, reference: e.target.value })} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg" placeholder="Ponto de referencia (opcional)" />
-            {estimatingDelivery ? (
+            <div className={`grid gap-3 ${pickupEnabled ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              <button
+                type="button"
+                onClick={() => setCustomer({ ...customer, fulfillmentType: 'delivery' })}
+                className={`rounded-lg border px-4 py-3 text-sm font-semibold ${
+                  !isPickup ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600'
+                }`}
+              >
+                Entrega
+              </button>
+              {pickupEnabled ? (
+                <button
+                  type="button"
+                  onClick={() => setCustomer({ ...customer, fulfillmentType: 'pickup' })}
+                  className={`rounded-lg border px-4 py-3 text-sm font-semibold ${
+                    isPickup ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600'
+                  }`}
+                >
+                  Retirar na loja
+                </button>
+              ) : null}
+            </div>
+            {!isPickup ? (
+              <>
+                <textarea value={customer.address} onChange={(e) => setCustomer({ ...customer, address: e.target.value })} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg h-24 resize-none" placeholder="Endereco completo" />
+                <input type="text" value={customer.reference} onChange={(e) => setCustomer({ ...customer, reference: e.target.value })} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg" placeholder="Ponto de referencia (opcional)" />
+              </>
+            ) : (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-800">
+                <div className="font-semibold">Retirada no local</div>
+                <div className="mt-1">{storeAddress}</div>
+                {pickupInstructions ? <div className="mt-2 text-xs text-emerald-700">{pickupInstructions}</div> : null}
+              </div>
+            )}
+            {!isPickup && estimatingDelivery ? (
               <p className="text-xs text-gray-500">Calculando taxa de entrega...</p>
             ) : null}
-            {deliveryEstimate?.success ? (
+            {!isPickup && deliveryEstimate?.success ? (
               <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
                 <div className="font-semibold">
                   Taxa estimada: {formatCurrency(deliveryEstimate.deliveryFee ?? effectiveDeliveryFee)}
@@ -386,12 +424,12 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                 </div>
               </div>
             ) : null}
-            {deliveryEstimate?.outOfRange ? (
+            {!isPickup && deliveryEstimate?.outOfRange ? (
               <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
                 {deliveryEstimate.message || 'Endereco fora do raio de entrega da loja.'}
               </p>
             ) : null}
-            {!deliveryEstimate?.outOfRange && deliveryEstimateError ? (
+            {!isPickup && !deliveryEstimate?.outOfRange && deliveryEstimateError ? (
               <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
                 {deliveryEstimateError} Usando taxa padrao por enquanto.
               </p>
@@ -450,7 +488,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
         <div className="container mx-auto max-w-2xl">
           <div className="space-y-1 mb-4 text-sm">
             <div className="flex justify-between text-gray-600"><span>Subtotal</span><span>{formatCurrency(cartTotal)}</span></div>
-            <div className="flex justify-between text-gray-600"><span>Taxa de Entrega</span><span>{formatCurrency(effectiveDeliveryFee)}</span></div>
+            <div className="flex justify-between text-gray-600"><span>{isPickup ? 'Retirada' : 'Taxa de Entrega'}</span><span>{formatCurrency(effectiveDeliveryFee)}</span></div>
             <div className="flex justify-between font-bold text-lg text-gray-800 pt-2 border-t border-dashed"><span>Total</span><span>{formatCurrency(totalWithDelivery)}</span></div>
           </div>
           {cartTotal < minOrderValue && (

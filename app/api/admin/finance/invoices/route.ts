@@ -78,7 +78,10 @@ export async function POST(request: Request) {
     status: "Pendente" as const,
     method: parsed.data.method,
     createdAt: new Date().toISOString(),
-    paidAt: null
+    paidAt: null,
+    lastTwilioSentAt: null,
+    lastTwilioMessageSid: null,
+    lastTwilioStatus: null
   };
 
   store.invoices.unshift(invoice);

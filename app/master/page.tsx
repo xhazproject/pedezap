@@ -328,6 +328,7 @@ type ManualOrderForm = {
   customerName: string;
   customerWhatsapp: string;
   customerAddress: string;
+  fulfillmentType: 'delivery' | 'pickup';
   paymentMethod: ManualOrderPaymentMethod;
   items: ManualOrderItem[];
 };
@@ -597,6 +598,7 @@ function createDefaultManualOrderForm(): ManualOrderForm {
     customerName: '',
     customerWhatsapp: '',
     customerAddress: '',
+    fulfillmentType: 'delivery',
     paymentMethod: 'money',
     items: []
   };
@@ -625,6 +627,8 @@ function createDefaultDeliveryConfig(): RestaurantDeliveryConfig {
       { id: `band_${Date.now()}_2`, upToKm: 6, fee: 8 }
     ],
     neighborhoodRates: [],
+    pickupEnabled: false,
+    pickupInstructions: '',
     dispatchMode: 'manual',
     autoDispatchEnabled: false
   };
@@ -647,6 +651,8 @@ function normalizeDeliveryConfig(config?: RestaurantDeliveryConfig | null): Rest
       fee: Number(zone.fee) || 0,
       active: zone.active ?? true
     })),
+    pickupEnabled: config.pickupEnabled ?? fallback.pickupEnabled,
+    pickupInstructions: config.pickupInstructions ?? fallback.pickupInstructions,
     dispatchMode: config.dispatchMode ?? fallback.dispatchMode,
     autoDispatchEnabled: config.autoDispatchEnabled ?? fallback.autoDispatchEnabled
   };
@@ -2889,7 +2895,10 @@ export default function MasterPage() {
       '{itens}': items || 'Itens do pedido',
       '{total}': moneyFormatter.format(order.total),
       '{pagamento}': paymentMethodLabel(order.paymentMethod),
-      '{endereco}': order.customerAddress,
+      '{endereco}':
+        order.fulfillmentType === 'pickup'
+          ? restaurant?.address || 'Retirada na loja'
+          : order.customerAddress,
       '{obs}': notes || '-'
     };
 
@@ -2905,7 +2914,14 @@ export default function MasterPage() {
     const text =
       nextStatus === 'Em preparo'
         ? buildOrderTemplateMessage(settingsOrderPreparingMessage, order)
-        : buildOrderTemplateMessage(settingsOrderOutForDeliveryMessage, order);
+        : order.fulfillmentType === 'pickup'
+          ? `Ola, ${order.customerName} Seu pedido Nº ${order.id}, esta pronto para Retirada!\n\nItems:\n ${order.items
+              .map((item) => `${item.quantity}x ${item.name}`)
+              .join(', ')}\nObs. ${order.items
+              .map((item) => item.notes?.trim())
+              .filter(Boolean)
+              .join(' | ') || '-'}\n\nTotal: ${moneyFormatter.format(order.total)}\nForma Pag: ${paymentMethodLabel(order.paymentMethod)}\nRetirada: ${restaurant?.address || 'No balcao da loja'}`
+          : buildOrderTemplateMessage(settingsOrderOutForDeliveryMessage, order);
 
     navigateToExternalLink(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`);
   };
@@ -2958,8 +2974,12 @@ export default function MasterPage() {
       alert('Limite mensal de pedidos manuais atingido para o seu plano.');
       return;
     }
-    if (!manualOrderForm.customerName.trim() || !manualOrderForm.customerWhatsapp.trim() || !manualOrderForm.customerAddress.trim()) {
+    if (!manualOrderForm.customerName.trim() || !manualOrderForm.customerWhatsapp.trim()) {
       alert('Preencha os dados do cliente.');
+      return;
+    }
+    if (manualOrderForm.fulfillmentType === 'delivery' && !manualOrderForm.customerAddress.trim()) {
+      alert('Preencha o endereco para pedidos de entrega.');
       return;
     }
     if (!manualOrderForm.items.length) {
@@ -2993,7 +3013,11 @@ export default function MasterPage() {
         restaurantSlug: session.restaurantSlug,
         customerName: manualOrderForm.customerName.trim(),
         customerWhatsapp: manualOrderForm.customerWhatsapp.trim(),
-        customerAddress: manualOrderForm.customerAddress.trim(),
+        customerAddress:
+          manualOrderForm.fulfillmentType === 'pickup'
+            ? restaurant.address || 'Retirada na loja'
+            : manualOrderForm.customerAddress.trim(),
+        fulfillmentType: manualOrderForm.fulfillmentType,
         paymentMethod: manualOrderForm.paymentMethod,
         source: 'panel',
         items: itemsPayload
@@ -3035,7 +3059,9 @@ export default function MasterPage() {
         const shouldSend = window.confirm(
           status === 'Em preparo'
             ? 'Enviar mensagem para o cliente informando que o pedido esta em preparo?'
-            : 'Enviar mensagem para o cliente informando que o pedido saiu para entrega?'
+            : payload.order.fulfillmentType === 'pickup'
+              ? 'Enviar mensagem para o cliente informando que o pedido esta pronto para retirada?'
+              : 'Enviar mensagem para o cliente informando que o pedido saiu para entrega?'
         );
         if (shouldSend) {
           openCustomerStatusMessage(payload.order, status);
@@ -3152,7 +3178,8 @@ export default function MasterPage() {
           <div class="section">
             <div class="line"><span><strong>Cliente</strong></span><span>${escapeHtml(order.customerName)}</span></div>
             <div class="line"><span><strong>WhatsApp</strong></span><span>${escapeHtml(order.customerWhatsapp)}</span></div>
-            <div class="line"><span><strong>Endereco</strong></span><span>${escapeHtml(order.customerAddress)}</span></div>
+            <div class="line"><span><strong>Tipo</strong></span><span>${order.fulfillmentType === 'pickup' ? 'Retirada' : 'Entrega'}</span></div>
+            <div class="line"><span><strong>${order.fulfillmentType === 'pickup' ? 'Retirada' : 'Endereco'}</strong></span><span>${escapeHtml(order.customerAddress)}</span></div>
             <div class="line"><span><strong>Pagamento</strong></span><span>${paymentLabel}</span></div>
           </div>
 
@@ -3163,7 +3190,7 @@ export default function MasterPage() {
 
           <div class="totals">
             <div class="line"><span>Subtotal</span><span>R$ ${order.subtotal.toFixed(2)}</span></div>
-            <div class="line"><span>Entrega</span><span>R$ ${order.deliveryFee.toFixed(2)}</span></div>
+            <div class="line"><span>${order.fulfillmentType === 'pickup' ? 'Retirada' : 'Entrega'}</span><span>R$ ${order.deliveryFee.toFixed(2)}</span></div>
             <div class="line grand-total"><span>Total</span><span>R$ ${order.total.toFixed(2)}</span></div>
           </div>
 
@@ -3233,7 +3260,9 @@ export default function MasterPage() {
     'Em preparo': filteredOrders.filter((order) => getOrderStatus(order) === 'Em preparo'),
     Concluido: filteredOrders.filter((order) => getOrderStatus(order) === 'Concluido')
   } as const;
-  const activeDeliveryOrders = filteredOrders.filter((order) => getOrderStatus(order) !== 'Concluido');
+  const activeDeliveryOrders = filteredOrders.filter(
+    (order) => getOrderStatus(order) !== 'Concluido' && (order.fulfillmentType ?? 'delivery') !== 'pickup'
+  );
   const faqItems = [
     'Como altero o horario de funcionamento?',
     'Posso pausar a loja temporariamente?',
@@ -5650,6 +5679,38 @@ export default function MasterPage() {
                                   />
                                   Habilitar auto despacho (modo inicial - sem integracao de entregadores)
                                 </label>
+
+                                <div className="rounded-xl border border-gray-200 bg-white p-3">
+                                  <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+                                    <input
+                                      type="checkbox"
+                                      checked={deliveryCfg.pickupEnabled}
+                                      onChange={(event) =>
+                                        updateDeliveryConfig((current) => ({
+                                          ...current,
+                                          pickupEnabled: event.target.checked
+                                        }))
+                                      }
+                                      className="h-4 w-4 rounded border-gray-300 text-slate-800"
+                                    />
+                                    Permitir retirada no local
+                                  </label>
+                                  <div className="mt-3">
+                                    <label className="text-sm text-gray-700">Instrucoes de retirada (opcional)</label>
+                                    <textarea
+                                      value={deliveryCfg.pickupInstructions ?? ''}
+                                      onChange={(event) =>
+                                        updateDeliveryConfig((current) => ({
+                                          ...current,
+                                          pickupInstructions: event.target.value
+                                        }))
+                                      }
+                                      rows={3}
+                                      placeholder="Ex.: Retire no balcao e informe o numero do pedido."
+                                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none"
+                                    />
+                                  </div>
+                                </div>
 
                                 <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
                                   <div className="mb-2 flex items-center justify-between gap-3">

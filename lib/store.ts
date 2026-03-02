@@ -198,6 +198,8 @@ function normalizeStore(parsed: Partial<AppStore>): AppStore {
         fee: Number.isFinite(zone.fee) ? zone.fee : 0,
         active: zone.active ?? true
       })),
+      pickupEnabled: item.deliveryConfig?.pickupEnabled ?? false,
+      pickupInstructions: item.deliveryConfig?.pickupInstructions ?? "",
       dispatchMode: item.deliveryConfig?.dispatchMode ?? "manual",
       autoDispatchEnabled: item.deliveryConfig?.autoDispatchEnabled ?? false
     },
@@ -240,6 +242,7 @@ function normalizeStore(parsed: Partial<AppStore>): AppStore {
     discountValue: order.discountValue ?? 0,
     couponCode: order.couponCode ?? undefined,
     source: order.source ?? "catalog",
+    fulfillmentType: order.fulfillmentType ?? "delivery",
     customerLatitude: order.customerLatitude ?? null,
     customerLongitude: order.customerLongitude ?? null,
     deliveryDistanceKm: order.deliveryDistanceKm ?? null,
@@ -274,6 +277,12 @@ function normalizeStore(parsed: Partial<AppStore>): AppStore {
       revokedAt: session.revokedAt ?? null
     })),
     invoices: parsed.invoices ?? defaultStore.invoices,
+    twilioMessages: (parsed.twilioMessages ?? []).map((item) => ({
+      ...item,
+      templateId: item.templateId ?? null,
+      messageSid: item.messageSid ?? null,
+      errorMessage: item.errorMessage ?? null
+    })),
     adminUsers,
     adminRoles,
     supportTickets: parsed.supportTickets ?? defaultStore.supportTickets,
@@ -302,7 +311,20 @@ function normalizeStore(parsed: Partial<AppStore>): AppStore {
       }
     },
     payouts: parsed.payouts ?? defaultStore.payouts,
-    adminSettings: { ...defaultStore.adminSettings, ...(parsed.adminSettings ?? {}) }
+    adminSettings: {
+      ...defaultStore.adminSettings,
+      ...(parsed.adminSettings ?? {}),
+      notificationTemplates:
+        parsed.adminSettings?.notificationTemplates ?? defaultStore.adminSettings.notificationTemplates,
+      integrations: {
+        ...defaultStore.adminSettings.integrations,
+        ...(parsed.adminSettings?.integrations ?? {})
+      },
+      securityPolicies: {
+        ...defaultStore.adminSettings.securityPolicies,
+        ...(parsed.adminSettings?.securityPolicies ?? {})
+      }
+    }
   };
 }
 

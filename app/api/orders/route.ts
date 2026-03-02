@@ -7,10 +7,11 @@ import { geocodeQuery, haversineDistanceKm } from "@/lib/geo";
 const orderSchema = z.object({
   restaurantSlug: z.string().min(1),
   source: z.enum(["catalog", "panel"]).optional(),
+  fulfillmentType: z.enum(["delivery", "pickup"]).optional(),
   customerName: z.string().min(2),
   customerWhatsapp: z.string().min(10),
   customerEmail: z.string().email().optional(),
-  customerAddress: z.string().min(5),
+  customerAddress: z.string().optional().default(""),
   couponCode: z.string().optional(),
   trafficSource: z.string().optional(),
   utmSource: z.string().optional(),
@@ -77,6 +78,8 @@ function resolveDeliveryFee(restaurant: any, customerAddress: string) {
     feeMode: "flat",
     distanceBands: [],
     neighborhoodRates: [],
+    pickupEnabled: false,
+    pickupInstructions: "",
     dispatchMode: "manual",
     autoDispatchEnabled: false
   };
@@ -154,6 +157,18 @@ export async function POST(request: Request) {
     (sum, item) => sum + item.price * item.quantity,
     0
   );
+  const fulfillmentType = parsed.data.fulfillmentType ?? "delivery";
+  const customerAddress =
+    fulfillmentType === "pickup"
+      ? parsed.data.customerAddress?.trim() || restaurant.address || "Retirada na loja"
+      : (parsed.data.customerAddress ?? "").trim();
+
+  if (fulfillmentType === "delivery" && customerAddress.length < 5) {
+    return NextResponse.json(
+      { success: false, message: "Endereco obrigatorio para entrega." },
+      { status: 400 }
+    );
+  }
   const normalizedCoupon = parsed.data.couponCode
     ? normalizeCouponCode(parsed.data.couponCode)
     : "";
@@ -211,10 +226,12 @@ export async function POST(request: Request) {
   }
 
   let customerGeo: { latitude: number; longitude: number } | null = null;
-  try {
-    customerGeo = await geocodeQuery(parsed.data.customerAddress);
-  } catch {
-    customerGeo = null;
+  if (fulfillmentType === "delivery") {
+    try {
+      customerGeo = await geocodeQuery(customerAddress);
+    } catch {
+      customerGeo = null;
+    }
   }
 
   const storeLat = typeof restaurant.latitude === "number" ? restaurant.latitude : null;
@@ -226,11 +243,11 @@ export async function POST(request: Request) {
 
   const { config: deliveryConfig, activeNeighborhood, pickDistanceBandFee } = resolveDeliveryFee(
     restaurant,
-    parsed.data.customerAddress
+    customerAddress
   );
 
   const radiusKm = Number(deliveryConfig.radiusKm ?? 10) || 10;
-  if (deliveryDistanceKm !== null && deliveryDistanceKm > radiusKm) {
+  if (fulfillmentType === "delivery" && deliveryDistanceKm !== null && deliveryDistanceKm > radiusKm) {
     return NextResponse.json(
       {
         success: false,
@@ -251,7 +268,11 @@ export async function POST(request: Request) {
       : null;
 
   const feeMode = deliveryConfig.feeMode ?? "flat";
-  if (feeMode === "flat") {
+  if (fulfillmentType === "pickup") {
+    deliveryFee = 0;
+    deliveryZoneName = null;
+    deliveryFeeSource = "flat";
+  } else if (feeMode === "flat") {
     deliveryFeeSource = "flat";
   } else if (feeMode === "distance_bands") {
     if (distanceBand) {
@@ -293,16 +314,22 @@ export async function POST(request: Request) {
     id: makeId("order"),
     restaurantSlug: restaurant.slug,
     source: parsed.data.source ?? "catalog",
+    fulfillmentType,
     customerName: parsed.data.customerName,
     customerWhatsapp: parsed.data.customerWhatsapp,
-    customerAddress: parsed.data.customerAddress,
+    customerAddress,
     customerLatitude: customerGeo?.latitude ?? null,
     customerLongitude: customerGeo?.longitude ?? null,
     deliveryDistanceKm: deliveryDistanceKm !== null ? Number(deliveryDistanceKm.toFixed(2)) : null,
     deliveryZoneName,
     deliveryFeeSource,
     dispatchStatus: "pending",
-    dispatchMode: deliveryConfig.dispatchMode === "auto" && deliveryConfig.autoDispatchEnabled ? "auto" : "manual",
+    dispatchMode:
+      fulfillmentType === "pickup"
+        ? "manual"
+        : deliveryConfig.dispatchMode === "auto" && deliveryConfig.autoDispatchEnabled
+          ? "auto"
+          : "manual",
     trafficSource: parsed.data.trafficSource?.trim() || undefined,
     utmSource: parsed.data.utmSource?.trim() || undefined,
     utmMedium: parsed.data.utmMedium?.trim() || undefined,
@@ -404,18 +431,22 @@ export async function POST(request: Request) {
   if (discountValue > 0) {
     message += `Desconto (${appliedCouponCode}): -R$ ${discountValue.toFixed(2)}\n`;
   }
-  message += `Taxa entrega: R$ ${deliveryFee.toFixed(2)}\n`;
-  if (createdOrder.deliveryDistanceKm !== null && createdOrder.deliveryDistanceKm !== undefined) {
-    message += `Distancia: ${createdOrder.deliveryDistanceKm.toFixed(2)} km\n`;
-  }
-  if (deliveryZoneName) {
-    message += `Regiao: ${deliveryZoneName}\n`;
+  if (fulfillmentType === "pickup") {
+    message += "Tipo: Retirada no local\n";
+  } else {
+    message += `Taxa entrega: R$ ${deliveryFee.toFixed(2)}\n`;
+    if (createdOrder.deliveryDistanceKm !== null && createdOrder.deliveryDistanceKm !== undefined) {
+      message += `Distancia: ${createdOrder.deliveryDistanceKm.toFixed(2)} km\n`;
+    }
+    if (deliveryZoneName) {
+      message += `Regiao: ${deliveryZoneName}\n`;
+    }
   }
   message += `*TOTAL: R$ ${total.toFixed(2)}*\n\n`;
   message += "*DADOS DO CLIENTE*\n";
   message += `Nome: ${parsed.data.customerName}\n`;
   message += `WhatsApp: ${parsed.data.customerWhatsapp}\n`;
-  message += `Endereco: ${parsed.data.customerAddress}\n`;
+  message += `${fulfillmentType === "pickup" ? "Retirada" : "Endereco"}: ${customerAddress}\n`;
   message += `Pagamento: ${paymentLabels[parsed.data.paymentMethod]}\n`;
   if (parsed.data.generalNotes) {
     message += `\nObs geral: ${parsed.data.generalNotes}`;

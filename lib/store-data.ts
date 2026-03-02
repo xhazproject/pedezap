@@ -120,6 +120,8 @@ export type RestaurantDeliveryConfig = {
   feeMode: "flat" | "distance_bands" | "neighborhood_fixed" | "hybrid";
   distanceBands: RestaurantDeliveryDistanceBand[];
   neighborhoodRates: RestaurantDeliveryNeighborhoodRate[];
+  pickupEnabled: boolean;
+  pickupInstructions?: string;
   dispatchMode: "manual" | "auto";
   autoDispatchEnabled: boolean;
 };
@@ -267,6 +269,7 @@ export type Order = {
   id: string;
   restaurantSlug: string;
   source?: "catalog" | "panel";
+  fulfillmentType?: "delivery" | "pickup";
   customerName: string;
   customerWhatsapp: string;
   customerAddress: string;
@@ -347,6 +350,7 @@ export type AppStore = {
   auditLogs: AuditLog[];
   activeSessions: ActiveSession[];
   invoices: Invoice[];
+  twilioMessages: TwilioMessageLog[];
   adminUsers: AdminUser[];
   adminRoles: AdminRole[];
   supportTickets: SupportTicket[];
@@ -373,6 +377,24 @@ export type Invoice = {
   createdAt: string;
   paidAt?: string | null;
   externalId?: string | null;
+  lastTwilioSentAt?: string | null;
+  lastTwilioMessageSid?: string | null;
+  lastTwilioStatus?: string | null;
+};
+
+export type TwilioMessageLog = {
+  id: string;
+  to: string;
+  from: string;
+  body: string;
+  templateId?: string | null;
+  targetType: string;
+  targetId: string;
+  status: string;
+  messageSid?: string | null;
+  errorMessage?: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type AdminStatus = "Ativo" | "Inativo";
@@ -480,6 +502,7 @@ export type AdminSettings = {
     abacatepay: { connected: boolean; environment: "Producao" | "Teste"; webhookUrl: string };
     stripe: { connected: boolean; webhookUrl: string };
     whatsappEvolution: { connected: boolean; webhookUrl: string };
+    twilio: { connected: boolean; whatsappFrom: string; statusCallbackUrl: string };
   };
   securityPolicies: {
     enforce2FA: boolean;
@@ -675,7 +698,10 @@ export const defaultStore: AppStore = {
       status: "Pago",
       method: "Cartao de Credito",
       createdAt: "2026-01-01T12:00:00.000Z",
-      paidAt: "2026-01-10T12:00:00.000Z"
+      paidAt: "2026-01-10T12:00:00.000Z",
+      lastTwilioSentAt: null,
+      lastTwilioMessageSid: null,
+      lastTwilioStatus: null
     },
     {
       id: "INV-002",
@@ -687,9 +713,13 @@ export const defaultStore: AppStore = {
       status: "Pendente",
       method: "Boleto",
       createdAt: "2026-01-01T12:00:00.000Z",
-      paidAt: null
+      paidAt: null,
+      lastTwilioSentAt: null,
+      lastTwilioMessageSid: null,
+      lastTwilioStatus: null
     }
   ],
+  twilioMessages: [],
   adminUsers: [
     {
       id: "adm_master",
@@ -1051,6 +1081,37 @@ export const defaultStore: AppStore = {
           "Oi {nome_cliente}! Recebemos seu pedido #{numero_pedido} no valor de {valor_total}. Previsao: {tempo_estimado}.",
         variables: ["{nome_cliente}", "{numero_pedido}", "{valor_total}", "{tempo_estimado}"],
         active: true
+      },
+      {
+        id: "tpl_invoice_due",
+        title: "Cobranca de Fatura",
+        message:
+          "Ola {nome_restaurante}! Segue a cobranca da fatura {numero_fatura} do PedeZap.\nValor: {valor_fatura}\nVencimento: {vencimento_fatura}\nForma de pagamento: {forma_pagamento}\nAcesse seu painel: {link_painel}",
+        variables: [
+          "{nome_restaurante}",
+          "{numero_fatura}",
+          "{valor_fatura}",
+          "{vencimento_fatura}",
+          "{forma_pagamento}",
+          "{link_painel}"
+        ],
+        active: true
+      },
+      {
+        id: "tpl_invoice_overdue",
+        title: "Cobranca Vencida",
+        message:
+          "Ola {nome_restaurante}! Sua fatura {numero_fatura} esta vencida.\nValor: {valor_fatura}\nRegularize o pagamento para evitar suspensao.\nPainel: {link_painel}",
+        variables: ["{nome_restaurante}", "{numero_fatura}", "{valor_fatura}", "{link_painel}"],
+        active: true
+      },
+      {
+        id: "tpl_invoice_paid",
+        title: "Pagamento Confirmado",
+        message:
+          "Ola {nome_restaurante}! Confirmamos o pagamento da fatura {numero_fatura} no valor de {valor_fatura}. Obrigado por continuar com o PedeZap.",
+        variables: ["{nome_restaurante}", "{numero_fatura}", "{valor_fatura}"],
+        active: true
       }
     ],
     integrations: {
@@ -1066,6 +1127,11 @@ export const defaultStore: AppStore = {
       whatsappEvolution: {
         connected: false,
         webhookUrl: "https://api.pedezap.ai/v1/webhooks/whatsapp-evolution"
+      },
+      twilio: {
+        connected: false,
+        whatsappFrom: "whatsapp:+14155238886",
+        statusCallbackUrl: ""
       }
     },
     securityPolicies: {

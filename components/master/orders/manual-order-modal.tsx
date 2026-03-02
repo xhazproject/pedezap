@@ -13,6 +13,7 @@ type ManualOrderForm = {
   customerName: string;
   customerWhatsapp: string;
   customerAddress: string;
+  fulfillmentType: 'delivery' | 'pickup';
   paymentMethod: ManualOrderPaymentMethod;
   items: ManualOrderItem[];
 };
@@ -81,6 +82,33 @@ export function ManualOrderModal({
               />
             </div>
             <div>
+              <label className="text-sm text-gray-700">Tipo do Pedido</label>
+              <div className="mt-1 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm((prev) => ({ ...prev, fulfillmentType: 'delivery' }))}
+                  className={`rounded-lg border px-3 py-2 text-sm font-medium ${
+                    form.fulfillmentType === 'delivery'
+                      ? 'border-slate-900 bg-slate-900 text-white'
+                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Entrega
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm((prev) => ({ ...prev, fulfillmentType: 'pickup' }))}
+                  className={`rounded-lg border px-3 py-2 text-sm font-medium ${
+                    form.fulfillmentType === 'pickup'
+                      ? 'border-slate-900 bg-slate-900 text-white'
+                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Retirada
+                </button>
+              </div>
+            </div>
+            <div>
               <label className="text-sm text-gray-700">Telefone / WhatsApp</label>
               <input
                 value={form.customerWhatsapp}
@@ -89,16 +117,22 @@ export function ManualOrderModal({
                 className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
               />
             </div>
-            <div>
-              <label className="text-sm text-gray-700">Endereco de Entrega</label>
-              <textarea
-                value={form.customerAddress}
-                onChange={(event) => setForm((prev) => ({ ...prev, customerAddress: event.target.value }))}
-                placeholder="Rua, Numero, Bairro, Complemento..."
-                rows={3}
-                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm resize-none"
-              />
-            </div>
+            {form.fulfillmentType === 'delivery' ? (
+              <div>
+                <label className="text-sm text-gray-700">Endereco de Entrega</label>
+                <textarea
+                  value={form.customerAddress}
+                  onChange={(event) => setForm((prev) => ({ ...prev, customerAddress: event.target.value }))}
+                  placeholder="Rua, Numero, Bairro, Complemento..."
+                  rows={3}
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm resize-none"
+                />
+              </div>
+            ) : (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
+                Pedido marcado como retirada no local. O cliente buscara na loja.
+              </div>
+            )}
             <div>
               <label className="text-sm text-gray-700">Forma de Pagamento</label>
               <select
@@ -207,4 +241,3 @@ export function ManualOrderModal({
     </div>
   );
 }
-

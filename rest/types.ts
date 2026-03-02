@@ -48,6 +48,8 @@ export interface Restaurant {
   taxId?: string | null;
   minOrderValue: number;
   deliveryFee: number;
+  pickupEnabled?: boolean;
+  pickupInstructions?: string;
   coupons?: RestaurantCoupon[];
 }
 
@@ -122,6 +124,7 @@ export interface CustomerData {
   phone: string;
   email?: string;
   address: string;
+  fulfillmentType?: 'delivery' | 'pickup';
   reference?: string;
   paymentMethod: 'credit' | 'debit' | 'money' | 'pix';
   changeFor?: string;

@@ -13,7 +13,9 @@ export let RESTAURANT_DATA: Restaurant = {
   state: 'UF',
   taxId: null,
   minOrderValue: 0,
-  deliveryFee: 0
+  deliveryFee: 0,
+  pickupEnabled: false,
+  pickupInstructions: ''
 };
 
 export let OFFERS: Offer[] = [
@@ -91,6 +93,8 @@ export function configureRestaurantMenuData(restaurant: StoreRestaurant) {
     taxId: restaurant.taxId ?? null,
     minOrderValue: restaurant.minOrderValue ?? 0,
     deliveryFee: restaurant.deliveryFee ?? 0,
+    pickupEnabled: restaurant.deliveryConfig?.pickupEnabled ?? false,
+    pickupInstructions: restaurant.deliveryConfig?.pickupInstructions ?? '',
     coupons: (restaurant.coupons ?? []).map((coupon) => ({
       ...coupon,
       code: coupon.code.trim().toUpperCase()

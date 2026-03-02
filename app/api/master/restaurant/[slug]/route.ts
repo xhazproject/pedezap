@@ -53,6 +53,8 @@ const restaurantUpdateSchema = z.object({
           })
         )
         .default([]),
+      pickupEnabled: z.boolean().default(false),
+      pickupInstructions: z.string().optional().default(""),
       dispatchMode: z.enum(["manual", "auto"]).default("manual"),
       autoDispatchEnabled: z.boolean().default(false)
     })

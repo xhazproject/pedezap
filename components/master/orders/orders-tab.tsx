@@ -153,11 +153,11 @@ export function MasterOrdersTab(props: Props) {
                 : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.customerAddress)}`;
               return (
                 <div key={`map_${order.id}`} className="rounded-lg border border-gray-200 bg-white p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">#{order.id} • {order.customerName}</p>
-                      <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">{order.customerAddress}</p>
-                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">#{order.id} • {order.customerName}</p>
+                        <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">{order.customerAddress}</p>
+                      </div>
                     <a
                       href={mapsUrl}
                       target="_blank"
@@ -167,10 +167,13 @@ export function MasterOrdersTab(props: Props) {
                       Abrir mapa
                     </a>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-gray-600">
-                    {typeof order.deliveryDistanceKm === 'number' && (
+                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-gray-600">
                       <span className="rounded-full bg-gray-100 px-2 py-1">
-                        {order.deliveryDistanceKm.toFixed(2)} km
+                        {order.fulfillmentType === 'pickup' ? 'Retirada' : 'Entrega'}
+                      </span>
+                      {typeof order.deliveryDistanceKm === 'number' && (
+                        <span className="rounded-full bg-gray-100 px-2 py-1">
+                          {order.deliveryDistanceKm.toFixed(2)} km
                       </span>
                     )}
                     {order.deliveryZoneName && (
@@ -228,7 +231,7 @@ export function MasterOrdersTab(props: Props) {
                       ))}
                     </div>
                     <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
-                      <span>{paymentMethodLabel(order.paymentMethod)}</span>
+                      <span>{paymentMethodLabel(order.paymentMethod)} • {order.fulfillmentType === 'pickup' ? 'Retirada' : 'Entrega'}</span>
                       <span className="font-semibold text-slate-900">R$ {order.total.toFixed(2)}</span>
                     </div>
                     <div className="mt-3 flex items-center gap-2">
@@ -304,6 +307,9 @@ export function MasterOrdersTab(props: Props) {
                     </td>
                     <td className="px-4 py-3 font-semibold text-gray-900">R$ {order.total.toFixed(2)}</td>
                     <td className="px-4 py-3">
+                      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                        {order.fulfillmentType === 'pickup' ? 'Retirada' : 'Entrega'}
+                      </div>
                       <span
                         className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold ${
                           status === 'Recebido'

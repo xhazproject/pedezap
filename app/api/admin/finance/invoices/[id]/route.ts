@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { readStore, writeStore } from "@/lib/store";
+import { makeId, readStore, writeStore } from "@/lib/store";
 import { appendAuditLog } from "@/lib/audit";
+import { renderNotificationTemplate } from "@/lib/message-templates";
+import { sendTwilioWhatsApp } from "@/lib/twilio";
+import { buildInvoiceVariables } from "@/lib/twilio-automation";
 
 const invoiceActionSchema = z.object({
   action: z.enum(["confirm", "refund", "mark_pending", "second_copy"]),
@@ -72,8 +75,62 @@ export async function PATCH(
         ? now
         : parsed.data.action === "mark_pending"
         ? null
-        : current.paidAt ?? null
+      : current.paidAt ?? null
   };
+
+  if (parsed.data.action === "confirm" && store.adminSettings.integrations.twilio.connected) {
+    const restaurant = store.restaurants.find((item) => item.slug === current.restaurantSlug) ?? null;
+    const template = store.adminSettings.notificationTemplates.find(
+      (item) => item.id === "tpl_invoice_paid" && item.active
+    );
+    if (restaurant?.whatsapp && template) {
+      const renderedMessage = renderNotificationTemplate(
+        template.message,
+        buildInvoiceVariables(store.invoices[invoiceIndex], restaurant)
+      );
+      const result = await sendTwilioWhatsApp({
+        to: restaurant.whatsapp,
+        body: renderedMessage,
+        from: store.adminSettings.integrations.twilio.whatsappFrom,
+        statusCallbackUrl: store.adminSettings.integrations.twilio.statusCallbackUrl
+      });
+      const twilioNow = new Date().toISOString();
+      if (result.success) {
+        store.invoices[invoiceIndex].lastTwilioSentAt = now;
+        store.invoices[invoiceIndex].lastTwilioMessageSid = result.sid;
+        store.invoices[invoiceIndex].lastTwilioStatus = result.status ?? "queued";
+        store.twilioMessages.unshift({
+          id: makeId("twilio"),
+          to: restaurant.whatsapp,
+          from: store.adminSettings.integrations.twilio.whatsappFrom,
+          body: renderedMessage,
+          templateId: template.id,
+          targetType: "invoice",
+          targetId: current.id,
+          status: result.status ?? "queued",
+          messageSid: result.sid,
+          errorMessage: null,
+          createdAt: twilioNow,
+          updatedAt: twilioNow
+        });
+      } else {
+        store.twilioMessages.unshift({
+          id: makeId("twilio"),
+          to: restaurant.whatsapp,
+          from: store.adminSettings.integrations.twilio.whatsappFrom,
+          body: renderedMessage,
+          templateId: template.id,
+          targetType: "invoice",
+          targetId: current.id,
+          status: "failed",
+          messageSid: null,
+          errorMessage: result.error,
+          createdAt: twilioNow,
+          updatedAt: twilioNow
+        });
+      }
+    }
+  }
 
   await appendAuditLog(store, {
     request,

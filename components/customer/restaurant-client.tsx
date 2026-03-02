@@ -15,6 +15,7 @@ type CustomerSession = {
   email: string;
   address: string;
   neighborhood: string;
+  fulfillmentType?: 'delivery' | 'pickup';
 };
 
 type MarketingAttributionSession = {
@@ -160,7 +161,8 @@ export function RestaurantClient({ slug }: { slug: string }) {
                 whatsapp: user.whatsapp,
                 email: user.email,
                 address: `${user.address}${user.neighborhood ? ` - ${user.neighborhood}` : ''}`,
-                neighborhood: user.neighborhood
+                neighborhood: user.neighborhood,
+                fulfillmentType: 'delivery'
               };
               localStorage.setItem(sessionStorageKey(slug), JSON.stringify(sessionData));
               setCustomerSession(sessionData);
@@ -178,7 +180,8 @@ export function RestaurantClient({ slug }: { slug: string }) {
               name: customerSession?.name,
               phone: customerSession?.whatsapp,
               email: customerSession?.email,
-              address: customerSession?.address
+              address: customerSession?.address,
+              fulfillmentType: customerSession?.fulfillmentType
             }}
           />
         )}

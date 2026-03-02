@@ -36,6 +36,11 @@ const settingsSchema = z.object({
     whatsappEvolution: z.object({
       connected: z.boolean(),
       webhookUrl: z.string().min(1)
+    }),
+    twilio: z.object({
+      connected: z.boolean(),
+      whatsappFrom: z.string().default(""),
+      statusCallbackUrl: z.string().default("")
     })
   }),
   securityPolicies: z.object({
