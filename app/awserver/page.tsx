@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { renderNotificationTemplate } from '@/lib/message-templates';
 import {
   AlertCircle,
   Bell,
@@ -153,6 +154,49 @@ type FinanceInvoice = {
   status: 'Pago' | 'Pendente' | 'Vencido' | 'Estornado';
   method: 'Cartao de Credito' | 'Boleto' | 'Pix';
   createdAt: string;
+  lastTwilioSentAt?: string | null;
+  lastTwilioMessageSid?: string | null;
+  lastTwilioStatus?: string | null;
+};
+
+type TwilioMessageLogRow = {
+  id: string;
+  to: string;
+  from: string;
+  body: string;
+  templateId?: string | null;
+  targetType: string;
+  targetId: string;
+  status: string;
+  messageSid?: string | null;
+  errorMessage?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type TwilioHistorySummary = {
+  total: number;
+  sent: number;
+  failed: number;
+  delivered: number;
+};
+
+type TwilioAutomationMode = 'due' | 'overdue' | 'all';
+
+type TwilioPerformance = {
+  last7Days: {
+    sent: number;
+    delivered: number;
+    failed: number;
+    deliveryRate: number;
+    failureRate: number;
+  };
+  byDay: Array<{
+    date: string;
+    sent: number;
+    delivered: number;
+    failed: number;
+  }>;
 };
 
 type AuditLogRow = {
@@ -191,6 +235,7 @@ type InvoiceSharePayload = {
   phoneDigits: string;
   ownerEmail: string;
   message: string;
+  twilioTemplateId?: string;
 };
 
 type AdminPlan = {
@@ -519,7 +564,7 @@ export default function AdminPage() {
     admin: false,
     system: false
   });
-  const [settingsTab, setSettingsTab] = useState<'general' | 'branding' | 'notifications' | 'integrations' | 'security'>('general');
+  const [settingsTab, setSettingsTab] = useState<'general' | 'branding' | 'notifications' | 'integrations' | 'twilio' | 'security'>('general');
   const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
   const [auditActions, setAuditActions] = useState<string[]>([]);
   const [auditTargetTypes, setAuditTargetTypes] = useState<string[]>([]);
@@ -567,6 +612,29 @@ export default function AdminPage() {
         message: 'Oi {nome_cliente}! Recebemos seu pedido #{numero_pedido} no valor de {valor_total}. Previsao: {tempo_estimado}.',
         variables: ['{nome_cliente}', '{numero_pedido}', '{valor_total}', '{tempo_estimado}'],
         active: true
+      },
+      {
+        id: 'tpl_invoice_due',
+        title: 'Cobranca de Fatura',
+        message:
+          'Ola {nome_restaurante}! Segue a cobranca da fatura {numero_fatura} do PedeZap.\nValor: {valor_fatura}\nVencimento: {vencimento_fatura}\nForma de pagamento: {forma_pagamento}\nAcesse seu painel: {link_painel}',
+        variables: [
+          '{nome_restaurante}',
+          '{numero_fatura}',
+          '{valor_fatura}',
+          '{vencimento_fatura}',
+          '{forma_pagamento}',
+          '{link_painel}'
+        ],
+        active: true
+      },
+      {
+        id: 'tpl_invoice_overdue',
+        title: 'Cobranca Vencida',
+        message:
+          'Ola {nome_restaurante}! Sua fatura {numero_fatura} esta vencida.\nValor: {valor_fatura}\nRegularize o pagamento para evitar suspensao.\nPainel: {link_painel}',
+        variables: ['{nome_restaurante}', '{numero_fatura}', '{valor_fatura}', '{link_painel}'],
+        active: true
       }
     ] as NotificationTemplate[],
     integrations: {
@@ -582,6 +650,11 @@ export default function AdminPage() {
       whatsappEvolution: {
         connected: false,
         webhookUrl: 'https://api.pedezap.ai/v1/webhooks/whatsapp-evolution'
+      },
+      twilio: {
+        connected: false,
+        whatsappFrom: 'whatsapp:+14155238886',
+        statusCallbackUrl: ''
       }
     },
     securityPolicies: {
@@ -591,6 +664,34 @@ export default function AdminPage() {
     }
   });
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [twilioTestPhone, setTwilioTestPhone] = useState('');
+  const [twilioTestMessage, setTwilioTestMessage] = useState(
+    'Ola! Esta e uma mensagem de teste enviada pelo modulo Twilio do PedeZap.'
+  );
+  const [twilioSending, setTwilioSending] = useState(false);
+  const [twilioAutomationRunning, setTwilioAutomationRunning] = useState(false);
+  const [twilioResendingId, setTwilioResendingId] = useState<string | null>(null);
+  const [twilioHistory, setTwilioHistory] = useState<TwilioMessageLogRow[]>([]);
+  const [twilioHistorySummary, setTwilioHistorySummary] = useState<TwilioHistorySummary>({
+    total: 0,
+    sent: 0,
+    failed: 0,
+    delivered: 0
+  });
+  const [twilioHistoryQuery, setTwilioHistoryQuery] = useState('');
+  const [twilioHistoryStatusFilter, setTwilioHistoryStatusFilter] = useState('all');
+  const [twilioHistoryTemplateFilter, setTwilioHistoryTemplateFilter] = useState('all');
+  const [twilioHistoryTemplates, setTwilioHistoryTemplates] = useState<string[]>([]);
+  const [twilioPerformance, setTwilioPerformance] = useState<TwilioPerformance>({
+    last7Days: {
+      sent: 0,
+      delivered: 0,
+      failed: 0,
+      deliveryRate: 0,
+      failureRate: 0
+    },
+    byDay: []
+  });
   const [notificationsView, setNotificationsView] = useState<'templates' | 'dictionary'>('templates');
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [templateForm, setTemplateForm] = useState({
@@ -1042,6 +1143,10 @@ export default function AdminPage() {
           whatsappEvolution: {
             ...prev.integrations.whatsappEvolution,
             ...(payload.settings.integrations?.whatsappEvolution ?? {})
+          },
+          twilio: {
+            ...prev.integrations.twilio,
+            ...(payload.settings.integrations?.twilio ?? {})
           }
         },
         securityPolicies: {
@@ -1049,6 +1154,39 @@ export default function AdminPage() {
           ...(payload.settings.securityPolicies ?? {})
         }
       }));
+    }
+  }
+
+  async function loadTwilioHistory() {
+    const params = new URLSearchParams();
+    if (twilioHistoryQuery.trim()) params.set('q', twilioHistoryQuery.trim());
+    if (twilioHistoryStatusFilter !== 'all') params.set('status', twilioHistoryStatusFilter);
+    if (twilioHistoryTemplateFilter !== 'all') params.set('templateId', twilioHistoryTemplateFilter);
+    const response = await fetch(`/api/admin/twilio/history?${params.toString()}`);
+    const payload = await response.json().catch(() => null);
+    if (payload?.success) {
+      setTwilioHistory(payload.messages ?? []);
+      setTwilioHistoryTemplates(payload.templates ?? []);
+      setTwilioPerformance(
+        payload.performance ?? {
+          last7Days: {
+            sent: 0,
+            delivered: 0,
+            failed: 0,
+            deliveryRate: 0,
+            failureRate: 0
+          },
+          byDay: []
+        }
+      );
+      setTwilioHistorySummary(
+        payload.summary ?? {
+          total: 0,
+          sent: 0,
+          failed: 0,
+          delivered: 0
+        }
+      );
     }
   }
 
@@ -1064,6 +1202,44 @@ export default function AdminPage() {
       alert('Nao foi possivel salvar as configuracoes.');
       return;
     }
+  }
+
+  async function runTwilioAutomation(mode: 'due' | 'overdue' | 'all') {
+    setTwilioAutomationRunning(true);
+    const response = await fetch('/api/admin/twilio/automations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode })
+    });
+    const payload = await response.json().catch(() => null);
+    setTwilioAutomationRunning(false);
+    if (!response.ok || !payload?.success) {
+      alert(payload?.message ?? 'Nao foi possivel rodar a automacao do Twilio.');
+      return;
+    }
+    alert(
+      `Automacao concluida. Enviadas: ${payload.summary?.sent ?? 0} | Falhas: ${
+        payload.summary?.failed ?? 0
+      } | Ignoradas: ${payload.summary?.skipped ?? 0}`
+    );
+    await Promise.all([loadTwilioHistory(), loadFinanceInvoices(financePage)]);
+  }
+
+  async function resendTwilioMessage(messageId: string) {
+    setTwilioResendingId(messageId);
+    const response = await fetch('/api/admin/twilio/resend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messageId })
+    });
+    const payload = await response.json().catch(() => null);
+    setTwilioResendingId(null);
+    if (!response.ok || !payload?.success) {
+      alert(payload?.message ?? 'Nao foi possivel reenviar a mensagem Twilio.');
+      return;
+    }
+    await Promise.all([loadTwilioHistory(), loadFinanceInvoices(financePage)]);
+    alert('Mensagem reenviada com sucesso.');
   }
 
   function createNotificationTemplate() {
@@ -1243,7 +1419,35 @@ export default function AdminPage() {
     await loadFinanceOverview();
   };
 
+  const findNotificationTemplate = (templateId: string) =>
+    settingsForm.notificationTemplates.find((item) => item.id === templateId && item.active);
+
+  const buildInvoiceTemplateVariables = (invoice: FinanceInvoice, restaurant?: AdminRestaurant | null) => ({
+    nome_restaurante: invoice.restaurantName,
+    numero_fatura: invoice.id,
+    valor_fatura: moneyFormatter.format(invoice.value),
+    vencimento_fatura: invoice.dueDate || '-',
+    forma_pagamento: invoice.method,
+    link_painel: `${window.location.origin}/master/login`,
+    telefone_restaurante: restaurant?.whatsapp ?? ''
+  });
+
+  const buildWelcomeTemplateVariables = (payload: NewRestaurantForm) => ({
+    nome_restaurante: payload.name,
+    link_painel: `${window.location.origin}/master/login`,
+    senha_provisoria: payload.password || '123456'
+  });
+
   const buildInvoiceShareMessage = (invoice: FinanceInvoice) => {
+    const restaurant = restaurants.find((item) => item.slug === invoice.restaurantSlug) ?? null;
+    const template = findNotificationTemplate('tpl_invoice_due');
+    if (template) {
+      return renderNotificationTemplate(
+        template.message,
+        buildInvoiceTemplateVariables(invoice, restaurant)
+      );
+    }
+
     const dueDate = invoice.dueDate || '-';
     const value = moneyFormatter.format(invoice.value);
     return [
@@ -1269,8 +1473,78 @@ export default function AdminPage() {
       restaurantName: invoice.restaurantName,
       phoneDigits,
       ownerEmail,
-      message
+      message,
+      twilioTemplateId: 'tpl_invoice_due'
     });
+  };
+
+  const sendTwilioMessage = async (payload: {
+    to: string;
+    message: string;
+    templateId?: string;
+    variables?: Record<string, string | number | boolean | null>;
+    targetType: string;
+    targetId: string;
+  }) => {
+    setTwilioSending(true);
+    const response = await fetch('/api/admin/twilio/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json().catch(() => null);
+    setTwilioSending(false);
+    if (!response.ok || !data?.success) {
+      alert(data?.message ?? 'Nao foi possivel enviar a mensagem pelo Twilio.');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSendTwilioTest = async () => {
+    if (!twilioTestPhone.trim() || !twilioTestMessage.trim()) {
+      alert('Preencha telefone e mensagem de teste.');
+      return;
+    }
+    const sent = await sendTwilioMessage({
+      to: twilioTestPhone,
+      message: twilioTestMessage,
+      targetType: 'twilio_test',
+      targetId: 'settings'
+    });
+    if (sent) {
+      await loadTwilioHistory();
+      alert('Mensagem de teste enviada pelo Twilio.');
+    }
+  };
+
+  const handleSendInvoiceViaTwilio = async () => {
+    if (!invoiceSharePayload) return;
+    if (!invoiceSharePayload.phoneDigits) {
+      alert('Restaurante sem WhatsApp cadastrado.');
+      return;
+    }
+
+    const invoice = financeInvoices.find((item) => item.id === invoiceSharePayload.invoiceId);
+    const restaurant = invoice
+      ? restaurants.find((item) => item.slug === invoice.restaurantSlug) ?? null
+      : null;
+    const variables = invoice
+      ? buildInvoiceTemplateVariables(invoice, restaurant)
+      : undefined;
+
+    const sent = await sendTwilioMessage({
+      to: invoiceSharePayload.phoneDigits,
+      message: invoiceSharePayload.message,
+      templateId: invoiceSharePayload.twilioTemplateId,
+      variables,
+      targetType: 'invoice',
+      targetId: invoiceSharePayload.invoiceId
+    });
+    if (sent) {
+      await Promise.all([loadTwilioHistory(), loadFinanceInvoices(financePage)]);
+      alert('Cobranca enviada pelo Twilio.');
+    }
   };
 
   const handleInvoiceAction = async (
@@ -1570,7 +1844,13 @@ export default function AdminPage() {
   useEffect(() => {
     if (activePage !== 'settings') return;
     loadAdminSettings();
+    loadTwilioHistory();
   }, [activePage]);
+
+  useEffect(() => {
+    if (activePage !== 'settings' || settingsTab !== 'twilio') return;
+    loadTwilioHistory();
+  }, [activePage, settingsTab, twilioHistoryQuery, twilioHistoryStatusFilter, twilioHistoryTemplateFilter]);
 
   useEffect(() => {
     if (activePage !== 'payments') return;
@@ -1790,6 +2070,18 @@ export default function AdminPage() {
     setModalTab('general');
     setSaving(false);
     await loadData();
+      const welcomeTemplate = findNotificationTemplate('tpl_welcome');
+      if (settingsForm.integrations.twilio.connected && welcomeTemplate && form.whatsapp.trim()) {
+        await sendTwilioMessage({
+          to: form.whatsapp,
+          message: welcomeTemplate.message,
+          templateId: 'tpl_welcome',
+          variables: buildWelcomeTemplateVariables({ ...form, slug: finalSlug }),
+          targetType: 'restaurant_welcome',
+          targetId: finalSlug
+        });
+        await loadTwilioHistory();
+      }
     } else {
       // EDIT MODE
       if (form.password && form.password.length < 6) {
@@ -3685,13 +3977,14 @@ export default function AdminPage() {
 
               <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-6">
                 <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-2 h-fit">
-                  {[
-                    { id: 'general', label: 'General', icon: SlidersHorizontal },
-                    { id: 'branding', label: 'Personalizacao', icon: Wand2 },
-                    { id: 'notifications', label: 'Notificacoes', icon: Bell },
-                    { id: 'integrations', label: 'Integracoes', icon: Activity },
-                    { id: 'security', label: 'Seguranca', icon: ShieldAlert }
-                  ].map((tab) => {
+                    {[
+                      { id: 'general', label: 'General', icon: SlidersHorizontal },
+                      { id: 'branding', label: 'Personalizacao', icon: Wand2 },
+                      { id: 'notifications', label: 'Notificacoes', icon: Bell },
+                      { id: 'integrations', label: 'Integracoes', icon: Activity },
+                      { id: 'twilio', label: 'Twilio', icon: MessageCircle },
+                      { id: 'security', label: 'Seguranca', icon: ShieldAlert }
+                    ].map((tab) => {
                     const Icon = tab.icon;
                     const isActive = settingsTab === tab.id;
                     return (
@@ -3967,7 +4260,7 @@ export default function AdminPage() {
                       )}
 
                       {notificationsView === 'dictionary' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div className="border border-slate-200 rounded-xl overflow-hidden">
                             <div className="px-4 py-3 bg-slate-50 font-semibold text-slate-800">Dados do Restaurante</div>
                             <div className="p-4 space-y-3 text-sm">
@@ -3987,6 +4280,17 @@ export default function AdminPage() {
                               <div><code className="text-emerald-700">{'{itens_pedido}'}</code><p className="text-slate-500">Lista resumida dos itens</p></div>
                               <div><code className="text-emerald-700">{'{endereco_entrega}'}</code><p className="text-slate-500">Endereco completo de entrega</p></div>
                               <div><code className="text-emerald-700">{'{tempo_estimado}'}</code><p className="text-slate-500">Previsao de entrega em minutos</p></div>
+                            </div>
+                          </div>
+                          <div className="border border-slate-200 rounded-xl overflow-hidden">
+                            <div className="px-4 py-3 bg-slate-50 font-semibold text-slate-800">Dados de Cobranca</div>
+                            <div className="p-4 space-y-3 text-sm">
+                              <div><code className="text-emerald-700">{'{numero_fatura}'}</code><p className="text-slate-500">Identificador da fatura</p></div>
+                              <div><code className="text-emerald-700">{'{valor_fatura}'}</code><p className="text-slate-500">Valor formatado da cobranca</p></div>
+                              <div><code className="text-emerald-700">{'{vencimento_fatura}'}</code><p className="text-slate-500">Data de vencimento</p></div>
+                              <div><code className="text-emerald-700">{'{forma_pagamento}'}</code><p className="text-slate-500">Metodo usado para pagamento</p></div>
+                              <div><code className="text-emerald-700">{'{link_painel}'}</code><p className="text-slate-500">Link do painel para regularizar a assinatura</p></div>
+                              <div><code className="text-emerald-700">{'{telefone_restaurante}'}</code><p className="text-slate-500">WhatsApp do restaurante</p></div>
                             </div>
                           </div>
                         </div>
@@ -4050,6 +4354,367 @@ export default function AdminPage() {
                               </div>
                             </div>
                             <button className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-500">Configurar</button>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5">
+                          <div className="flex items-start gap-4">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white">
+                              <MessageCircle size={18} />
+                            </div>
+                            <div className="space-y-2">
+                              <h3 className="text-base font-semibold text-slate-900">Twilio agora tem uma aba dedicada</h3>
+                              <p className="text-sm text-slate-500">
+                                Configuracao, historico de envios, automacoes de cobranca e indicadores de entrega foram movidos para a aba <strong>Twilio</strong>.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {settingsTab === 'twilio' && (
+                    <div className="space-y-5">
+                      <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-emerald-50 via-white to-slate-50 p-6">
+                        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="space-y-2">
+                            <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm ring-1 ring-emerald-100">
+                              <MessageCircle size={14} />
+                              Operacao WhatsApp
+                            </div>
+                            <div>
+                              <h2 className="text-xl font-bold text-slate-900">Central Twilio</h2>
+                              <p className="text-sm text-slate-500">
+                                Gerencie configuracao, cobrancas, callback de status e entregabilidade do WhatsApp em um fluxo unico.
+                              </p>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                              <p className="text-xs font-semibold text-slate-500">Status</p>
+                              <p className={`mt-1 text-sm font-bold ${settingsForm.integrations.twilio.connected ? 'text-emerald-700' : 'text-slate-700'}`}>
+                                {settingsForm.integrations.twilio.connected ? 'Ativo para envio' : 'Desativado'}
+                              </p>
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                              <p className="text-xs font-semibold text-slate-500">Mensagens</p>
+                              <p className="mt-1 text-sm font-bold text-slate-900">{twilioHistorySummary.total}</p>
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                              <p className="text-xs font-semibold text-slate-500">Entrega 7 dias</p>
+                              <p className="mt-1 text-sm font-bold text-emerald-700">{twilioPerformance.last7Days.deliveryRate}%</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[380px_1fr]">
+                        <div className="space-y-5">
+                          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
+                                  <MessageCircle size={18} />
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-slate-900">Conexao Twilio</p>
+                                  <p className="text-xs text-slate-500">Conta, callback e numero remetente</p>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() =>
+                                  setSettingsForm((prev) => ({
+                                    ...prev,
+                                    integrations: {
+                                      ...prev.integrations,
+                                      twilio: {
+                                        ...prev.integrations.twilio,
+                                        connected: !prev.integrations.twilio.connected
+                                      }
+                                    }
+                                  }))
+                                }
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                  settingsForm.integrations.twilio.connected ? 'bg-emerald-600' : 'bg-slate-300'
+                                }`}
+                              >
+                                <span
+                                  className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                                    settingsForm.integrations.twilio.connected ? 'translate-x-5' : 'translate-x-1'
+                                  }`}
+                                />
+                              </button>
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-semibold text-slate-500">REMETENTE WHATSAPP</label>
+                              <input
+                                value={settingsForm.integrations.twilio.whatsappFrom}
+                                onChange={(event) =>
+                                  setSettingsForm((prev) => ({
+                                    ...prev,
+                                    integrations: {
+                                      ...prev.integrations,
+                                      twilio: {
+                                        ...prev.integrations.twilio,
+                                        whatsappFrom: event.target.value
+                                      }
+                                    }
+                                  }))
+                                }
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+                                placeholder="whatsapp:+14155238886"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-semibold text-slate-500">STATUS CALLBACK URL</label>
+                              <input
+                                value={settingsForm.integrations.twilio.statusCallbackUrl}
+                                onChange={(event) =>
+                                  setSettingsForm((prev) => ({
+                                    ...prev,
+                                    integrations: {
+                                      ...prev.integrations,
+                                      twilio: {
+                                        ...prev.integrations.twilio,
+                                        statusCallbackUrl: event.target.value
+                                      }
+                                    }
+                                  }))
+                                }
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+                                placeholder="https://pedezap.site/api/webhooks/twilio/status"
+                              />
+                              <p className="text-xs text-slate-400">Use o endpoint publico do seu sistema para atualizar entregue, falha e leitura.</p>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                              <p className="text-sm font-semibold text-slate-900">Teste de envio</p>
+                              <p className="mt-1 text-xs text-slate-500">
+                                Credenciais sensiveis ficam em <code>TWILIO_ACCOUNT_SID</code>, <code>TWILIO_AUTH_TOKEN</code> e <code>TWILIO_WHATSAPP_FROM</code>.
+                              </p>
+                              <div className="mt-3 space-y-3">
+                                <input
+                                  value={twilioTestPhone}
+                                  onChange={(event) => setTwilioTestPhone(event.target.value)}
+                                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+                                  placeholder="5511999999999"
+                                />
+                                <textarea
+                                  value={twilioTestMessage}
+                                  onChange={(event) => setTwilioTestMessage(event.target.value)}
+                                  className="min-h-[88px] w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+                                  placeholder="Mensagem de teste"
+                                />
+                                <button
+                                  onClick={handleSendTwilioTest}
+                                  disabled={twilioSending || !settingsForm.integrations.twilio.connected}
+                                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  <MessageCircle size={15} />
+                                  {twilioSending ? 'Enviando...' : 'Enviar teste'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+                            <div>
+                              <p className="font-semibold text-slate-900">Automacao de cobranca</p>
+                              <p className="text-xs text-slate-500">Execute disparos em lote para faturas pendentes ou vencidas.</p>
+                            </div>
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                              <button
+                                onClick={() => runTwilioAutomation('due')}
+                                disabled={twilioAutomationRunning || !settingsForm.integrations.twilio.connected}
+                                className="rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                Pendentes
+                              </button>
+                              <button
+                                onClick={() => runTwilioAutomation('overdue')}
+                                disabled={twilioAutomationRunning || !settingsForm.integrations.twilio.connected}
+                                className="rounded-xl border border-rose-200 px-3 py-2.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                Vencidas
+                              </button>
+                              <button
+                                onClick={() => runTwilioAutomation('all')}
+                                disabled={twilioAutomationRunning || !settingsForm.integrations.twilio.connected}
+                                className="rounded-xl bg-slate-900 px-3 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {twilioAutomationRunning ? 'Processando...' : 'Todas abertas'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-5">
+                          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+                              <p className="text-xs text-slate-500">Total</p>
+                              <p className="mt-1 text-xl font-bold text-slate-900">{twilioHistorySummary.total}</p>
+                            </div>
+                            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 shadow-sm">
+                              <p className="text-xs text-emerald-700">Enviadas</p>
+                              <p className="mt-1 text-xl font-bold text-emerald-700">{twilioHistorySummary.sent}</p>
+                            </div>
+                            <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4 shadow-sm">
+                              <p className="text-xs text-sky-700">Entregues</p>
+                              <p className="mt-1 text-xl font-bold text-sky-700">{twilioHistorySummary.delivered}</p>
+                            </div>
+                            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 shadow-sm">
+                              <p className="text-xs text-rose-700">Falhas</p>
+                              <p className="mt-1 text-xl font-bold text-rose-700">{twilioHistorySummary.failed}</p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+                            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+                              <p className="text-xs text-slate-500">7 dias - enviadas</p>
+                              <p className="mt-1 text-lg font-bold text-slate-900">{twilioPerformance.last7Days.sent}</p>
+                            </div>
+                            <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4 shadow-sm">
+                              <p className="text-xs text-sky-700">7 dias - entregues</p>
+                              <p className="mt-1 text-lg font-bold text-sky-700">{twilioPerformance.last7Days.delivered}</p>
+                            </div>
+                            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 shadow-sm">
+                              <p className="text-xs text-rose-700">7 dias - falhas</p>
+                              <p className="mt-1 text-lg font-bold text-rose-700">{twilioPerformance.last7Days.failed}</p>
+                            </div>
+                            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 shadow-sm">
+                              <p className="text-xs text-emerald-700">Taxa entrega</p>
+                              <p className="mt-1 text-lg font-bold text-emerald-700">{twilioPerformance.last7Days.deliveryRate}%</p>
+                            </div>
+                            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 shadow-sm">
+                              <p className="text-xs text-amber-700">Taxa falha</p>
+                              <p className="mt-1 text-lg font-bold text-amber-700">{twilioPerformance.last7Days.failureRate}%</p>
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="font-semibold text-slate-900">Painel Twilio - ultimos 7 dias</p>
+                                <p className="text-xs text-slate-500">Resumo diario de envios, entrega e falha.</p>
+                              </div>
+                              <button
+                                onClick={() => loadTwilioHistory()}
+                                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                              >
+                                Atualizar
+                              </button>
+                            </div>
+                            <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-7">
+                              {twilioPerformance.byDay.map((day) => (
+                                <div key={day.date} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs">
+                                  <p className="font-semibold text-slate-900">
+                                    {new Date(day.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                  </p>
+                                  <p className="mt-2 text-slate-500">Envios: {day.sent}</p>
+                                  <p className="text-sky-600">Entregues: {day.delivered}</p>
+                                  <p className="text-rose-600">Falhas: {day.failed}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="font-semibold text-slate-900">Historico recente</p>
+                                <p className="text-xs text-slate-500">Acompanhe cada mensagem enviada, status e reenvio.</p>
+                              </div>
+                              <button
+                                onClick={() => loadTwilioHistory()}
+                                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                              >
+                                Atualizar
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-1 gap-2 xl:grid-cols-[1fr_180px_220px]">
+                              <input
+                                value={twilioHistoryQuery}
+                                onChange={(event) => setTwilioHistoryQuery(event.target.value)}
+                                className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+                                placeholder="Buscar por numero, alvo ou conteudo"
+                              />
+                              <select
+                                value={twilioHistoryStatusFilter}
+                                onChange={(event) => setTwilioHistoryStatusFilter(event.target.value)}
+                                className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+                              >
+                                <option value="all">Todos status</option>
+                                <option value="queued">Queued</option>
+                                <option value="accepted">Accepted</option>
+                                <option value="sent">Sent</option>
+                                <option value="delivered">Delivered</option>
+                                <option value="failed">Failed</option>
+                              </select>
+                              <select
+                                value={twilioHistoryTemplateFilter}
+                                onChange={(event) => setTwilioHistoryTemplateFilter(event.target.value)}
+                                className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+                              >
+                                <option value="all">Todos templates</option>
+                                {twilioHistoryTemplates.map((templateId) => (
+                                  <option key={templateId} value={templateId}>
+                                    {templateId}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="max-h-96 overflow-auto rounded-2xl border border-slate-200">
+                              {twilioHistory.length === 0 ? (
+                                <div className="px-4 py-8 text-sm text-slate-500">
+                                  Nenhuma mensagem Twilio registrada ainda.
+                                </div>
+                              ) : (
+                                <div className="divide-y divide-slate-100">
+                                  {twilioHistory.map((item) => (
+                                    <div key={item.id} className="px-4 py-4 text-sm">
+                                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                        <div className="min-w-0">
+                                          <div className="flex flex-wrap items-center gap-2">
+                                            <span className="font-semibold text-slate-900">{item.targetType}</span>
+                                            <span className="text-slate-400">#{item.targetId}</span>
+                                            <span
+                                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                                                item.status === 'failed'
+                                                  ? 'bg-rose-100 text-rose-700'
+                                                  : item.status === 'delivered'
+                                                  ? 'bg-sky-100 text-sky-700'
+                                                  : 'bg-emerald-100 text-emerald-700'
+                                              }`}
+                                            >
+                                              {item.status}
+                                            </span>
+                                          </div>
+                                          <p className="mt-1 truncate text-slate-700">
+                                            Para {item.to} {item.templateId ? `• ${item.templateId}` : ''}
+                                          </p>
+                                          <p className="mt-1 line-clamp-2 text-xs text-slate-500">{item.body}</p>
+                                          {item.errorMessage ? (
+                                            <p className="mt-1 text-xs text-rose-600">{item.errorMessage}</p>
+                                          ) : null}
+                                        </div>
+                                        <div className="shrink-0 space-y-2 text-right">
+                                          <div className="text-xs text-slate-400">
+                                            {new Date(item.createdAt).toLocaleString('pt-BR')}
+                                          </div>
+                                          <button
+                                            onClick={() => resendTwilioMessage(item.id)}
+                                            disabled={twilioResendingId === item.id}
+                                            className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                          >
+                                            {twilioResendingId === item.id ? 'Reenviando...' : 'Reenviar'}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -4147,7 +4812,7 @@ export default function AdminPage() {
                     </div>
                   )}
 
-                  {settingsTab !== 'general' && settingsTab !== 'branding' && settingsTab !== 'notifications' && settingsTab !== 'integrations' && settingsTab !== 'security' && (
+                  {settingsTab !== 'general' && settingsTab !== 'branding' && settingsTab !== 'notifications' && settingsTab !== 'integrations' && settingsTab !== 'twilio' && settingsTab !== 'security' && (
                     <div className="text-sm text-slate-500">Em construcao.</div>
                   )}
                 </div>
@@ -4614,7 +5279,7 @@ export default function AdminPage() {
                   className="w-full min-h-[180px] rounded-lg border border-slate-200 px-3 py-2 text-sm"
                 />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(invoiceSharePayload.message);
@@ -4624,6 +5289,14 @@ export default function AdminPage() {
                 >
                   <Copy size={15} />
                   Copiar
+                </button>
+                <button
+                  onClick={handleSendInvoiceViaTwilio}
+                  disabled={twilioSending || !settingsForm.integrations.twilio.connected}
+                  className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-emerald-700 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <MessageCircle size={15} />
+                  {twilioSending ? 'Enviando...' : 'Twilio'}
                 </button>
                 <button
                   onClick={() => {
@@ -4637,7 +5310,7 @@ export default function AdminPage() {
                   className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-700"
                 >
                   <MessageCircle size={15} />
-                  WhatsApp
+                  Abrir WhatsApp
                 </button>
                 <button
                   onClick={() => {
