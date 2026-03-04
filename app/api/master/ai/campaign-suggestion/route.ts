@@ -34,6 +34,44 @@ type CampaignSuggestion = {
   strategyReason: string;
 };
 
+function sanitizeCampaignText(value: string, fallback: string, maxLength = 220) {
+  let text = String(value ?? "")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/```json|```/gi, ' ')
+    .trim();
+
+  const objectMatch = text.match(/\{[\s\S]*\}/);
+  if (text.startsWith('{') || text.startsWith('[') || objectMatch) {
+    text = text
+      .replace(/[{}\[\]"]/g, ' ')
+      .replace(/\b(?:campaignName|period|couponSuggestion|bannerHeadline|bannerDescription|whatsappMessage|strategyReason)\b\s*:?/gi, ' ')
+      .replace(/\s*,\s*/g, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+
+  text = text
+    .replace(/^[-:;,\s]+/, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+  if (!text || text.length < 4) return fallback;
+  return text.slice(0, maxLength).trim();
+}
+
+function normalizeSuggestion(suggestion: CampaignSuggestion): CampaignSuggestion {
+  return {
+    campaignName: sanitizeCampaignText(suggestion.campaignName, 'Campanha sugerida', 80),
+    period: sanitizeCampaignText(suggestion.period, 'Horario sugerido pela IA', 80),
+    couponSuggestion: sanitizeCampaignText(suggestion.couponSuggestion, 'CUPOM10', 30).replace(/\s+/g, '').toUpperCase(),
+    bannerHeadline: sanitizeCampaignText(suggestion.bannerHeadline, 'Oferta especial', 60),
+    bannerDescription: sanitizeCampaignText(suggestion.bannerDescription, 'Promocao especial para atrair mais pedidos no horario sugerido.', 140),
+    whatsappMessage: sanitizeCampaignText(suggestion.whatsappMessage, 'Confira nossa promocao especial no cardapio e peca agora.', 220),
+    strategyReason: sanitizeCampaignText(suggestion.strategyReason, 'A campanha foi montada para melhorar a venda de itens menos vendidos em horarios fracos.', 180)
+  };
+}
+
 function buildPrompt(input: z.infer<typeof requestSchema>) {
   const weakHours = input.benchmark.weakWindows
     .slice(0, 3)
@@ -117,7 +155,7 @@ function parseSuggestion(raw: string): CampaignSuggestion | null {
   }
 
   try {
-    return schema.parse({
+    return normalizeSuggestion(schema.parse({
       campaignName: 'Campanha sugerida',
       period: 'Horario sugerido pela IA',
       couponSuggestion: 'CUPOM10',
@@ -125,7 +163,7 @@ function parseSuggestion(raw: string): CampaignSuggestion | null {
       bannerDescription: cleaned.slice(0, 140) || 'Promocao sugerida automaticamente pela IA.',
       whatsappMessage: cleaned.slice(0, 220) || 'Confira nossa promocao especial no cardapio.',
       strategyReason: 'A IA retornou texto fora do formato ideal e o sistema aplicou um fallback seguro.'
-    });
+    }));
   } catch {
     return null;
   }
@@ -164,6 +202,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, message: "A IA nao retornou JSON valido." }, { status: 502 });
   }
 
-  return NextResponse.json({ success: true, suggestion });
+  return NextResponse.json({ success: true, suggestion: normalizeSuggestion(suggestion) });
 }
+
 

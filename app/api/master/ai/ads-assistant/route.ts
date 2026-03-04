@@ -48,6 +48,71 @@ const responseSchema = z.object({
   reason: z.string()
 });
 
+function sanitizeAdsText(value: string, fallback: string, maxLength = 220) {
+  let text = String(value ?? "")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/```json|```/gi, " ")
+    .trim();
+
+  const objectMatch = text.match(/\{[\s\S]*\}/);
+  if (text.startsWith('{') || text.startsWith('[') || objectMatch) {
+    text = text
+      .replace(/[{}\[\]"]/g, ' ')
+      .replace(/\b(?:campaignName|campaignObjective|suggestedPeriod|targetAudience|recommendedRadiusKm|dailyBudgetSuggestion|channels|couponSuggestion|couponDiscountHint|bannerHeadline|bannerDescription|adCopyPrimary|adCopyVariants|headline|cta|implementationChecklist|trackingSuggestion|reason)\b\s*:?/gi, ' ')
+      .replace(/\s*,\s*/g, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+
+  text = text
+    .replace(/^[-:;,\s]+/, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+  if (!text || text.length < 4) return fallback;
+  return text.slice(0, maxLength).trim();
+}
+
+function normalizePlan(plan: z.infer<typeof responseSchema>) {
+  return {
+    ...plan,
+    campaignName: sanitizeAdsText(plan.campaignName, 'Plano local de ADS', 80),
+    campaignObjective: sanitizeAdsText(plan.campaignObjective, 'Gerar mais pedidos com publico local', 120),
+    suggestedPeriod: sanitizeAdsText(plan.suggestedPeriod, 'Horario sugerido pela IA', 80),
+    targetAudience: sanitizeAdsText(plan.targetAudience, 'Clientes proximos da loja com interesse em delivery', 120),
+    dailyBudgetSuggestion: sanitizeAdsText(plan.dailyBudgetSuggestion, 'R$ 20 a R$ 35 por dia', 60),
+    couponSuggestion: sanitizeAdsText(plan.couponSuggestion, 'PROMO10', 30).replace(/\s+/g, '').toUpperCase(),
+    couponDiscountHint: sanitizeAdsText(plan.couponDiscountHint, '10% acima de R$40', 80),
+    bannerHeadline: sanitizeAdsText(plan.bannerHeadline, 'Oferta do dia', 60),
+    bannerDescription: sanitizeAdsText(plan.bannerDescription, 'Promocao especial para atrair mais pedidos no horario sugerido.', 140),
+    adCopyPrimary: sanitizeAdsText(plan.adCopyPrimary, 'Confira nossa promocao especial e faca seu pedido agora.', 240),
+    headline: sanitizeAdsText(plan.headline, 'Peca agora', 40),
+    cta: sanitizeAdsText(plan.cta, 'Ver cardapio', 30),
+    trackingSuggestion: sanitizeAdsText(plan.trackingSuggestion, 'Use UTM e link do cardapio com origem da campanha.', 140),
+    reason: sanitizeAdsText(plan.reason, 'Plano montado com foco em gerar mais pedidos no publico local.', 180),
+    channels: plan.channels.map((item) => sanitizeAdsText(item, '', 40)).filter(Boolean).slice(0, 4).length
+      ? plan.channels.map((item) => sanitizeAdsText(item, '', 40)).filter(Boolean).slice(0, 4)
+      : ['Instagram Stories', 'WhatsApp'],
+    adCopyVariants: plan.adCopyVariants.map((item) => sanitizeAdsText(item, '', 180)).filter(Boolean).slice(0, 4).length >= 2
+      ? plan.adCopyVariants.map((item) => sanitizeAdsText(item, '', 180)).filter(Boolean).slice(0, 4)
+      : [
+          'Oferta local para gerar mais pedidos hoje.',
+          'Promocao rapida para divulgar no Instagram e WhatsApp.',
+          'Campanha com foco em conversao no seu raio de entrega.'
+        ],
+    implementationChecklist: plan.implementationChecklist.map((item) => sanitizeAdsText(item, '', 120)).filter(Boolean).slice(0, 6).length >= 4
+      ? plan.implementationChecklist.map((item) => sanitizeAdsText(item, '', 120)).filter(Boolean).slice(0, 6)
+      : [
+          'Criar campanha com segmentacao local.',
+          'Aplicar banner e cupom sugeridos.',
+          'Usar link rastreado com origem da campanha.',
+          'Acompanhar resultado por 3 a 7 dias.'
+        ],
+    recommendedRadiusKm: Number.isFinite(plan.recommendedRadiusKm) && plan.recommendedRadiusKm > 0 ? Math.min(Math.max(plan.recommendedRadiusKm, 1), 15) : 3
+  };
+}
+
 function buildPrompt(input: z.infer<typeof requestSchema>) {
   const weakWindows = input.benchmark.weakWindows
     .slice(0, 4)
@@ -142,7 +207,7 @@ function parseResponse(raw: string) {
   }
 
   try {
-    return responseSchema.parse({
+    return normalizePlan(responseSchema.parse({
       campaignName: 'Plano local de ADS',
       campaignObjective: 'Gerar mais pedidos com publico local',
       suggestedPeriod: 'Horario sugerido pela IA',
@@ -170,7 +235,7 @@ function parseResponse(raw: string) {
       ],
       trackingSuggestion: 'Use UTM e link do cardapio com origem da campanha.',
       reason: 'A IA retornou texto fora do formato ideal e o sistema aplicou um fallback seguro.'
-    });
+    }));
   } catch {
     return null;
   }
@@ -209,6 +274,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, message: "A IA nao retornou JSON valido." }, { status: 502 });
   }
 
-  return NextResponse.json({ success: true, plan });
+  return NextResponse.json({ success: true, plan: normalizePlan(plan) });
 }
+
+
+
 
