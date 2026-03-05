@@ -21,6 +21,8 @@ export type RestaurantProduct = {
   name: string;
   description: string;
   price: number;
+  offerEnabled?: boolean;
+  offerPrice?: number;
   active: boolean;
   imageUrl?: string;
   kind?: "padrao" | "pizza" | "bebida" | "acai";

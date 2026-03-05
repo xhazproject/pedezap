@@ -35,7 +35,7 @@ export const FeaturedProductCard: React.FC<Props> = ({ product, onOpenModal }) =
             />
         )}
         <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm text-emerald-700 text-[10px] font-black px-2 py-1 rounded-md shadow-sm border border-emerald-100 uppercase tracking-wide">
-            {product.isInCampaign ? 'Em campanha' : 'Destaque'}
+            {product.hasOffer ? 'Oferta' : product.isInCampaign ? 'Em campanha' : 'Destaque'}
         </div>
       </div>
       
@@ -51,7 +51,14 @@ export const FeaturedProductCard: React.FC<Props> = ({ product, onOpenModal }) =
         </div>
         
         <div className="flex justify-between items-center pt-2 border-t border-gray-50 mt-auto">
-          <span className="font-bold text-gray-900 text-sm sm:text-base">{formatCurrency(product.price)}</span>
+          <div className="flex flex-col">
+            {product.hasOffer && product.originalPrice ? (
+              <span className="text-[10px] text-gray-400 line-through">De {formatCurrency(product.originalPrice)}</span>
+            ) : null}
+            <span className="font-bold text-gray-900 text-sm sm:text-base">
+              {product.hasOffer ? `Por ${formatCurrency(product.price)}` : formatCurrency(product.price)}
+            </span>
+          </div>
           <button
             onClick={handleAction}
             disabled={!isOpen}

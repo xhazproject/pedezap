@@ -235,6 +235,7 @@ type MenuProductForm = Omit<Partial<RestaurantProduct>, 'kind' | 'pizzaFlavors' 
   kind: ProductKind;
   featured: boolean;
   alcoholic: boolean;
+  draftBasePrice: string;
   pizzaFlavors: PizzaItemDraft[];
   crusts: PizzaItemDraft[];
   complements: ProductComplementDraft[];
@@ -542,6 +543,9 @@ function createDefaultProductForm(categoryId = ''): MenuProductForm {
     name: '',
     description: '',
     price: 0,
+    offerEnabled: false,
+    offerPrice: 0,
+    draftBasePrice: '',
     imageUrl: '',
     active: true,
     kind: 'padrao',
@@ -703,9 +707,12 @@ export default function MasterPage() {
   const [supportDraft, setSupportDraft] = useState('');
   const [supportAttachment, setSupportAttachment] = useState<SupportAttachmentDraft | null>(null);
   const [settingsSection, setSettingsSection] = useState<'store' | 'hours' | 'address' | 'delivery' | 'messages' | 'orderMessages' | 'payments' | 'access' | 'sessions'>('store');
-  const [marketingSection, setMarketingSection] = useState<'overview' | 'performance' | 'tools' | 'campaigns'>('overview');
+  const [marketingSection, setMarketingSection] = useState<'overview' | 'performance' | 'tools' | 'offers' | 'campaigns'>('overview');
   const [marketingReportRange, setMarketingReportRange] = useState<'7d' | '30d' | 'month'>('30d');
   const [marketingQrColor, setMarketingQrColor] = useState('000000');
+  const [marketingOfferQuery, setMarketingOfferQuery] = useState('');
+  const [marketingOfferDrafts, setMarketingOfferDrafts] = useState<Record<string, { enabled: boolean; offerPrice: string }>>({});
+  const [marketingOffersSaving, setMarketingOffersSaving] = useState(false);
   const [showFlyerModal, setShowFlyerModal] = useState(false);
   const [showBioLinkModal, setShowBioLinkModal] = useState(false);
   const [showDeliveryPamphletModal, setShowDeliveryPamphletModal] = useState(false);
@@ -1063,6 +1070,17 @@ export default function MasterPage() {
   }, [restaurant?.marketingCampaigns]);
 
   useEffect(() => {
+    const nextDrafts: Record<string, { enabled: boolean; offerPrice: string }> = {};
+    (restaurant?.products ?? []).forEach((product) => {
+      nextDrafts[product.id] = {
+        enabled: Boolean(product.offerEnabled),
+        offerPrice: product.offerPrice && product.offerPrice > 0 ? String(product.offerPrice) : ''
+      };
+    });
+    setMarketingOfferDrafts(nextDrafts);
+  }, [restaurant?.products]);
+
+  useEffect(() => {
     const nextCoupons =
       restaurant?.coupons?.map((coupon) => ({
         id: coupon.id,
@@ -1327,7 +1345,7 @@ export default function MasterPage() {
   async function saveProduct() {
     const isPizzaProduct = productForm.kind === 'pizza';
     const hasPizzaFlavors = productForm.pizzaFlavors.length > 0;
-    const parsedFormPrice = parsePriceInput(productForm.price);
+    const parsedFormPrice = parsePriceInput(productForm.draftBasePrice || productForm.price);
     const basePriceForSave = isPizzaProduct
       ? (hasPizzaFlavors
           ? Math.min(...productForm.pizzaFlavors.map((flavor) => parsePriceInput(flavor.price)))
@@ -1518,6 +1536,7 @@ export default function MasterPage() {
     setProductForm({
       ...createDefaultProductForm(product.categoryId),
       ...product,
+      draftBasePrice: Number(product.price) > 0 ? Number(product.price).toFixed(2).replace('.', ',') : '',
       kind: product.kind ?? 'padrao',
       featured: hasFeaturedTag(product.description),
       description: stripFeaturedTag(product.description),
@@ -1542,6 +1561,8 @@ export default function MasterPage() {
           name: `${product.name} (Copia)`,
           description: product.description,
           price: product.price,
+          offerEnabled: product.offerEnabled ?? false,
+          offerPrice: product.offerPrice ?? 0,
           active: product.active,
           imageUrl: product.imageUrl ?? '',
           kind: product.kind ?? 'padrao',
@@ -1574,6 +1595,8 @@ export default function MasterPage() {
           name: product.name,
           description: nextDescription,
           price: product.price,
+          offerEnabled: product.offerEnabled ?? false,
+          offerPrice: product.offerPrice ?? 0,
           active: product.active,
           imageUrl: product.imageUrl ?? '',
           kind: product.kind ?? 'padrao',
@@ -1611,6 +1634,13 @@ export default function MasterPage() {
   const filteredProducts = restaurant
     ? restaurant.products.filter((product) => product.categoryId === (selectedCategoryId ?? product.categoryId))
     : [];
+  const marketingOfferProducts = useMemo(() => {
+    if (!restaurant) return [] as RestaurantProduct[];
+    const q = marketingOfferQuery.trim().toLowerCase();
+    const base = restaurant.products.filter((product) => product.active);
+    if (!q) return base;
+    return base.filter((product) => product.name.toLowerCase().includes(q));
+  }, [restaurant, marketingOfferQuery]);
   const highlightedProducts = restaurant ? restaurant.products.filter((product) => hasFeaturedTag(product.description)) : [];
   const highlightSearch = highlightsQuery.trim().toLowerCase();
   const availableHighlights = restaurant
@@ -1938,6 +1968,47 @@ export default function MasterPage() {
       rows.push([item.name, String(item.qty), item.revenue.toFixed(2)]);
     });
     downloadCsvFile(`relatorio-produtos-${marketingReportRange}.csv`, rows);
+  };
+
+  const escapeVcardValue = (value: string) =>
+    value
+      .replace(/\\/g, '\\\\')
+      .replace(/\n/g, '\\n')
+      .replace(/,/g, '\\,')
+      .replace(/;/g, '\\;');
+
+  const normalizePhoneForContacts = (value: string) => {
+    const digits = value.replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.startsWith('55')) return `+${digits}`;
+    if (digits.length === 10 || digits.length === 11) return `+55${digits}`;
+    return `+${digits}`;
+  };
+
+  const exportCustomersVcf = () => {
+    if (!allCustomers.length) return;
+    const contacts = allCustomers
+      .map((customer) => {
+        const phone = normalizePhoneForContacts(customer.whatsapp);
+        if (!phone) return null;
+        const safeName = customer.name.trim() || 'Cliente';
+        const note = `Total de pedidos: ${customer.totalOrders}`;
+        return [
+          'BEGIN:VCARD',
+          'VERSION:3.0',
+          `FN:${escapeVcardValue(safeName)}`,
+          `TEL;TYPE=CELL:${phone}`,
+          `NOTE:${escapeVcardValue(note)}`,
+          'END:VCARD'
+        ].join('\n');
+      })
+      .filter((item): item is string => Boolean(item));
+
+    if (!contacts.length) return;
+
+    const fileName = `clientes-${session?.restaurantSlug ?? 'base'}-${new Date().toISOString().slice(0, 10)}.vcf`;
+    const blob = new Blob([contacts.join('\n')], { type: 'text/vcard;charset=utf-8;' });
+    triggerDownloadFromBlob(blob, fileName);
   };
   const marketingLink = restaurant ? `https://pedezap.site/${restaurant.slug}` : '';
   const bioLinkPublicUrl = restaurant ? `https://pedezap.site/r/${restaurant.slug}/bio` : '';
@@ -3773,7 +3844,7 @@ export default function MasterPage() {
           {
             name: prev.draftFlavorName.trim(),
             ingredients: (prev.draftFlavorIngredients ?? '').trim(),
-            price: Number(prev.draftFlavorPrice) || 0
+            price: parsePriceInput(prev.draftFlavorPrice)
           }
         ];
         const nextBasePrice = nextFlavors.length
@@ -3816,7 +3887,7 @@ export default function MasterPage() {
         {
           name: prev.draftCrustName.trim(),
           ingredients: '',
-          price: Number(prev.draftCrustPrice) || 0
+          price: parsePriceInput(prev.draftCrustPrice)
         }
       ],
       draftCrustName: '',
@@ -3839,7 +3910,7 @@ export default function MasterPage() {
         ...prev.complements,
         {
           name: prev.draftComplementName.trim(),
-          price: Number(prev.draftComplementPrice) || 0
+          price: parsePriceInput(prev.draftComplementPrice)
         }
       ],
       draftComplementName: '',
@@ -3888,7 +3959,7 @@ export default function MasterPage() {
     const draft = acaiDraftItemByGroup[groupId];
     const itemName = draft?.name?.trim() ?? '';
     if (!groupId || !itemName) return;
-    const itemPrice = Math.max(0, Number(draft?.price) || 0);
+    const itemPrice = Math.max(0, parsePriceInput(draft?.price));
     const itemMaxQty = Math.max(1, Number(draft?.maxQty) || 1);
     const itemId = `acai-item-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
@@ -3916,6 +3987,25 @@ export default function MasterPage() {
         group.id === groupId ? { ...group, items: group.items.filter((item) => item.id !== itemId) } : group
       )
     }));
+  };
+
+  const addAcaiPresetGroup = (name: string, minSelect: number, maxSelect: number) => {
+    const groupName = name.trim();
+    if (!groupName) return;
+    setProductForm((prev) => {
+      const alreadyExists = prev.acaiComplementGroups.some(
+        (group) => group.name.trim().toLowerCase() === groupName.toLowerCase()
+      );
+      if (alreadyExists) return prev;
+      const groupId = `acai-group-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      return {
+        ...prev,
+        acaiComplementGroups: [
+          ...prev.acaiComplementGroups,
+          { id: groupId, name: groupName, minSelect: Math.max(0, minSelect), maxSelect: Math.max(minSelect, maxSelect), items: [] }
+        ]
+      };
+    });
   };
 
   const handleProductImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -3971,6 +4061,36 @@ export default function MasterPage() {
       ...currentRestaurant,
       marketingCampaigns: payload.marketingCampaigns ?? nextCampaigns
     });
+    return true;
+  };
+
+  const persistMarketingOffers = async () => {
+    if (!session || !restaurant) return false;
+    setMarketingOffersSaving(true);
+    const payloadItems = restaurant.products.map((product) => {
+      const draft = marketingOfferDrafts[product.id];
+      const enabled = Boolean(draft?.enabled);
+      const offerPrice = parsePriceInput(draft?.offerPrice ?? '0');
+      return {
+        id: product.id,
+        offerEnabled: enabled,
+        offerPrice: enabled ? offerPrice : 0
+      };
+    });
+
+    const response = await fetch(`/api/master/restaurant/${session.restaurantSlug}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'saveProductOffers', data: payloadItems })
+    });
+    const payload = await response.json().catch(() => null);
+    setMarketingOffersSaving(false);
+    if (!response.ok || !payload?.success || !Array.isArray(payload.products)) {
+      alert(payload?.message ?? 'Nao foi possivel salvar as ofertas.');
+      return false;
+    }
+    setRestaurant({ ...restaurant, products: payload.products });
+    setMessage('Ofertas atualizadas com sucesso.');
     return true;
   };
 
@@ -6398,14 +6518,25 @@ export default function MasterPage() {
                     <h2 className="text-2xl font-semibold text-gray-900">Base de Clientes</h2>
                     <p className="text-sm text-gray-500">{allCustomers.length} clientes cadastrados</p>
                   </div>
-                  <div className="relative w-full max-w-sm">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                      value={clientsQuery}
-                      onChange={(event) => setClientsQuery(event.target.value)}
-                      className="w-full rounded-lg border border-gray-300 pl-9 pr-3 py-2 text-sm"
-                      placeholder="Buscar por nome ou telefone..."
-                    />
+                  <div className="flex w-full max-w-xl items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={exportCustomersVcf}
+                      disabled={!allCustomers.length}
+                      className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Smartphone size={16} />
+                      Exportar contatos (.vcf)
+                    </button>
+                    <div className="relative w-full max-w-sm">
+                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        value={clientsQuery}
+                        onChange={(event) => setClientsQuery(event.target.value)}
+                        className="w-full rounded-lg border border-gray-300 pl-9 pr-3 py-2 text-sm"
+                        placeholder="Buscar por nome ou telefone..."
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -7839,6 +7970,7 @@ export default function MasterPage() {
                       { key: 'overview' as const, label: 'Visao Geral', icon: BarChart3, disabled: false },
                       { key: 'performance' as const, label: 'Performance', icon: ShoppingBag, disabled: false },
                       { key: 'tools' as const, label: 'Ferramentas', icon: Share2, disabled: false },
+                      { key: 'offers' as const, label: 'Ofertas De/Por', icon: TicketPercent, disabled: false },
                       { key: 'campaigns' as const, label: 'Campanhas', icon: Megaphone, disabled: true }
                     ].map((item) => {
                       const active = marketingSection === item.key;
@@ -8755,6 +8887,124 @@ export default function MasterPage() {
                       </>
                     )}
 
+                    {marketingSection === 'offers' && (
+                      <div className="space-y-4">
+                        <div className="rounded-xl border border-gray-200 bg-white p-4">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                              <h3 className="text-xl font-semibold text-gray-900">Ofertas no Cardapio (De por)</h3>
+                              <p className="text-sm text-gray-500">
+                                Defina preco promocional por item. No cardapio aparece selo de oferta e preco "de/por".
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="relative w-full sm:w-72">
+                                <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input
+                                  value={marketingOfferQuery}
+                                  onChange={(event) => setMarketingOfferQuery(event.target.value)}
+                                  className="w-full rounded-lg border border-gray-300 pl-8 pr-3 py-2 text-sm"
+                                  placeholder="Buscar item..."
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => void persistMarketingOffers()}
+                                disabled={marketingOffersSaving}
+                                className="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-60"
+                              >
+                                <Save size={14} />
+                                {marketingOffersSaving ? 'Salvando...' : 'Salvar ofertas'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl border border-gray-200 bg-white p-4 overflow-x-auto">
+                          <table className="w-full min-w-[760px] text-sm">
+                            <thead className="border-b border-gray-100 text-left text-xs uppercase text-gray-500">
+                              <tr>
+                                <th className="px-3 py-3">Item</th>
+                                <th className="px-3 py-3">Preco Atual (De)</th>
+                                <th className="px-3 py-3">Ativar Oferta</th>
+                                <th className="px-3 py-3">Preco Promocional (Por)</th>
+                                <th className="px-3 py-3">Preview</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                              {marketingOfferProducts.map((product) => {
+                                const draft = marketingOfferDrafts[product.id] ?? {
+                                  enabled: Boolean(product.offerEnabled),
+                                  offerPrice: product.offerPrice && product.offerPrice > 0 ? String(product.offerPrice) : ''
+                                };
+                                const basePrice = Number(product.price) || 0;
+                                const previewOffer = parsePriceInput(draft.offerPrice);
+                                const validOffer = draft.enabled && previewOffer > 0 && previewOffer < basePrice;
+                                return (
+                                  <tr key={product.id}>
+                                    <td className="px-3 py-3">
+                                      <p className="font-semibold text-gray-900">{product.name}</p>
+                                      <p className="text-xs text-gray-500">{product.kind ?? 'padrao'}</p>
+                                    </td>
+                                    <td className="px-3 py-3 font-semibold text-gray-900">R$ {basePrice.toFixed(2)}</td>
+                                    <td className="px-3 py-3">
+                                      <label className="inline-flex items-center gap-2 text-gray-700">
+                                        <input
+                                          type="checkbox"
+                                          checked={draft.enabled}
+                                          onChange={(event) =>
+                                            setMarketingOfferDrafts((prev) => ({
+                                              ...prev,
+                                              [product.id]: { ...draft, enabled: event.target.checked }
+                                            }))
+                                          }
+                                        />
+                                        Ativo
+                                      </label>
+                                    </td>
+                                    <td className="px-3 py-3">
+                                      <input
+                                        value={draft.offerPrice}
+                                        onChange={(event) =>
+                                          setMarketingOfferDrafts((prev) => ({
+                                            ...prev,
+                                            [product.id]: { ...draft, offerPrice: event.target.value }
+                                          }))
+                                        }
+                                        className="w-36 rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
+                                        placeholder="Ex: 19,90"
+                                        disabled={!draft.enabled}
+                                      />
+                                    </td>
+                                    <td className="px-3 py-3">
+                                      {validOffer ? (
+                                        <p className="text-xs">
+                                          <span className="mr-2 rounded bg-red-100 px-2 py-0.5 font-semibold text-red-700">OFERTA</span>
+                                          <span className="mr-1 text-gray-400 line-through">R$ {basePrice.toFixed(2)}</span>
+                                          <span className="font-bold text-emerald-700">R$ {previewOffer.toFixed(2)}</span>
+                                        </p>
+                                      ) : draft.enabled ? (
+                                        <p className="text-xs text-amber-600">Informe um valor menor que o preco atual.</p>
+                                      ) : (
+                                        <p className="text-xs text-gray-400">Sem oferta</p>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                              {!marketingOfferProducts.length && (
+                                <tr>
+                                  <td colSpan={5} className="px-3 py-8 text-center text-sm text-gray-500">
+                                    Nenhum item encontrado.
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
                     {marketingSection === 'campaigns' && (
                       <div className="space-y-4">
                         <div className="rounded-xl border border-gray-200 bg-white p-4">
@@ -9458,13 +9708,8 @@ export default function MasterPage() {
                         {productForm.kind === 'pizza' ? 'Preco Base (calculado pelos sabores)' : 'Preco Base'}
                       </label>
                       <input
-                        value={String(productForm.price ?? '')}
-                        onChange={(event) =>
-                          setProductForm((prev) => ({
-                            ...prev,
-                            price: parsePriceInput(event.target.value)
-                          }))
-                        }
+                        value={productForm.draftBasePrice}
+                        onChange={(event) => setProductForm((prev) => ({ ...prev, draftBasePrice: event.target.value }))}
                         disabled={productForm.kind === 'pizza'}
                         className={`w-full rounded-lg border px-3 py-2 text-sm ${
                           productForm.kind === 'pizza'
@@ -9592,6 +9837,200 @@ export default function MasterPage() {
                     )}
                   </div>
                 </>
+              )}
+
+              {productForm.kind !== 'pizza' && (
+                <div className="rounded-xl border border-gray-200">
+                  <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-gray-900">Complementos opcionais</p>
+                      <p className="text-[11px] text-gray-500">Itens extras que o cliente pode adicionar ao produto</p>
+                    </div>
+                    <span className="text-[10px] rounded-full bg-slate-100 px-2 py-1 text-slate-800 font-semibold">
+                      {productForm.complements.length} itens
+                    </span>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-[1fr_120px_44px] gap-2">
+                      <input
+                        value={productForm.draftComplementName}
+                        onChange={(event) => setProductForm((prev) => ({ ...prev, draftComplementName: event.target.value }))}
+                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                        placeholder="Ex: Queijo extra"
+                      />
+                      <input
+                        value={productForm.draftComplementPrice}
+                        onChange={(event) => setProductForm((prev) => ({ ...prev, draftComplementPrice: event.target.value }))}
+                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                        placeholder="R$ 0,00"
+                      />
+                      <button onClick={addProductComplement} className="rounded-lg bg-slate-900 text-white hover:bg-black">
+                        <Plus size={16} className="mx-auto" />
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {productForm.complements.map((complement, idx) => (
+                        <div key={`${complement.name}-${idx}`} className="rounded-lg border border-gray-200 px-3 py-2 text-sm flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900">{complement.name}</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-slate-800 font-semibold">R$ {(Number(complement.price) || 0).toFixed(2)}</span>
+                            <button onClick={() => removeProductComplement(idx)} className="text-red-500 hover:text-red-600">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {!productForm.complements.length && (
+                        <div className="rounded-lg bg-gray-50 border border-gray-200 py-6 text-center text-xs text-gray-500">
+                          Nenhum complemento cadastrado.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {productForm.kind === 'acai' && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/40">
+                  <div className="px-4 py-3 border-b border-emerald-200 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-gray-900">Abas de complementos do Acai</p>
+                      <p className="text-[11px] text-gray-600">Crie abas como Tamanhos, Frutas e Coberturas com regras de selecao</p>
+                    </div>
+                    <span className="text-[10px] rounded-full bg-white px-2 py-1 text-emerald-800 font-semibold border border-emerald-200">
+                      {productForm.acaiComplementGroups.length} abas
+                    </span>
+                  </div>
+                  <div className="p-4 space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={() => addAcaiPresetGroup('Tamanhos', 1, 1)} className="rounded-full border border-emerald-300 bg-white px-3 py-1 text-xs font-medium text-emerald-800 hover:bg-emerald-100">+ Tamanhos</button>
+                      <button type="button" onClick={() => addAcaiPresetGroup('Frutas', 0, 3)} className="rounded-full border border-emerald-300 bg-white px-3 py-1 text-xs font-medium text-emerald-800 hover:bg-emerald-100">+ Frutas</button>
+                      <button type="button" onClick={() => addAcaiPresetGroup('Coberturas', 0, 3)} className="rounded-full border border-emerald-300 bg-white px-3 py-1 text-xs font-medium text-emerald-800 hover:bg-emerald-100">+ Coberturas</button>
+                      <button type="button" onClick={() => addAcaiPresetGroup('Caldas', 0, 2)} className="rounded-full border border-emerald-300 bg-white px-3 py-1 text-xs font-medium text-emerald-800 hover:bg-emerald-100">+ Caldas</button>
+                      <button type="button" onClick={() => addAcaiPresetGroup('Adicionais', 0, 2)} className="rounded-full border border-emerald-300 bg-white px-3 py-1 text-xs font-medium text-emerald-800 hover:bg-emerald-100">+ Adicionais</button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-[1fr_90px_90px_44px] gap-2">
+                      <input
+                        value={productForm.draftAcaiGroupName}
+                        onChange={(event) => setProductForm((prev) => ({ ...prev, draftAcaiGroupName: event.target.value }))}
+                        className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm"
+                        placeholder="Nome da aba (Ex: Granolas)"
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        value={productForm.draftAcaiGroupMinSelect}
+                        onChange={(event) => setProductForm((prev) => ({ ...prev, draftAcaiGroupMinSelect: event.target.value }))}
+                        className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm"
+                        placeholder="Min"
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        value={productForm.draftAcaiGroupMaxSelect}
+                        onChange={(event) => setProductForm((prev) => ({ ...prev, draftAcaiGroupMaxSelect: event.target.value }))}
+                        className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm"
+                        placeholder="Max"
+                      />
+                      <button onClick={addAcaiComplementGroup} className="rounded-lg bg-emerald-700 text-white hover:bg-emerald-800">
+                        <Plus size={16} className="mx-auto" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {productForm.acaiComplementGroups.map((group) => {
+                        const draft = acaiDraftItemByGroup[group.id] ?? { name: '', price: '0', maxQty: '1' };
+                        return (
+                          <div key={group.id} className="rounded-xl border border-emerald-200 bg-white p-3 space-y-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <div>
+                                <p className="font-semibold text-gray-900">{group.name}</p>
+                                <p className="text-xs text-gray-500">Selecao: min {group.minSelect} | max {group.maxSelect}</p>
+                              </div>
+                              <button type="button" onClick={() => removeAcaiComplementGroup(group.id)} className="text-red-500 hover:text-red-600">
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-[1fr_100px_100px_44px] gap-2">
+                              <input
+                                value={draft.name}
+                                onChange={(event) =>
+                                  setAcaiDraftItemByGroup((prev) => ({
+                                    ...prev,
+                                    [group.id]: { ...draft, name: event.target.value }
+                                  }))
+                                }
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                placeholder="Item (Ex: Banana)"
+                              />
+                              <input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                value={draft.price}
+                                onChange={(event) =>
+                                  setAcaiDraftItemByGroup((prev) => ({
+                                    ...prev,
+                                    [group.id]: { ...draft, price: event.target.value }
+                                  }))
+                                }
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                placeholder="0.00"
+                              />
+                              <input
+                                type="number"
+                                min={1}
+                                value={draft.maxQty}
+                                onChange={(event) =>
+                                  setAcaiDraftItemByGroup((prev) => ({
+                                    ...prev,
+                                    [group.id]: { ...draft, maxQty: event.target.value }
+                                  }))
+                                }
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                placeholder="Qtd max"
+                              />
+                              <button type="button" onClick={() => addAcaiComplementItem(group.id)} className="rounded-lg bg-emerald-700 text-white hover:bg-emerald-800">
+                                <Plus size={16} className="mx-auto" />
+                              </button>
+                            </div>
+
+                            <div className="space-y-2">
+                              {group.items.map((item) => (
+                                <div key={item.id} className="rounded-lg border border-gray-200 px-3 py-2 text-sm flex items-center justify-between">
+                                  <div>
+                                    <p className="font-medium text-gray-900">{item.name}</p>
+                                    <p className="text-xs text-gray-500">Max por pedido: {item.maxQty}</p>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-slate-800 font-semibold">R$ {(Number(item.price) || 0).toFixed(2)}</span>
+                                    <button type="button" onClick={() => removeAcaiComplementItem(group.id, item.id)} className="text-red-500 hover:text-red-600">
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                              {!group.items.length && (
+                                <div className="rounded-lg bg-gray-50 border border-gray-200 py-5 text-center text-xs text-gray-500">
+                                  Nenhum item nesta aba.
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {!productForm.acaiComplementGroups.length && (
+                        <div className="rounded-lg border border-dashed border-emerald-300 py-6 text-center text-xs text-gray-600 bg-white/70">
+                          Nenhuma aba criada. Use os botoes rapidos ou crie uma aba personalizada.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               )}
               <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-100">
                 <button onClick={() => setShowProductForm(false)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Cancelar</button>

@@ -76,6 +76,8 @@ const productSchema = z.object({
   name: z.string().min(2),
   description: z.string().min(2),
   price: z.number().nonnegative(),
+  offerEnabled: z.boolean().optional().default(false),
+  offerPrice: z.number().nonnegative().optional().default(0),
   active: z.boolean().default(true),
   imageUrl: imageStringSchema.optional(),
   kind: z.enum(["padrao", "pizza", "bebida", "acai"]).optional(),
@@ -123,6 +125,12 @@ const productSchema = z.object({
       })
     )
     .optional()
+});
+
+const productOfferSchema = z.object({
+  id: z.string().min(1),
+  offerEnabled: z.boolean().default(false),
+  offerPrice: z.number().nonnegative().default(0)
 });
 
 const bannerSchema = z.object({
@@ -399,6 +407,33 @@ export async function POST(
         ...parsed.data
       });
     }
+
+    await writeStore(store);
+    return NextResponse.json({
+      success: true,
+      products: store.restaurants[index].products
+    });
+  }
+
+  if (action === "saveProductOffers") {
+    const parsed = z.array(productOfferSchema).safeParse(payload?.data);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, message: "Ofertas invalidas." },
+        { status: 400 }
+      );
+    }
+
+    const offersById = new Map(parsed.data.map((item) => [item.id, item]));
+    store.restaurants[index].products = store.restaurants[index].products.map((item) => {
+      const offer = offersById.get(item.id);
+      if (!offer) return item;
+      return {
+        ...item,
+        offerEnabled: offer.offerEnabled,
+        offerPrice: offer.offerEnabled ? offer.offerPrice : 0
+      };
+    });
 
     await writeStore(store);
     return NextResponse.json({

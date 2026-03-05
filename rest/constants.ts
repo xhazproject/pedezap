@@ -155,13 +155,24 @@ export function configureRestaurantMenuData(restaurant: StoreRestaurant) {
       : [];
 
     const isPizza = product.kind === 'pizza';
+    const basePrice = Number(product.price) || 0;
+    const offerPrice = Number(product.offerPrice) || 0;
+    const hasOffer = Boolean(
+      product.offerEnabled &&
+      basePrice > 0 &&
+      offerPrice > 0 &&
+      offerPrice < basePrice
+    );
 
     return {
       id: product.id,
       categoryId: product.categoryId,
       name: product.name,
       description: cleanDescription,
-      price: Number(product.price) || 0,
+      price: hasOffer ? offerPrice : basePrice,
+      originalPrice: basePrice,
+      hasOffer,
+      offerPrice: hasOffer ? offerPrice : undefined,
       imageUrl: product.imageUrl || 'https://picsum.photos/400/300?random=3',
       isFeatured: isFeaturedByTag || isFeaturedByCampaign,
       isInCampaign: isFeaturedByCampaign,

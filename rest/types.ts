@@ -4,6 +4,9 @@ export interface Product {
   name: string;
   description: string;
   price: number;
+  originalPrice?: number;
+  hasOffer?: boolean;
+  offerPrice?: number;
   imageUrl?: string;
   isFeatured?: boolean;
   isInCampaign?: boolean;

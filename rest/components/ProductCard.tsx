@@ -35,6 +35,11 @@ export const ProductCard: React.FC<Props> = ({ product, onOpenModal }) => {
               Em campanha
             </span>
           )}
+          {product.hasOffer && (
+            <span className="absolute right-2 top-2 rounded-md bg-red-600 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+              Oferta
+            </span>
+          )}
         </div>
       )}
       
@@ -52,9 +57,16 @@ export const ProductCard: React.FC<Props> = ({ product, onOpenModal }) => {
         </div>
         
         <div className="flex justify-between items-end gap-2 mt-3">
-          <span className="font-bold text-emerald-700 text-base sm:text-lg">
-            {formatCurrency(product.price)}
-          </span>
+          <div className="flex flex-col">
+            {product.hasOffer && product.originalPrice ? (
+              <span className="text-[11px] text-gray-400 line-through">
+                De {formatCurrency(product.originalPrice)}
+              </span>
+            ) : null}
+            <span className="font-bold text-emerald-700 text-base sm:text-lg">
+              {product.hasOffer ? `Por ${formatCurrency(product.price)}` : formatCurrency(product.price)}
+            </span>
+          </div>
           
           <button
             onClick={handleAction}
