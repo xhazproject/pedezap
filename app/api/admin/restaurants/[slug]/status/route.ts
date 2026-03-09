@@ -3,7 +3,10 @@ import { z } from "zod";
 import { readStore, writeStore } from "@/lib/store";
 
 const statusSchema = z.object({
-  active: z.boolean()
+  active: z.boolean().optional(),
+  reactivateSubscription: z.boolean().optional()
+}).refine((value) => typeof value.active === "boolean" || value.reactivateSubscription === true, {
+  message: "Status invalido."
 });
 
 export async function PATCH(
@@ -28,8 +31,19 @@ export async function PATCH(
     );
   }
 
-  store.restaurants[index].active = parsed.data.active;
-  store.restaurants[index].canceledAt = parsed.data.active ? null : new Date().toISOString();
+  if (parsed.data.reactivateSubscription) {
+    const now = new Date();
+    const graceEnd = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
+    store.restaurants[index].active = true;
+    store.restaurants[index].canceledAt = null;
+    store.restaurants[index].subscriptionStatus = "pending_payment";
+    store.restaurants[index].trialEndsAt = null;
+    store.restaurants[index].nextBillingAt = graceEnd.toISOString();
+    store.restaurants[index].subscriptionEndsAt = null;
+  } else if (typeof parsed.data.active === "boolean") {
+    store.restaurants[index].active = parsed.data.active;
+    store.restaurants[index].canceledAt = parsed.data.active ? null : new Date().toISOString();
+  }
   await writeStore(store);
   return NextResponse.json({ success: true, restaurant: store.restaurants[index] });
 }

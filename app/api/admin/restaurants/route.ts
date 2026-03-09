@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { makeId, readStore, sanitizeSlug, writeStore } from "@/lib/store";
+import {
+  getNormalizedSubscriptionStatus,
+  makeId,
+  readStore,
+  sanitizeSlug,
+  writeStore
+} from "@/lib/store";
 import { hashPassword } from "@/lib/password";
 import { geocodeAddress, parseFiniteNumber } from "@/lib/geo";
 
@@ -39,7 +45,8 @@ export async function GET() {
     longitude: item.longitude ?? null,
     subscribedPlanId: item.subscribedPlanId ?? null,
     trialEndsAt: item.trialEndsAt ?? null,
-    subscriptionStatus: item.subscriptionStatus ?? "expired"
+    subscriptionStatus: getNormalizedSubscriptionStatus(item),
+    subscriptionRawStatus: item.subscriptionStatus ?? "expired"
   }));
   return NextResponse.json({ success: true, restaurants });
 }

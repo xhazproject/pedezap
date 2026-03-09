@@ -30,6 +30,7 @@ import {
   Plus,
   QrCode,
   RefreshCw,
+  RefreshCcw,
   Search,
   Settings,
   ShieldOff,
@@ -88,6 +89,7 @@ type AdminRestaurant = {
   subscribedPlanId?: string | null;
   trialEndsAt?: string | null;
   subscriptionStatus?: 'trial' | 'active' | 'pending_payment' | 'expired' | 'canceled';
+  subscriptionRawStatus?: 'trial' | 'active' | 'pending_payment' | 'expired' | 'canceled';
   active: boolean;
   ordersCount: number;
   ownerEmail?: string;
@@ -1935,6 +1937,20 @@ export default function AdminPage() {
     await loadData();
   }
 
+  async function reactivateRestaurantForPlan(slug: string) {
+    const response = await fetch(`/api/admin/restaurants/${slug}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reactivateSubscription: true })
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      alert(payload?.message ?? 'Nao foi possivel reativar o restaurante para renovacao.');
+      return;
+    }
+    await loadData();
+  }
+
   const copyLink = (slug: string) => {
     const url = `${window.location.origin}/r/${slug}`;
     navigator.clipboard.writeText(url);
@@ -2484,6 +2500,19 @@ export default function AdminPage() {
                     <tbody className="divide-y divide-slate-100">
                       {filteredRestaurants.map((restaurant) => {
                         const status = restaurant.active ? 'Ativo' : 'Inativo';
+                        const subscriptionStatus = restaurant.subscriptionStatus ?? 'expired';
+                        const isSubscriptionBlocked =
+                          subscriptionStatus === 'expired' || subscriptionStatus === 'canceled';
+                        const subscriptionLabel =
+                          subscriptionStatus === 'trial'
+                            ? 'Periodo gratis'
+                            : subscriptionStatus === 'active'
+                            ? 'Assinatura ativa'
+                            : subscriptionStatus === 'pending_payment'
+                            ? 'Aguardando pagamento'
+                            : subscriptionStatus === 'canceled'
+                            ? 'Assinatura cancelada'
+                            : 'Assinatura expirada';
                         const ownerName = restaurant.ownerEmail?.split('@')[0] || 'Proprietario';
                         return (
                           <tr key={restaurant.id} className="hover:bg-slate-50/80 transition-colors">
@@ -2519,7 +2548,23 @@ export default function AdminPage() {
                               </div>
                             </td>
                             <td className="px-6 py-4">
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-col gap-1.5">
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
+                                      subscriptionStatus === 'active'
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                        : subscriptionStatus === 'trial'
+                                        ? 'bg-indigo-50 text-indigo-700 border-indigo-100'
+                                        : subscriptionStatus === 'pending_payment'
+                                        ? 'bg-amber-50 text-amber-700 border-amber-100'
+                                        : 'bg-red-50 text-red-700 border-red-100'
+                                    }`}
+                                  >
+                                    {subscriptionLabel}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
                                 <span
                                   className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
                                     status === 'Ativo' ? 'bg-green-50 text-green-700 border-green-100' : 'bg-slate-100 text-slate-600 border-slate-200'
@@ -2528,6 +2573,7 @@ export default function AdminPage() {
                                   {status}
                                 </span>
                                 <span className="text-xs text-slate-400">({restaurant.ordersCount} pedidos)</span>
+                                </div>
                               </div>
                             </td>
                             <td className="px-6 py-4">
@@ -2556,6 +2602,16 @@ export default function AdminPage() {
                                 >
                                   {restaurant.active ? <ShieldOff size={18} /> : <ShieldAlert size={18} />}
                                 </button>
+                                {isSubscriptionBlocked && (
+                                  <button
+                                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 px-2 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition-colors"
+                                    title="Reativar para renovacao de plano"
+                                    onClick={() => reactivateRestaurantForPlan(restaurant.slug)}
+                                  >
+                                    <RefreshCcw size={18} />
+                                    Reativar
+                                  </button>
+                                )}
                                 <button onClick={() => handleDelete(restaurant.slug)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Excluir">
                                   <Trash2 size={18} />
                                 </button>

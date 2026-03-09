@@ -2982,17 +2982,22 @@ export default function MasterPage() {
     const phone = normalizeWhatsapp(order.customerWhatsapp);
     if (!phone) return;
 
-    const text =
+    const baseText =
       nextStatus === 'Em preparo'
         ? buildOrderTemplateMessage(settingsOrderPreparingMessage, order)
         : order.fulfillmentType === 'pickup'
-          ? `Ola, ${order.customerName} Seu pedido Nº ${order.id}, esta pronto para Retirada!\n\nItems:\n ${order.items
+          ? `Ola, ${order.customerName} Seu pedido No ${order.id}, esta pronto para Retirada!\n\nItems:\n ${order.items
               .map((item) => `${item.quantity}x ${item.name}`)
               .join(', ')}\nObs. ${order.items
               .map((item) => item.notes?.trim())
               .filter(Boolean)
               .join(' | ') || '-'}\n\nTotal: ${moneyFormatter.format(order.total)}\nForma Pag: ${paymentMethodLabel(order.paymentMethod)}\nRetirada: ${restaurant?.address || 'No balcao da loja'}`
           : buildOrderTemplateMessage(settingsOrderOutForDeliveryMessage, order);
+    const pixInstructions =
+      order.paymentMethod === 'pix' && settingsPixInstructions.trim()
+        ? `\n\nPagamento PIX:\n${settingsPixInstructions.trim()}`
+        : '';
+    const text = `${baseText}${pixInstructions}`;
 
     navigateToExternalLink(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`);
   };
@@ -5179,72 +5184,322 @@ export default function MasterPage() {
                     )}
 
                     {settingsSection === 'delivery' && settingsDraft && (
-                      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-                        <div className="px-4 py-3 border-b border-gray-100">
-                          <h3 className="text-2xl font-semibold text-gray-900">Configuracao de Pedidos</h3>
+                      <div className="space-y-4">
+                        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                          <div className="px-4 py-3 border-b border-gray-100">
+                            <h3 className="text-2xl font-semibold text-gray-900">Configuracao de Pedidos</h3>
+                          </div>
+                          <div className="p-4 space-y-4">
+                            <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-base font-semibold text-gray-900">Aceitar Novos Pedidos</p>
+                                <p className="text-sm text-gray-500">Controle global de recebimento de pedidos.</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSettingsDraft((prev) =>
+                                    prev ? { ...prev, openForOrders: !prev.openForOrders } : prev
+                                  )
+                                }
+                                className={`h-6 w-11 rounded-full p-1 transition-colors ${settingsDraft.openForOrders ? 'bg-slate-1000' : 'bg-gray-300'}`}
+                                aria-label="Alternar recebimento de pedidos"
+                              >
+                                <span
+                                  className={`block h-4 w-4 rounded-full bg-white transition-transform ${
+                                    settingsDraft.openForOrders ? 'translate-x-5' : 'translate-x-0'
+                                  }`}
+                                ></span>
+                              </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              <div>
+                                <label className="text-sm text-gray-700">Pedido Minimo</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={settingsDraft.minOrderValue}
+                                  onChange={(event) =>
+                                    setSettingsDraft((prev) =>
+                                      prev ? { ...prev, minOrderValue: Number(event.target.value || 0) } : prev
+                                    )
+                                  }
+                                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-sm text-gray-700">Taxa de Entrega Padrao</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={settingsDraft.deliveryFee}
+                                  onChange={(event) =>
+                                    setSettingsDraft((prev) =>
+                                      prev ? { ...prev, deliveryFee: Number(event.target.value || 0) } : prev
+                                    )
+                                  }
+                                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-sm text-gray-700">Tempo Estimado</label>
+                                <input
+                                  value={settingsDeliveryEta}
+                                  onChange={(event) => setSettingsDeliveryEta(event.target.value)}
+                                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                />
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="p-4 space-y-4">
-                          <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 flex items-center justify-between gap-3">
+
+                        <div className="rounded-xl border border-gray-200 bg-white p-4">
+                          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div>
-                              <p className="text-base font-semibold text-gray-900">Aceitar Novos Pedidos</p>
-                              <p className="text-sm text-gray-500">Controle global de recebimento de pedidos.</p>
+                              <p className="text-base font-semibold text-gray-900">Raio e Logistica de Entrega</p>
+                              <p className="text-sm text-gray-500">
+                                Configure taxa por distancia/faixa, bairros com taxa fixa e despacho manual/automatico.
+                              </p>
                             </div>
                             <button
                               type="button"
-                              onClick={() =>
-                                setSettingsDraft((prev) =>
-                                  prev ? { ...prev, openForOrders: !prev.openForOrders } : prev
-                                )
-                              }
-                              className={`h-6 w-11 rounded-full p-1 transition-colors ${settingsDraft.openForOrders ? 'bg-slate-1000' : 'bg-gray-300'}`}
-                              aria-label="Alternar recebimento de pedidos"
+                              onClick={ensureSettingsDeliveryConfig}
+                              className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                             >
-                              <span
-                                className={`block h-4 w-4 rounded-full bg-white transition-transform ${
-                                  settingsDraft.openForOrders ? 'translate-x-5' : 'translate-x-0'
-                                }`}
-                              ></span>
+                              Inicializar configuracao
                             </button>
                           </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div>
-                              <label className="text-sm text-gray-700">Pedido Minimo</label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={settingsDraft.minOrderValue}
-                                onChange={(event) =>
-                                  setSettingsDraft((prev) =>
-                                    prev ? { ...prev, minOrderValue: Number(event.target.value || 0) } : prev
-                                  )
-                                }
-                                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                              />
+                          {settingsDraft?.deliveryConfig && (
+                            <div className="mt-4 space-y-4">
+                              {(() => {
+                                const deliveryCfg = settingsDraft!.deliveryConfig!;
+                                return (
+                                  <>
+                                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                                      <div>
+                                        <label className="text-sm text-gray-700">Raio maximo de entrega (km)</label>
+                                        <input
+                                          type="number"
+                                          min={1}
+                                          max={100}
+                                          step="0.5"
+                                          value={deliveryCfg.radiusKm}
+                                          onChange={(event) =>
+                                            updateDeliveryConfig((current) => ({
+                                              ...current,
+                                              radiusKm: Number(event.target.value || 1)
+                                            }))
+                                          }
+                                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="text-sm text-gray-700">Regra de taxa</label>
+                                        <select
+                                          value={deliveryCfg.feeMode}
+                                          onChange={(event) =>
+                                            updateDeliveryConfig((current) => ({
+                                              ...current,
+                                              feeMode: event.target.value as RestaurantDeliveryConfig['feeMode']
+                                            }))
+                                          }
+                                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                        >
+                                          <option value="flat">Taxa padrao</option>
+                                          <option value="distance_bands">Por faixa de distancia</option>
+                                          <option value="neighborhood_fixed">Por bairro (taxa fixa)</option>
+                                          <option value="hybrid">Hibrido (bairro &gt; faixa &gt; padrao)</option>
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label className="text-sm text-gray-700">Despacho</label>
+                                        <select
+                                          value={deliveryCfg.dispatchMode}
+                                          onChange={(event) =>
+                                            updateDeliveryConfig((current) => ({
+                                              ...current,
+                                              dispatchMode: event.target.value as 'manual' | 'auto'
+                                            }))
+                                          }
+                                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                        >
+                                          <option value="manual">Manual</option>
+                                          <option value="auto">Automatico</option>
+                                        </select>
+                                      </div>
+                                    </div>
+
+                                    <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+                                      <input
+                                        type="checkbox"
+                                        checked={deliveryCfg.autoDispatchEnabled}
+                                        onChange={(event) =>
+                                          updateDeliveryConfig((current) => ({
+                                            ...current,
+                                            autoDispatchEnabled: event.target.checked
+                                          }))
+                                        }
+                                        className="h-4 w-4 rounded border-gray-300 text-slate-800"
+                                      />
+                                      Habilitar auto despacho (modo inicial - sem integracao de entregadores)
+                                    </label>
+
+                                    <div className="rounded-xl border border-gray-200 bg-white p-3">
+                                      <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+                                        <input
+                                          type="checkbox"
+                                          checked={deliveryCfg.pickupEnabled}
+                                          onChange={(event) =>
+                                            updateDeliveryConfig((current) => ({
+                                              ...current,
+                                              pickupEnabled: event.target.checked
+                                            }))
+                                          }
+                                          className="h-4 w-4 rounded border-gray-300 text-slate-800"
+                                        />
+                                        Permitir retirada no local
+                                      </label>
+                                      <div className="mt-3">
+                                        <label className="text-sm text-gray-700">Instrucoes de retirada (opcional)</label>
+                                        <textarea
+                                          value={deliveryCfg.pickupInstructions ?? ''}
+                                          onChange={(event) =>
+                                            updateDeliveryConfig((current) => ({
+                                              ...current,
+                                              pickupInstructions: event.target.value
+                                            }))
+                                          }
+                                          rows={3}
+                                          placeholder="Ex.: Retire no balcao e informe o numero do pedido."
+                                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none"
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                                      <div className="mb-2 flex items-center justify-between gap-3">
+                                        <p className="text-sm font-semibold text-gray-900">Taxa por distancia / faixa</p>
+                                        <button
+                                          type="button"
+                                          onClick={addDeliveryBand}
+                                          className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                                        >
+                                          <Plus size={12} /> Nova faixa
+                                        </button>
+                                      </div>
+                                      <div className="space-y-2">
+                                        {deliveryCfg.distanceBands.length ? (
+                                          deliveryCfg.distanceBands.map((band) => (
+                                            <div key={band.id} className="grid grid-cols-1 gap-2 rounded-lg border border-gray-200 bg-white p-2 md:grid-cols-[1fr_1fr_auto]">
+                                              <div>
+                                                <label className="text-xs text-gray-500">Ate (km)</label>
+                                                <input
+                                                  type="number"
+                                                  min={0.5}
+                                                  step="0.5"
+                                                  value={band.upToKm}
+                                                  onChange={(event) => updateDeliveryBand(band.id, 'upToKm', Number(event.target.value || 1))}
+                                                  className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                                                />
+                                              </div>
+                                              <div>
+                                                <label className="text-xs text-gray-500">Taxa (R$)</label>
+                                                <input
+                                                  type="number"
+                                                  min={0}
+                                                  step="0.01"
+                                                  value={band.fee}
+                                                  onChange={(event) => updateDeliveryBand(band.id, 'fee', Number(event.target.value || 0))}
+                                                  className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                                                />
+                                              </div>
+                                              <div className="flex items-end">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => removeDeliveryBand(band.id)}
+                                                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-white text-red-500 hover:bg-red-50"
+                                                >
+                                                  <Trash2 size={14} />
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ))
+                                        ) : (
+                                          <p className="text-xs text-gray-500">Nenhuma faixa cadastrada.</p>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                                      <div className="mb-2 flex items-center justify-between gap-3">
+                                        <p className="text-sm font-semibold text-gray-900">Bairros atendidos com taxa fixa</p>
+                                        <button
+                                          type="button"
+                                          onClick={addNeighborhoodRate}
+                                          className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                                        >
+                                          <Plus size={12} /> Novo bairro
+                                        </button>
+                                      </div>
+                                      <div className="space-y-2">
+                                        {deliveryCfg.neighborhoodRates.length ? (
+                                          deliveryCfg.neighborhoodRates.map((zone) => (
+                                            <div
+                                              key={zone.id}
+                                              className="grid grid-cols-1 gap-2 rounded-lg border border-gray-200 bg-white p-2 md:grid-cols-[1.4fr_0.8fr_auto_auto]"
+                                            >
+                                              <div>
+                                                <label className="text-xs text-gray-500">Bairro / regiao</label>
+                                                <input
+                                                  value={zone.name}
+                                                  onChange={(event) => updateNeighborhoodRate(zone.id, 'name', event.target.value)}
+                                                  placeholder="Ex: Centro, Cambui, Vila Nova"
+                                                  className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                                                />
+                                              </div>
+                                              <div>
+                                                <label className="text-xs text-gray-500">Taxa (R$)</label>
+                                                <input
+                                                  type="number"
+                                                  min={0}
+                                                  step="0.01"
+                                                  value={zone.fee}
+                                                  onChange={(event) => updateNeighborhoodRate(zone.id, 'fee', Number(event.target.value || 0))}
+                                                  className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                                                />
+                                              </div>
+                                              <label className="flex items-end gap-2 text-xs text-gray-600">
+                                                <input
+                                                  type="checkbox"
+                                                  checked={zone.active}
+                                                  onChange={(event) => updateNeighborhoodRate(zone.id, 'active', event.target.checked)}
+                                                  className="mb-2 h-4 w-4 rounded border-gray-300 text-slate-800"
+                                                />
+                                                Ativo
+                                              </label>
+                                              <div className="flex items-end">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => removeNeighborhoodRate(zone.id)}
+                                                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-white text-red-500 hover:bg-red-50"
+                                                >
+                                                  <Trash2 size={14} />
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ))
+                                        ) : (
+                                          <p className="text-xs text-gray-500">Nenhum bairro com taxa fixa cadastrado.</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </>
+                                );
+                              })()}
                             </div>
-                            <div>
-                              <label className="text-sm text-gray-700">Taxa de Entrega Padrao</label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={settingsDraft.deliveryFee}
-                                onChange={(event) =>
-                                  setSettingsDraft((prev) =>
-                                    prev ? { ...prev, deliveryFee: Number(event.target.value || 0) } : prev
-                                  )
-                                }
-                                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-sm text-gray-700">Tempo Estimado</label>
-                              <input
-                                value={settingsDeliveryEta}
-                                onChange={(event) => setSettingsDeliveryEta(event.target.value)}
-                                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                              />
-                            </div>
-                          </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -5378,7 +5633,7 @@ export default function MasterPage() {
                                       : 'border-gray-300 bg-white text-gray-500'
                                   }`}
                                 >
-                                  {settingsPaymentMethods[item.key] ? 'Ã¢â‚¬Â¢ ' : ''}
+                                  {settingsPaymentMethods[item.key] ? 'OK - ' : ''}
                                   {item.label}
                                 </button>
                               ))}
@@ -5708,253 +5963,6 @@ export default function MasterPage() {
                             )}
                           </div>
 
-                          <div className="rounded-xl border border-gray-200 bg-white p-4">
-                            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                              <div>
-                                <p className="text-base font-semibold text-gray-900">Raio e Logistica de Entrega</p>
-                                <p className="text-sm text-gray-500">
-                                  Configure taxa por distancia/faixa, bairros com taxa fixa e despacho manual/automatico.
-                                </p>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={ensureSettingsDeliveryConfig}
-                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                              >
-                                Inicializar configuracao
-                              </button>
-                            </div>
-
-                            {settingsDraft?.deliveryConfig && (
-                              <div className="mt-4 space-y-4">
-                                {(() => {
-                                  const deliveryCfg = settingsDraft!.deliveryConfig!;
-                                  return (
-                                    <>
-                                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                                  <div>
-                                    <label className="text-sm text-gray-700">Raio maximo de entrega (km)</label>
-                                    <input
-                                      type="number"
-                                      min={1}
-                                      max={100}
-                                      step="0.5"
-                                      value={deliveryCfg.radiusKm}
-                                      onChange={(event) =>
-                                        updateDeliveryConfig((current) => ({
-                                          ...current,
-                                          radiusKm: Number(event.target.value || 1)
-                                        }))
-                                      }
-                                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-sm text-gray-700">Regra de taxa</label>
-                                    <select
-                                      value={deliveryCfg.feeMode}
-                                      onChange={(event) =>
-                                        updateDeliveryConfig((current) => ({
-                                          ...current,
-                                          feeMode: event.target.value as RestaurantDeliveryConfig['feeMode']
-                                        }))
-                                      }
-                                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                                    >
-                                      <option value="flat">Taxa padrao</option>
-                                      <option value="distance_bands">Por faixa de distancia</option>
-                                      <option value="neighborhood_fixed">Por bairro (taxa fixa)</option>
-                                      <option value="hybrid">Hibrido (bairro &gt; faixa &gt; padrao)</option>
-                                    </select>
-                                  </div>
-                                  <div>
-                                    <label className="text-sm text-gray-700">Despacho</label>
-                                    <select
-                                      value={deliveryCfg.dispatchMode}
-                                      onChange={(event) =>
-                                        updateDeliveryConfig((current) => ({
-                                          ...current,
-                                          dispatchMode: event.target.value as 'manual' | 'auto'
-                                        }))
-                                      }
-                                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                                    >
-                                      <option value="manual">Manual</option>
-                                      <option value="auto">Automatico</option>
-                                    </select>
-                                  </div>
-                                </div>
-
-                                <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
-                                  <input
-                                    type="checkbox"
-                                    checked={deliveryCfg.autoDispatchEnabled}
-                                    onChange={(event) =>
-                                      updateDeliveryConfig((current) => ({
-                                        ...current,
-                                        autoDispatchEnabled: event.target.checked
-                                      }))
-                                    }
-                                    className="h-4 w-4 rounded border-gray-300 text-slate-800"
-                                  />
-                                  Habilitar auto despacho (modo inicial - sem integracao de entregadores)
-                                </label>
-
-                                <div className="rounded-xl border border-gray-200 bg-white p-3">
-                                  <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
-                                    <input
-                                      type="checkbox"
-                                      checked={deliveryCfg.pickupEnabled}
-                                      onChange={(event) =>
-                                        updateDeliveryConfig((current) => ({
-                                          ...current,
-                                          pickupEnabled: event.target.checked
-                                        }))
-                                      }
-                                      className="h-4 w-4 rounded border-gray-300 text-slate-800"
-                                    />
-                                    Permitir retirada no local
-                                  </label>
-                                  <div className="mt-3">
-                                    <label className="text-sm text-gray-700">Instrucoes de retirada (opcional)</label>
-                                    <textarea
-                                      value={deliveryCfg.pickupInstructions ?? ''}
-                                      onChange={(event) =>
-                                        updateDeliveryConfig((current) => ({
-                                          ...current,
-                                          pickupInstructions: event.target.value
-                                        }))
-                                      }
-                                      rows={3}
-                                      placeholder="Ex.: Retire no balcao e informe o numero do pedido."
-                                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none"
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                                  <div className="mb-2 flex items-center justify-between gap-3">
-                                    <p className="text-sm font-semibold text-gray-900">Taxa por distancia / faixa</p>
-                                    <button
-                                      type="button"
-                                      onClick={addDeliveryBand}
-                                      className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                                    >
-                                      <Plus size={12} /> Nova faixa
-                                    </button>
-                                  </div>
-                                  <div className="space-y-2">
-                                    {deliveryCfg.distanceBands.length ? (
-                                      deliveryCfg.distanceBands.map((band) => (
-                                        <div key={band.id} className="grid grid-cols-1 gap-2 rounded-lg border border-gray-200 bg-white p-2 md:grid-cols-[1fr_1fr_auto]">
-                                          <div>
-                                            <label className="text-xs text-gray-500">Ate (km)</label>
-                                            <input
-                                              type="number"
-                                              min={0.5}
-                                              step="0.5"
-                                              value={band.upToKm}
-                                              onChange={(event) => updateDeliveryBand(band.id, 'upToKm', Number(event.target.value || 1))}
-                                              className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
-                                            />
-                                          </div>
-                                          <div>
-                                            <label className="text-xs text-gray-500">Taxa (R$)</label>
-                                            <input
-                                              type="number"
-                                              min={0}
-                                              step="0.01"
-                                              value={band.fee}
-                                              onChange={(event) => updateDeliveryBand(band.id, 'fee', Number(event.target.value || 0))}
-                                              className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
-                                            />
-                                          </div>
-                                          <div className="flex items-end">
-                                            <button
-                                              type="button"
-                                              onClick={() => removeDeliveryBand(band.id)}
-                                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-white text-red-500 hover:bg-red-50"
-                                            >
-                                              <Trash2 size={14} />
-                                            </button>
-                                          </div>
-                                        </div>
-                                      ))
-                                    ) : (
-                                      <p className="text-xs text-gray-500">Nenhuma faixa cadastrada.</p>
-                                    )}
-                                  </div>
-                                </div>
-
-                                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                                  <div className="mb-2 flex items-center justify-between gap-3">
-                                    <p className="text-sm font-semibold text-gray-900">Bairros atendidos com taxa fixa</p>
-                                    <button
-                                      type="button"
-                                      onClick={addNeighborhoodRate}
-                                      className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                                    >
-                                      <Plus size={12} /> Novo bairro
-                                    </button>
-                                  </div>
-                                  <div className="space-y-2">
-                                    {deliveryCfg.neighborhoodRates.length ? (
-                                      deliveryCfg.neighborhoodRates.map((zone) => (
-                                        <div
-                                          key={zone.id}
-                                          className="grid grid-cols-1 gap-2 rounded-lg border border-gray-200 bg-white p-2 md:grid-cols-[1.4fr_0.8fr_auto_auto]"
-                                        >
-                                          <div>
-                                            <label className="text-xs text-gray-500">Bairro / regiao</label>
-                                            <input
-                                              value={zone.name}
-                                              onChange={(event) => updateNeighborhoodRate(zone.id, 'name', event.target.value)}
-                                              placeholder="Ex: Centro, Cambui, Vila Nova"
-                                              className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
-                                            />
-                                          </div>
-                                          <div>
-                                            <label className="text-xs text-gray-500">Taxa (R$)</label>
-                                            <input
-                                              type="number"
-                                              min={0}
-                                              step="0.01"
-                                              value={zone.fee}
-                                              onChange={(event) => updateNeighborhoodRate(zone.id, 'fee', Number(event.target.value || 0))}
-                                              className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
-                                            />
-                                          </div>
-                                          <label className="flex items-end gap-2 text-xs text-gray-600">
-                                            <input
-                                              type="checkbox"
-                                              checked={zone.active}
-                                              onChange={(event) => updateNeighborhoodRate(zone.id, 'active', event.target.checked)}
-                                              className="mb-2 h-4 w-4 rounded border-gray-300 text-slate-800"
-                                            />
-                                            Ativo
-                                          </label>
-                                          <div className="flex items-end">
-                                            <button
-                                              type="button"
-                                              onClick={() => removeNeighborhoodRate(zone.id)}
-                                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-white text-red-500 hover:bg-red-50"
-                                            >
-                                              <Trash2 size={14} />
-                                            </button>
-                                          </div>
-                                        </div>
-                                      ))
-                                    ) : (
-                                      <p className="text-xs text-gray-500">Nenhum bairro com taxa fixa cadastrado.</p>
-                                    )}
-                                  </div>
-                                </div>
-                                    </>
-                                  );
-                                })()}
-                              </div>
-                            )}
-                          </div>
                         </div>
                       </div>
                     )}
